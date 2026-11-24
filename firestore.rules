@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.email == 'thehonoredone.717@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 3. Entity Validation Blueprints (No existing()/diff() allowed here)
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'username', 'displayName', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'username', 'displayName', 'role', 'createdAt', 'updatedAt'])
+        && data.uid is string
+        && data.uid.size() >= 1
+        && data.uid.size() <= 128
+        && data.uid == userId
+        && data.username is string
+        && data.username.size() >= 3
+        && data.username.size() <= 32
+        && data.username.matches('^[a-z0-9_.]{3,32}$')
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 60
+        && data.role is string
+        && data.role in ['student', 'teacher']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidQuizAttempt(data, attemptId) {
+      return data.keys().hasAll([
+          'id', 'userId', 'username', 'studentName', 'subjectId', 'difficulty',
+          'variant', 'mode', 'score', 'total', 'percentage', 'grade',
+          'elapsedSeconds', 'completedAt', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'userId', 'username', 'studentName', 'subjectId', 'difficulty',
+          'variant', 'mode', 'score', 'total', 'percentage', 'grade',
+          'elapsedSeconds', 'completedAt', 'createdAt'
+        ])
+        && data.id is string
+        && data.id.size() >= 1
+        && data.id.size() <= 128
+        && data.id == attemptId
+        && data.userId is string
+        && data.userId.size() >= 1
+        && data.userId.size() <= 128
+        && data.userId == request.auth.uid
+        && data.username is string
+        && data.username.size() >= 3
+        && data.username.size() <= 32
+        && data.username.matches('^[a-z0-9_.]{3,32}$')
+        && data.studentName is string
+        && data.studentName.size() >= 1
+        && data.studentName.size() <= 60
+        && data.subjectId is string
+        && data.subjectId in ['math', 'history', 'science', 'computing', 'english', 'uzbek']
+        && data.difficulty is string
+        && data.difficulty in ['easy', 'medium', 'hard']
+        && data.variant is string
+        && data.variant.size() >= 1
+        && data.variant.size() <= 24
+        && data.mode is string
+        && data.mode in ['practice', 'exam']
+        && data.score is int
+        && data.score >= 0
+        && data.score <= 25
+        && data.total is int
+        && data.total == 25
+        && data.percentage is int
+        && data.percentage >= 0
+        && data.percentage <= 100
+        && data.grade is int
+        && data.grade in [2, 3, 4, 5]
+        && data.elapsedSeconds is int
+        && data.elapsedSeconds >= 0
+        && data.elapsedSeconds <= 86400
+        && data.completedAt is string
+        && data.completedAt.size() >= 10
+        && data.completedAt.size() <= 40
+        && data.createdAt is timestamp
+        && data.createdAt == request.time;
+    }
+
+    // 4. Collection Match Blocks
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (incoming().role == 'student' || isAdmin());
+
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isOwner(userId)
+            && incoming().role == existing().role
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']))
+          || (isAdmin()
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'username', 'role', 'updatedAt']))
+        );
+
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    match /attempts/{attemptId} {
+      allow get: if isValidId(attemptId) && (isAdmin() || (isSignedIn() && existing().userId == request.auth.uid));
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      allow create: if isSignedIn()
+        && isValidId(attemptId)
+        && isValidQuizAttempt(incoming(), attemptId)
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(attemptId);
+    }
+  }
+}
