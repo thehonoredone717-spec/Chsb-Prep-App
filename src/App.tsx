@@ -339,6 +339,7 @@ export default function App() {
   };
 
   const handleDownloadHtml = () => {
+    if (!isTeacher) return;
     downloadStandaloneHtml();
     setDownloadNotice(true);
     window.setTimeout(() => setDownloadNotice(false), 3000);

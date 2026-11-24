@@ -98,16 +98,18 @@ export function TopBar({
             <span className="hidden sm:inline">{copy.signOut}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={onDownloadHtml}
-            className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
-          >
-            <Download className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden lg:inline">
-              {downloadNotice ? copy.htmlDownloaded : copy.downloadHtml}
-            </span>
-          </button>
+          {isTeacher && (
+            <button
+              type="button"
+              onClick={onDownloadHtml}
+              className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden lg:inline">
+                {downloadNotice ? copy.htmlDownloaded : copy.downloadHtml}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </header>
