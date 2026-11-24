@@ -55,8 +55,8 @@ export const SUBJECTS: SubjectConfig[] = [
     title: { uz: 'Science (Tabiiy fanlar)', en: 'Science (Combined G7)' },
     shortLabel: { uz: 'Science', en: 'Science' },
     subtitle: {
-      uz: 'Kimyoviy bog‘lanish, fotosintez, uglerod sikli, zichlik, tovush va energiya',
-      en: 'Variables, bonding, periodic trends, plant transport, carbon cycle, density & energy',
+      uz: "O‘zgaruvchilar, laboratoriya xavfsizligi, molekulalar, ionlar, bog‘lanish, minerallar, fotosintez, uglerod sikli va zichlik",
+      en: 'Variables, lab safety & tools, molecules, ions, bonding, structures, minerals, photosynthesis, water pathways, carbon cycle, periodic trends & density',
     },
     questionLangNote: { uz: 'Savollar tili: Inglizcha', en: 'Question language: English' },
     topics: scienceTopics,

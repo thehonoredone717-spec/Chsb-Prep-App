@@ -1,48 +1,65 @@
 import { QuestionItem, StudyGuideItem } from '../types/quiz';
 
 export const scienceTopics: string[] = [
-  '1. Variables & Lab Safety',
-  '2. Atomic Structure, Ions & Periodic Table Trends',
-  '3. Molecules, Bonding & Structures',
-  '4. Plant Transport, Minerals & Photosynthesis',
-  '5. Carbon Cycle',
-  '6. Density, Thermal Transfer, Sound & Energy',
+  '1. Variables',
+  '2. Safety in the laboratory (including the use of laboratory tools)',
+  '3. Molecules',
+  '4. Ions',
+  '5. Chemical bonding',
+  '6. Simple and giant structures',
+  '7. Properties of ionic and covalent compounds',
+  '8. Minerals',
+  '9. Photosynthesis',
+  '10. Pathways of water and minerals',
+  '11. Carbon cycle',
+  '12. Trends in the periodic table',
+  '13. Density',
 ];
 
 export const scienceStudyGuide: StudyGuideItem[] = [
   {
-    title: 'Variables & Laboratory Safety',
+    title: 'Variables & Safety in the Laboratory (including Lab Tools)',
     points: [
-      'Independent variable: the one factor you deliberately change (plotted on x-axis). Dependent variable: what you measure (y-axis). Controlled variables: kept constant for a fair test.',
-      'Prediction vs Conclusion: prediction states what you expect before testing; conclusion summarizes the pattern using collected evidence.',
-      'Safety: wear goggles, tie back long hair, use a fume cupboard or heatproof mat when needed, never taste chemicals, and use a water bath or pure distilled water to avoid tap-water mineral contamination.',
+      'Variables: Independent variable = the one factor you deliberately change (plotted on x-axis); Dependent variable = what you measure (y-axis); Controlled variables = factors kept the same for a fair test.',
+      'Prediction vs Conclusion: prediction states what you expect before testing; conclusion summarizes the pattern using collected evidence. Repeat readings let you spot anomalies and calculate a mean.',
+      'Lab safety: always wear safety goggles when heating or mixing chemicals, tie back long hair, place a heatproof mat under a Bunsen burner, use a water bath for flammable liquids (e.g., ethanol), use a fume cupboard for harmful gases, and keep a yellow/orange safety flame when not actively heating.',
+      'Laboratory tools: read a measuring cylinder / burette meniscus at eye level for volume; use an electronic balance for mass (g); use a thermometer at eye level for temperature (°C); use a stop-clock for time (s); and use pure/distilled water so tap-water minerals do not spoil results.',
     ],
   },
   {
-    title: 'Chemistry: Atoms, Ions, Bonding & Group 1',
+    title: 'Molecules, Ions, Chemical Bonding & Structures',
     points: [
-      'Protons (+1, nucleus), Neutrons (0, nucleus), Electrons (−1, shells: 2,8,8). Atomic number = protons; Mass number = protons + neutrons.',
-      'Ionic bonding: metal loses electrons (+ ion) and non-metal gains electrons (− ion); strong electrostatic attraction in a giant lattice → high melting point, conducts electricity when molten or dissolved.',
-      'Covalent bonding: non-metal atoms share pairs of electrons. Simple molecules have low melting points (weak intermolecular forces) and do not conduct electricity. Diamond & graphite are giant covalent structures.',
-      'Group 1 (Li, Na, K, Rb): 1 outer electron, form +1 ions. Going down the group: more shells, outer electron lost more easily → reactivity increases; melting & boiling points decrease. Metal + water → metal hydroxide + hydrogen.',
+      'Molecules: two or more non-metal atoms joined by shared pairs of electrons (covalent bonds). Examples: elements like H₂, O₂, Cl₂, N₂ and compounds like H₂O, HCl, NH₃, CH₄, CO₂.',
+      'Ions: charged particles formed when atoms gain or lose outer electrons (protons never change). Metals lose electrons to form + ions (Na⁺, Li⁺, Mg²⁺, Ca²⁺); non-metals gain electrons to form − ions (Cl⁻, F⁻, O²⁻).',
+      'Chemical bonding: Ionic bonding transfers electrons from metal to non-metal, forming oppositely charged ions held by strong electrostatic attraction (e.g., NaCl, MgO, MgCl₂). Covalent bonding shares electron pairs between non-metal atoms.',
+      'Simple vs giant structures & properties: Simple molecular substances (CO₂, CH₄, H₂O) have strong covalent bonds INSIDE molecules but weak intermolecular forces BETWEEN molecules → low melting/boiling points and never conduct electricity.',
+      'Giant lattices: Giant ionic lattices (NaCl) have high melting/boiling points and conduct electricity ONLY when molten or dissolved (ions free to move), not when solid. Giant covalent structures (diamond, graphite) have very high melting points; graphite conducts because layers have free electrons and can slide.',
     ],
   },
   {
-    title: 'Biology: Plants, Photosynthesis & Carbon Cycle',
+    title: 'Trends in the Periodic Table (Atomic Structure & Group 1)',
     points: [
-      'Root hair cells absorb water by osmosis; xylem transports water & mineral ions upward; phloem transports dissolved sugars. Transpiration is water vapour loss via stomata.',
-      'Leaf layers: waxy cuticle, upper epidermis, palisade layer (most chloroplasts/photosynthesis), spongy layer (air spaces), lower epidermis with stomata.',
-      'Photosynthesis: carbon dioxide + water → glucose + oxygen (light + chlorophyll). Nitrate ions make amino acids/proteins for growth; magnesium ions make chlorophyll.',
-      'Carbon cycle: photosynthesis removes CO₂; respiration, decomposition (by microbes), and combustion release CO₂. Hydrogencarbonate indicator: purple (no CO₂), red (low CO₂), yellow (high CO₂).',
+      'Subatomic particles: Protons (+1, nucleus), Neutrons (0, nucleus), Electrons (−1, shells: 2,8,8). Atomic number = protons (= electrons in neutral atom); Mass number = protons + neutrons.',
+      'Periods & Groups: Period (row) = number of occupied electron shells; Group = outer-shell electrons (e.g., Group 1 = 1 outer electron; Group 8 noble gases have full outer shells and are unreactive).',
+      'Group 1 trends (Li, Na, K, Rb): going down the group, atoms have more shells and the outer electron is farther from the nucleus → lost more easily, so reactivity INCREASES while melting and boiling points DECREASE.',
+      'Group 1 reactions: Alkali metal + water → metal hydroxide + hydrogen (e.g., 2Na + 2H₂O → 2NaOH + H₂); Alkali metal + halogen → ionic salt (e.g., lithium + chlorine → lithium chloride).',
     ],
   },
   {
-    title: 'Physics: Density, Thermal Transfer, Sound & Energy',
+    title: 'Minerals, Photosynthesis, Water Pathways & Carbon Cycle',
     points: [
-      'Density ρ = mass ÷ volume (g/cm³ or kg/m³). Water ≈ 1.0 g/cm³: objects < 1.0 g/cm³ float; > 1.0 g/cm³ sink. Hollow ships float because air lowers average density.',
-      'Heat transfers from hot to cold by conduction (solids/metals), convection (liquids/gases), and radiation (infrared, travels through vacuum). Evaporation cools because fastest particles escape.',
-      'Sound waves: amplitude = loudness (centre line to crest); frequency (Hz) = pitch. Reinforcement (in step) increases amplitude; cancellation (crest meets trough) reduces it.',
-      'Conservation of energy: energy cannot be created or destroyed, only transferred or transformed. Useful % + thermal/dissipated % = 100%.',
+      'Minerals: Nitrate ions are needed to make amino acids and proteins for growth (shortage → stunted growth). Magnesium ions are needed to make green chlorophyll (shortage → yellow leaves and less photosynthesis).',
+      'Photosynthesis: carbon dioxide + water → glucose + oxygen (uses light absorbed by chlorophyll inside palisade-layer chloroplasts). Limiting factors: light intensity, CO₂ concentration, and temperature.',
+      'Pathways of water and minerals: Root hair cells (large surface area) absorb water by osmosis across a partially permeable membrane → xylem vessels carry water & mineral ions up the stem → leaves (waxy cuticle, upper epidermis, palisade layer, spongy layer, lower epidermis) → water vapour exits through stomata (transpiration). Phloem carries dissolved sugars.',
+      'Carbon cycle: Photosynthesis removes CO₂ from air; respiration (plants, animals, decomposers), decomposition (microbes), and combustion (burning fossil fuels/wood) release CO₂. Feeding transfers carbon compounds. Hydrogencarbonate indicator: purple (no CO₂), red (low CO₂), yellow (high CO₂).',
+    ],
+  },
+  {
+    title: 'Density, Floating & Sinking',
+    points: [
+      'Density formula: density = mass ÷ volume (ρ = m / V), in g/cm³ or kg/m³. Rearrange: mass = density × volume; volume = mass ÷ density. Remember 1 cm = 10 mm when converting dimensions.',
+      'Material property: pure substances have the same density whether you test a small piece or a large block. Gases have very low densities (~0.002 g/cm³) because particles are far apart.',
+      'Floating & sinking: objects with density lower than the liquid (< 1.0 g/cm³ in water) float; > 1.0 g/cm³ sink. A hollow steel ship floats because trapped air makes its overall average density less than seawater (~1.02 g/cm³).',
     ],
   },
 ];
@@ -51,7 +68,7 @@ export const scienceQuestions: QuestionItem[] = [
   // ==================== VARIANT 1 (Questions 1-25) ====================
   {
     id: 's1',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'easy',
     q: 'A student changes water temperature (20°C, 40°C, 60°C) to see how fast sugar dissolves. What is the independent variable?',
     opts: [
@@ -65,7 +82,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's2',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'easy',
     q: 'In an experiment measuring oxygen bubbles from a water plant at different light distances, what is the dependent variable?',
     opts: [
@@ -79,7 +96,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's3',
-    topic: '1. Variables & Lab Safety',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'medium',
     q: 'Why must Pierre use pure (distilled) water instead of tap water when investigating magnesium deficiency in plants?',
     opts: [
@@ -93,7 +110,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's4',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'medium',
     q: 'Which statement correctly distinguishes a conclusion from a prediction?',
     opts: [
@@ -107,7 +124,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's5',
-    topic: '1. Variables & Lab Safety',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'medium',
     q: 'Why should an experiment using Group 1 alkali metals and water be demonstrated by a teacher behind a safety screen?',
     opts: [
@@ -121,7 +138,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's6',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'medium',
     q: 'Carbon has atomic number 6 and mass number 12. How many protons, neutrons, and electrons does a neutral carbon atom have?',
     opts: ['6 protons, 6 neutrons, 6 electrons', '6 protons, 12 neutrons, 6 electrons', '12 protons, 6 neutrons, 12 electrons', '6 protons, 6 neutrons, 12 electrons'],
@@ -130,7 +147,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's7',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '4. Ions',
     difficulty: 'medium',
     q: 'How does a sodium atom (2,8,1) form a sodium ion, Na⁺?',
     opts: [
@@ -144,7 +161,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's8',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'An oxygen atom has electronic structure 2,6. To which group of the Periodic Table does oxygen belong?',
     opts: ['Group 6', 'Group 2', 'Group 8', 'Group 1'],
@@ -153,7 +170,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's9',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'How does the reactivity of Group 1 alkali metals change as you go down the group (Li → Na → K → Rb)?',
     opts: [
@@ -167,7 +184,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's10',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '5. Chemical bonding',
     difficulty: 'easy',
     q: 'What type of bonding is formed when a metal transfers electrons to a non-metal?',
     opts: ['Ionic bonding', 'Covalent bonding', 'Hydrogen bonding', 'Nuclear bonding'],
@@ -176,7 +193,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's11',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '3. Molecules',
     difficulty: 'easy',
     q: 'How are atoms held together inside a water molecule (H₂O) or methane molecule (CH₄)?',
     opts: [
@@ -190,7 +207,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's12',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '7. Properties of ionic and covalent compounds',
     difficulty: 'medium',
     q: 'Why do simple molecular covalent substances (like CO₂ and CH₄) have low melting and boiling points?',
     opts: [
@@ -204,7 +221,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's13',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '6. Simple and giant structures',
     difficulty: 'medium',
     q: 'Why does graphite feel soft and leave a mark on paper?',
     opts: [
@@ -218,7 +235,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's14',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'easy',
     q: 'Which plant tissue transports water and dissolved mineral ions from roots to leaves?',
     opts: ['Xylem', 'Phloem', 'Palisade layer', 'Upper epidermis'],
@@ -227,7 +244,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's15',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '9. Photosynthesis',
     difficulty: 'easy',
     q: 'What is the word equation for photosynthesis?',
     opts: [
@@ -241,7 +258,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's16',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '8. Minerals',
     difficulty: 'easy',
     q: 'Why do plants need magnesium ions from the soil?',
     opts: [
@@ -255,7 +272,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's17',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'easy',
     q: 'Which process in the carbon cycle is the ONLY one listed that removes carbon dioxide from the atmosphere?',
     opts: ['Photosynthesis', 'Respiration', 'Combustion', 'Decomposition'],
@@ -264,7 +281,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's18',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'medium',
     q: 'Hydrogencarbonate indicator turns yellow in high CO₂, red in low CO₂, and purple when there is no CO₂. What colour will it turn in a sealed tube containing only freshwater shrimp (animals) in the light?',
     opts: ['Yellow', 'Purple', 'Blue', 'Green'],
@@ -273,7 +290,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's19',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'medium',
     q: 'An object has a mass of 60 g and a volume of 50 cm³. Calculate its density and state whether it floats or sinks in water (density 1.0 g/cm³).',
     opts: ['1.2 g/cm³ — it sinks', '0.83 g/cm³ — it floats', '1.2 g/cm³ — it floats', '3000 g/cm³ — it sinks'],
@@ -282,7 +299,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's20',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'medium',
     q: 'Mild steel has density 7.9 g/cm³, yet a steel ship floats on seawater (1.02 g/cm³). Why?',
     opts: [
@@ -296,48 +313,63 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's21',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'easy',
-    q: 'Which method of thermal energy transfer can travel through a vacuum (empty space without particles)?',
-    opts: ['Radiation', 'Conduction', 'Convection', 'Evaporation'],
+    q: "Which laboratory tool is used to measure the mass of a solid sample in grams?",
+    opts: [
+      "A digital electronic balance",
+      "A glass measuring cylinder",
+      "A liquid-in-glass thermometer",
+      "A handheld laboratory stopwatch",
+    ],
     answer: 0,
-    explain: 'Thermal radiation travels as infrared waves and does not require particles.',
+    explain: "A balance measures mass in grams or kilograms; measuring cylinders measure volume and thermometers measure temperature.",
   },
   {
     id: 's22',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'easy',
-    q: 'Jamila spills liquid on her hand and after a short time her hand feels cold. Which process causes this cooling?',
-    opts: ['Evaporation', 'Conduction', 'Convection', 'Radiation'],
+    q: "Why must students always wear safety goggles when heating chemicals in a test tube?",
+    opts: [
+      "To protect eyes from splashes",
+      "To see small bubbles clearly",
+      "To keep hair away from flames",
+      "To cool hot glass containers",
+    ],
     answer: 0,
-    explain: 'The fastest-moving particles escape from the liquid surface during evaporation, leaving behind lower-energy particles and cooling the skin.',
+    explain: "Safety goggles shield eyes against hot splashes, fumes, and accidental glass fragments.",
   },
   {
     id: 's23',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '3. Molecules',
     difficulty: 'easy',
-    q: 'How does increasing the amplitude of a sound wave change the sound we hear?',
+    q: "Which formula represents a molecule made of two oxygen atoms joined together?",
     opts: [
-      "The sound wave becomes much louder",
-      "The sound pitch rises to a high note",
-      "The wave travels through empty vacuum",
-      "The sound stops and fades into silence",
+      "O₂",
+      "CO₂",
+      "H₂O",
+      "NaCl",
     ],
     answer: 0,
-    explain: 'Amplitude determines loudness; frequency determines pitch.',
+    explain: "An oxygen molecule consists of two oxygen atoms chemically bonded as O₂.",
   },
   {
     id: 's24',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '7. Properties of ionic and covalent compounds',
     difficulty: 'medium',
-    q: 'An electric motor transfers 65% of its input electrical energy to kinetic energy. What percentage is transferred to thermal energy?',
-    opts: ['35%', '65%', '100%', '25%'],
+    q: "Why do ionic compounds like sodium chloride have high melting and boiling points?",
+    opts: [
+      "Strong electrostatic ion attractions",
+      "Weak forces between small molecules",
+      "Free electrons moving between layers",
+      "Shared electron pairs in gas state",
+    ],
     answer: 0,
-    explain: 'By conservation of energy, percentages sum to 100%: 100% − 65% = 35%.',
+    explain: "Strong electrostatic attractions act in all directions between oppositely charged ions in the giant lattice, needing lots of energy to break.",
   },
   {
     id: 's25',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'easy',
     q: 'By which process does water enter root hair cells from the soil?',
     opts: ['Osmosis', 'Combustion', 'Evaporation', 'Convection'],
@@ -348,7 +380,7 @@ export const scienceQuestions: QuestionItem[] = [
   // ==================== VARIANT 2 (Questions 26-50) ====================
   {
     id: 's26',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'easy',
     q: 'On a scientific line graph, which axis is used for the independent variable?',
     opts: ['Horizontal (x) axis', 'Vertical (y) axis', 'Either axis randomly', 'Neither axis'],
@@ -357,7 +389,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's27',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'medium',
     q: 'In Chen’s transpiration experiment, he puts a layer of oil on top of the water in the measuring cylinder. Why?',
     opts: [
@@ -371,7 +403,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's28',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'medium',
     q: 'In Sofia’s duckweed experiment (changing grains of fertiliser: 0, 1, 2, 3, 4), how could she make her results more reliable?',
     opts: [
@@ -385,7 +417,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's29',
-    topic: '1. Variables & Lab Safety',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'easy',
     q: 'What piece of laboratory apparatus is best used to measure 25.0 cm³ of liquid volume accurately?',
     opts: [
@@ -399,7 +431,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's30',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'Which statement about the subatomic particles in an atom is true?',
     opts: [
@@ -413,7 +445,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's31',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'medium',
     q: 'Sodium has 11 protons and 12 neutrons. What are its atomic number, mass number, and electronic structure?',
     opts: [
@@ -427,7 +459,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's32',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '4. Ions',
     difficulty: 'easy',
     q: 'A fluorine atom has 9 electrons (2,7). When it forms a fluoride ion, F⁻, what is its new electronic structure?',
     opts: ['2,8', '2,6', '2,7', '2,8,1'],
@@ -436,7 +468,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's33',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'medium',
     q: 'Look at Group 1 melting points: Li = 180°C, Na = 98°C, K = 63°C. What is a sensible prediction for the melting point of rubidium (below K)?',
     opts: [
@@ -450,7 +482,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's34',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'Complete the word equation: potassium + water →',
     opts: [
@@ -464,7 +496,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's35',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '5. Chemical bonding',
     difficulty: 'medium',
     q: 'Magnesium (2,8,2) reacts with oxygen (2,6) to form magnesium oxide (MgO). How many electrons are transferred from each Mg atom to each O atom?',
     opts: ['2 electrons', '1 electron', '6 electrons', '8 electrons'],
@@ -473,7 +505,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's36',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '7. Properties of ionic and covalent compounds',
     difficulty: 'medium',
     q: 'Why do ionic compounds conduct electricity when dissolved in water or melted, but NOT when solid?',
     opts: [
@@ -487,7 +519,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's37',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '3. Molecules',
     difficulty: 'medium',
     q: 'How many total electrons are in one molecule of methane, CH₄ (Carbon = 6 electrons, Hydrogen = 1 electron each)?',
     opts: ['10 electrons', '8 electrons', '5 electrons', '16 electrons'],
@@ -496,7 +528,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's38',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '6. Simple and giant structures',
     difficulty: 'easy',
     q: 'Which substance is a giant ionic lattice with a very high melting point?',
     opts: ['Sodium chloride (NaCl)', 'Methane (CH₄)', 'Carbon dioxide (CO₂)', 'Hydrogen chloride (HCl)'],
@@ -505,7 +537,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's39',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '9. Photosynthesis',
     difficulty: 'easy',
     q: 'In a leaf cross-section, which layer contains the most chloroplasts and carries out most photosynthesis?',
     opts: ['Palisade layer', 'Upper epidermis', 'Waxy cuticle', 'Root cortex'],
@@ -514,7 +546,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's40',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '9. Photosynthesis',
     difficulty: 'easy',
     q: 'Which two gases are exchanged through the stomata of a leaf?',
     opts: [
@@ -528,7 +560,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's41',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '8. Minerals',
     difficulty: 'hard',
     q: 'In Priya’s barley experiment, seedlings with nitrate + magnesium reached 3.8 g dry mass; with magnesium but NO nitrate reached 1.9 g; with nitrate but NO magnesium reached 2.8 g. What do nitrate ions provide?',
     opts: [
@@ -542,7 +574,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's42',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'easy',
     q: 'Which process transfers carbon compounds from green plants to animals?',
     opts: ['Feeding', 'Combustion', 'Photosynthesis', 'Evaporation'],
@@ -551,7 +583,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's43',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'medium',
     q: 'Why does replacing coal-fired power stations with wind turbines and solar panels affect the carbon cycle?',
     opts: [
@@ -565,7 +597,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's44',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'hard',
     q: 'Polyethylene has density 0.91 g/cm³, polypropylene 0.94 g/cm³, and cellulose acetate 1.28 g/cm³. Engine oil has density 0.92 g/cm³ and water is 1.0 g/cm³. Which plastic sinks in engine oil but floats in water?',
     opts: [
@@ -579,7 +611,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's45',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'easy',
     q: 'A block of aluminium has volume 5.0 cm³ and mass 13.5 g. What is its density?',
     opts: ['2.7 g/cm³', '67.5 g/cm³', '0.37 g/cm³', '8.5 g/cm³'],
@@ -588,74 +620,79 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's46',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'medium',
-    q: 'Which statement about heat and temperature is TRUE?',
+    q: "When setting up a Bunsen burner on a laboratory bench, what should be placed underneath it?",
     opts: [
-      "Thermal energy moves naturally from hot to cold objects",
-      "Total thermal energy in water is measured only in °C",
-      "Extra thermal energy is always created as heat moves",
-      "Heat and temperature always mean the exact same thing",
+      "A heatproof mat to shield bench",
+      "A dry paper towel sheet",
+      "A plastic tray filled with oil",
+      "A thin wooden cutting board",
     ],
     answer: 0,
-    explain: 'Temperature is measured in °C; heat is thermal energy transferred from hotter to colder regions, and energy is conserved.',
+    explain: "A heatproof mat protects the laboratory workbench from scorching and hot equipment.",
   },
   {
     id: 's47',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '4. Ions',
     difficulty: 'medium',
-    q: 'Why does convection happen in liquids and gases, but NOT in solids?',
+    q: "How is an oxide ion (O²⁻) formed when an oxygen atom (electronic structure 2,6) reacts with magnesium?",
     opts: [
-      "Fluid particles flow freely; solid particles vibrate fixed",
-      "Rigid solids contain zero moving atoms or tiny particles",
-      "Gas particles have zero mass and cannot possess density",
-      "Warm dense fluids sink downwards while cold fluids rise",
+      "It gains two outer electrons",
+      "It loses two outer electrons",
+      "It gains two nuclear protons",
+      "It shares two inner neutrons",
     ],
     answer: 0,
-    explain: 'Convection relies on warmer, less dense fluid rising and cooler, denser fluid sinking to form a current.',
+    explain: "Oxygen (2,6) needs 2 more electrons to fill its outer shell (2,8), forming a 2− oxide ion, O²⁻.",
   },
   {
     id: 's48',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '7. Properties of ionic and covalent compounds',
     difficulty: 'hard',
-    q: 'Waveform A has amplitude 1 cm and 2 cycles in the time window; Waveform B has amplitude 4 cm and 1 cycle in the same window. Which statement is correct?',
+    q: "Why does solid sodium chloride NOT conduct electricity, whereas molten sodium chloride DOES conduct?",
     opts: [
-      "Wave B is 4× louder; Wave A has 2× pitch frequency",
-      "Wave B gives a much higher musical pitch than A",
-      "Wave A carries a larger wave amplitude than B",
-      "Both waveforms show the exact same wave pitch",
+      "Ions move freely only when melted",
+      "Electrons are released only when melted",
+      "Covalent bonds break only in liquids",
+      "Water molecules carry charge in solids",
     ],
     answer: 0,
-    explain: 'Amplitude B/A = 4/1 = 4 (louder). Frequency A/B = 2/1 = 2 (higher pitch).',
+    explain: "In a solid ionic lattice, ions are locked in fixed positions; melting frees the ions to move and carry electric charge.",
   },
   {
     id: 's49',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '8. Minerals',
     difficulty: 'easy',
-    q: 'What happens when two identical sound waves meet with a crest meeting a trough (out of step)?',
+    q: "Which mineral ion do plants absorb from soil to make amino acids and proteins for healthy growth?",
     opts: [
-      "Cancellation reduces the resultant amplitude to zero",
-      "Reinforcement doubles the original wave amplitude",
-      "The vibrating sound frequency suddenly doubles up",
-      "The two sound waves turn directly into light waves",
+      "Nitrate ions",
+      "Magnesium ions",
+      "Chloride ions",
+      "Sodium ions",
     ],
     answer: 0,
-    explain: 'When crests align with troughs of equal amplitude, their displacements cancel out.',
+    explain: "Nitrate ions supply nitrogen needed to build amino acids and proteins for plant growth.",
   },
   {
     id: 's50',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'medium',
-    q: '100 J of electrical energy is supplied to a motor, changing into thermal and kinetic energy. What is the total quantity of thermal and kinetic energy produced?',
-    opts: ['100 J', '50 J', '200 J', '0 J'],
+    q: "Trace the correct pathway of water moving from the soil through a plant and out into the air.",
+    opts: [
+      "Root hair → xylem → leaf → stomata",
+      "Stomata → phloem → root → xylem",
+      "Cuticle → xylem → phloem → roots",
+      "Root hair → phloem → stem → petal",
+    ],
     answer: 0,
-    explain: 'By the law of conservation of energy, total energy output equals total energy input (100 J).',
+    explain: "Water enters root hair cells by osmosis, travels up xylem vessels through the stem to leaves, and exits as vapour via stomata.",
   },
 
   // ==================== VARIANT 3 (Questions 51-75) ====================
   {
     id: 's51',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'easy',
     q: 'Arun tests how light affects photosynthesis using water plants next to a window (A), in a shady corner (B), and in a dark cupboard (C). Which variable must he CHANGE?',
     opts: ['The amount of light', 'The type of plant', 'The mass of the plant', 'The water temperature'],
@@ -664,7 +701,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's52',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'medium',
     q: 'In Arun’s experiment (A = window: 18.3 cm³ gas, B = shade: 7.2 cm³, C = dark: 0.5 cm³), what conclusion can he make?',
     opts: [
@@ -678,7 +715,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's53',
-    topic: '1. Variables & Lab Safety',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'easy',
     q: 'When heating a flammable liquid like ethanol in the lab, which safety method should be used?',
     opts: [
@@ -692,7 +729,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's54',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'Potassium has 19 protons and 20 neutrons. What is its electronic structure?',
     opts: ['2,8,8,1', '2,8,9', '2,8,7,2', '2,8,1'],
@@ -701,7 +738,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's55',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'What do lithium (2,1), sodium (2,8,1), and potassium (2,8,8,1) atoms all have in common?',
     opts: [
@@ -715,7 +752,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's56',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'Why are Group 8 (Group 0) noble gases unreactive?',
     opts: [
@@ -729,7 +766,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's57',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'hard',
     q: 'Looking at the Group 1 data table (Li density 0.53, Na 0.97, K 0.89, Rb 1.53 g/cm³), which property does NOT show a completely smooth trend down the group?',
     opts: ['Density', 'Boiling point', 'Atomic radius', 'Reactivity'],
@@ -738,7 +775,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's58',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '5. Chemical bonding',
     difficulty: 'medium',
     q: 'Magnesium (2,8,2) reacts with chlorine (2,8,7) to make magnesium chloride. What is its chemical formula?',
     opts: ['MgCl₂', 'MgCl', 'Mg₂Cl', 'Mg₂Cl₃'],
@@ -747,7 +784,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's59',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '3. Molecules',
     difficulty: 'easy',
     q: 'Which of these molecules is an element rather than a compound: H₂, H₂O, CO₂, CH₄?',
     opts: ['H₂', 'H₂O', 'CO₂', 'CH₄'],
@@ -756,7 +793,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's60',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '7. Properties of ionic and covalent compounds',
     difficulty: 'medium',
     q: 'Why do simple covalent molecules NOT conduct electricity?',
     opts: [
@@ -770,7 +807,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's61',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '9. Photosynthesis',
     difficulty: 'easy',
     q: 'What is the function of chlorophyll inside chloroplasts?',
     opts: [
@@ -784,7 +821,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's62',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'easy',
     q: 'What is transpiration?',
     opts: [
@@ -798,7 +835,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's63',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '8. Minerals',
     difficulty: 'hard',
     q: 'Which solution increases photosynthesis the most: A (2% nitrates, 1.0% Mg), B (6% nitrates, 0.2% Mg), or C (4% nitrates, 1.2% Mg)?',
     opts: [
@@ -812,7 +849,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's64',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'easy',
     q: 'Which organisms break down dead plants and animals, returning carbon dioxide to the air via respiration?',
     opts: [
@@ -826,7 +863,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's65',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'medium',
     q: 'In Arun’s boiling tube experiment with hydrogencarbonate indicator: Tube C has ONLY a water plant in the light. What colour does the indicator turn after 2 hours?',
     opts: [
@@ -840,7 +877,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's66',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'medium',
     q: 'Why does Arun put a bung (stopper) in each boiling tube?',
     opts: [
@@ -854,7 +891,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's67',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'medium',
     q: 'Copper has a density of 8.96 g/cm³. What is the mass of 20 cm³ of copper?',
     opts: ['179.2 g', '0.448 g', '28.96 g', '2.23 g'],
@@ -863,7 +900,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's68',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'easy',
     q: 'Which substance in Chen’s table is most likely a gas: A (7.9 g/cm³), B (0.0022 g/cm³), C (11 g/cm³), or D (7.3 g/cm³)?',
     opts: [
@@ -877,63 +914,63 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's69',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'hard',
-    q: 'Two beakers X (50 cm³ water) and Y (100 cm³ water) are at the same temperature (50°C). Which statement is correct?',
+    q: "When transferring harmful gas-producing chemicals or volatile acids, which piece of equipment is required?",
     opts: [
-      "Same average kinetic energy, but Beaker Y holds twice the heat",
-      "Beaker X holds more total thermal energy than Beaker Y",
-      "Beaker Y has faster moving hot particles than Beaker X",
-      "Both glass beakers store the exact same total thermal energy",
+      "A ventilated fume cupboard",
+      "An uncovered porcelain crucible",
+      "A wooden test tube rack",
+      "A sealed plastic dropper bottle",
     ],
     answer: 0,
-    explain: 'Same temperature = same average particle kinetic energy; double the mass of water = double the total thermal energy.',
+    explain: "A fume cupboard safely extracts toxic or irritating vapours away from students and the classroom.",
   },
   {
     id: 's70',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '3. Molecules',
     difficulty: 'medium',
-    q: 'Which three conditions increase the rate of evaporation of a liquid?',
+    q: "In a molecule of ammonia (NH₃), how many atoms are covalently bonded together in total?",
     opts: [
-      "Higher warmth, larger surface area, and moving air",
-      "Lower warmth, smaller surface area, and still air",
-      "Sealed tight lid, cooling down, and higher pressure",
-      "Freezing the open liquid rapidly into solid ice",
+      "Four atoms: one N and three H",
+      "Three atoms: one N and two H",
+      "Five atoms: two N and three H",
+      "Two atoms: one N and one H",
     ],
     answer: 0,
-    explain: 'Higher temperature gives particles more energy; larger surface area and wind help escaped particles move away.',
+    explain: "NH₃ contains 1 nitrogen atom bonded to 3 hydrogen atoms, making 4 atoms in one molecule.",
   },
   {
     id: 's71',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '6. Simple and giant structures',
     difficulty: 'medium',
-    q: 'How is sound produced and how does it travel through air?',
+    q: "Which pair of substances BOTH have giant covalent structures made entirely of carbon atoms?",
     opts: [
-      "Vibrations pass wave energy through particles without bulk flow",
-      "Individual air molecules fly all the way from speaker to ear",
-      "High-speed infrared waves travel across an empty airless vacuum",
-      "Chemical bonds between nitrogen atoms snap to make sound waves",
+      "Diamond and solid graphite",
+      "Methane and carbon dioxide",
+      "Sodium chloride and water",
+      "Ammonia and hydrogen chloride",
     ],
     answer: 0,
-    explain: 'Particles vibrate back and forth around fixed positions, passing the energy forward as a wave.',
+    explain: "Both diamond and graphite are giant covalent macromolecular structures consisting purely of carbon atoms.",
   },
   {
     id: 's72',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'medium',
-    q: 'Why does Sofia need more chemical energy from food on days when she plays sports compared to resting?',
+    q: "Pine wood (0.41 g/cm³), polyethene (0.95 g/cm³), and polycarbonate (1.2 g/cm³) are dropped in water (1.0 g/cm³). Which one sinks?",
     opts: [
-      "More chemical energy converts into kinetic and thermal energy",
-      "Playing outdoor sports creates fresh energy from empty space",
-      "Human muscle cells destroy kinetic energy during hard movement",
-      "Meals digested before sport hold far less chemical energy",
+      "Only polycarbonate sinks down",
+      "Only pine wood sinks down",
+      "Polyethene and pine both sink",
+      "All three plastics sink down",
     ],
     answer: 0,
-    explain: 'Energy is conserved: extra kinetic and thermal energy outputs require extra chemical energy input from food.',
+    explain: "Only polycarbonate (1.2 g/cm³) has a density greater than water (1.0 g/cm³), so it sinks while the others float.",
   },
   {
     id: 's73',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'Which element has electronic structure 2,8,3 (atomic number 13)?',
     opts: ['Aluminium (Al)', 'Magnesium (Mg)', 'Silicon (Si)', 'Sodium (Na)'],
@@ -942,7 +979,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's74',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'easy',
     q: 'What is the role of the waxy cuticle on the upper surface of a leaf?',
     opts: [
@@ -956,7 +993,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's75',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '6. Simple and giant structures',
     difficulty: 'hard',
     q: 'Diamond and graphite are both giant covalent structures made only of carbon. Why is diamond extremely hard while graphite is soft?',
     opts: [
@@ -972,7 +1009,7 @@ export const scienceQuestions: QuestionItem[] = [
   // ==================== VARIANT 4 (Questions 76-100) ====================
   {
     id: 's76',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'hard',
     q: 'In Chen’s transpiration experiment (measuring how air temperature affects transpiration rate), how does he calculate the rate of transpiration?',
     opts: [
@@ -986,7 +1023,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's77',
-    topic: '1. Variables & Lab Safety',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'easy',
     q: 'Why do we check a thermometer reading at eye level?',
     opts: [
@@ -1000,7 +1037,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's78',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'easy',
     q: 'What do you call a measurement that does not fit the overall pattern of your results?',
     opts: ['An anomalous result', 'A controlled variable', 'A fair test', 'A mean value'],
@@ -1009,7 +1046,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's79',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'medium',
     q: 'An atom of fluorine (atomic number 9, mass number 19) has how many protons and how many neutrons?',
     opts: ['9 protons, 10 neutrons', '10 protons, 9 neutrons', '9 protons, 19 neutrons', '19 protons, 9 neutrons'],
@@ -1018,7 +1055,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's80',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '4. Ions',
     difficulty: 'medium',
     q: 'What is the symbol for a lithium ion and a magnesium ion?',
     opts: ['Li⁺ and Mg²⁺', 'Li⁻ and Mg²⁻', 'Li²⁺ and Mg⁺', 'Li⁰ and Mg⁰'],
@@ -1027,7 +1064,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's81',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'medium',
     q: 'What is the relationship between the Period (row) number of an element and its electronic structure?',
     opts: [
@@ -1041,7 +1078,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's82',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'Complete the equation: lithium + chlorine →',
     opts: ['lithium chloride', 'lithium chlorate + hydrogen', 'lithium hydroxide', 'chlorine oxide'],
@@ -1050,7 +1087,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's83',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '5. Chemical bonding',
     difficulty: 'medium',
     q: 'In hydrogen chloride (HCl), hydrogen has 1 outer electron and chlorine has 7 outer electrons. How do they form a stable bond?',
     opts: [
@@ -1064,7 +1101,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's84',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '6. Simple and giant structures',
     difficulty: 'medium',
     q: 'Which diagram/description correctly matches sodium chloride (NaCl) structure?',
     opts: [
@@ -1078,7 +1115,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's85',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '7. Properties of ionic and covalent compounds',
     difficulty: 'hard',
     q: 'A white solid melts at 801°C and conducts electricity when dissolved in water. What type of structure does it have?',
     opts: ['Giant ionic structure', 'Simple molecular covalent', 'Noble gas', 'Pure liquid'],
@@ -1087,7 +1124,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's86',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'medium',
     q: 'How is a root hair cell adapted to absorb water efficiently?',
     opts: [
@@ -1101,7 +1138,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's87',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'medium',
     q: 'Look at xylem positions in a plant cross-section: in a root, xylem is in the centre (often X/cross-shaped); where is xylem in a stem?',
     opts: [
@@ -1115,7 +1152,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's88',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'medium',
     q: 'What happens to the rate of transpiration if the air temperature increases?',
     opts: [
@@ -1129,7 +1166,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's89',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'hard',
     q: 'What happens in Tube A if it contains BOTH a water plant and a freshwater shrimp in the DARK (wrapped in black paper)?',
     opts: [
@@ -1143,7 +1180,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's90',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'medium',
     q: 'How are fossil fuels (coal, oil, natural gas) connected to the carbon cycle?',
     opts: [
@@ -1157,7 +1194,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's91',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'hard',
     q: 'A wooden block measures 4 mm × 6 mm × 3 mm (note: 1 cm = 10 mm). What is its volume in cm³?',
     opts: ['0.072 cm³', '72 cm³', '7.2 cm³', '0.72 cm³'],
@@ -1166,7 +1203,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's92',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'hard',
     q: 'Sea water in a tank has volume 10 m³ and mass 10,300 kg. What is its density, and will a block of density 1020 kg/m³ float or sink in it?',
     opts: [
@@ -1180,49 +1217,49 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's93',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'hard',
-    q: 'Why are metals generally much better thermal conductors than liquids and gases?',
+    q: "Why does Chen place a thin layer of oil over the water in a measuring cylinder during a transpiration experiment?",
     opts: [
-      "Close metal ions and free electrons pass heat rapidly",
-      "Liquid metals carry fast convection currents inside wire",
-      "Cold gases hold tightly packed vibrating molecules",
-      "Solid metals trap empty airless vacuum gaps inside",
+      "To stop direct water evaporation",
+      "To feed the leafy stem",
+      "To increase water density quickly",
+      "To block light from roots",
     ],
     answer: 0,
-    explain: 'Close particle spacing plus delocalised electrons make metals excellent conductors.',
+    explain: "Oil seals the water surface so any drop in water level comes only from transpiration through the plant shoot, not surface evaporation.",
   },
   {
     id: 's94',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '4. Ions',
     difficulty: 'medium',
-    q: 'If a sound wave’s frequency increases from 200 Hz to 600 Hz, what change do we hear?',
+    q: "When calcium (atomic number 20, structure 2,8,8,2) loses its outer electrons, what ion symbol does it form?",
     opts: [
-      'A higher-pitched sound',
-      'A louder sound',
-      'A lower-pitched sound',
-      'A quieter sound',
+      "Ca²⁺",
+      "Ca²⁻",
+      "Ca⁺",
+      "Ca⁻",
     ],
     answer: 0,
-    explain: 'Frequency (waves per second in Hz) controls pitch: higher frequency = higher pitch.',
+    explain: "Losing 2 negatively charged electrons leaves calcium with a 2+ overall charge: Ca²⁺.",
   },
   {
     id: 's95',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'medium',
-    q: 'In an electric lamp, electrical energy is transferred into light and thermal energy. What does "dissipation" mean here?',
+    q: "Three solids have the same volume (10 cm³): iron (79 g), pine (4.1 g), and aluminium (27 g). Which is least dense?",
     opts: [
-      "Energy spreads out to surroundings and gets less useful",
-      "Electrical energy is completely destroyed and vanishes",
-      "Bright light waves condense back into electric current",
-      "Brand new thermal energy is created inside the filament",
+      "Pine has lowest density",
+      "Iron has lowest density",
+      "Aluminium has lowest density",
+      "All have equal density",
     ],
     answer: 0,
-    explain: 'Dissipated energy spreads into the surroundings (usually as heat) and cannot easily be used for useful work.',
+    explain: "With equal volumes, the smallest mass gives the lowest density: pine (4.1 ÷ 10 = 0.41 g/cm³).",
   },
   {
     id: 's96',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'Why does a neutral atom have no overall electrical charge?',
     opts: [
@@ -1236,7 +1273,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's97',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '6. Simple and giant structures',
     difficulty: 'easy',
     q: 'Which substance is made of simple covalent molecules: diamond, sodium chloride, water, or magnesium oxide?',
     opts: ['Water (H₂O)', 'Diamond', 'Sodium chloride', 'Magnesium oxide'],
@@ -1245,7 +1282,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's98',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '9. Photosynthesis',
     difficulty: 'easy',
     q: 'What is the role of the spongy mesophyll layer in a leaf?',
     opts: [
@@ -1259,7 +1296,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's99',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'medium',
     q: 'Which formula correctly rearranges density = mass ÷ volume to find volume?',
     opts: ['volume = mass ÷ density', 'volume = density ÷ mass', 'volume = mass × density', 'volume = mass + density'],
@@ -1268,7 +1305,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's100',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'hard',
     q: 'In Sofia’s duckweed experiment (Dish A: 0 grains → 5 plants, B: 1 → 9, C: 2 → 10, D: 3 → 8, E: 4 → 0 plants), what do the results show?',
     opts: [
@@ -1284,7 +1321,7 @@ export const scienceQuestions: QuestionItem[] = [
   // ==================== VARIANT 5 (Questions 101-125) ====================
   {
     id: 's101',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'easy',
     q: 'Which variable must be kept the same (controlled) when testing how water temperature affects sugar dissolving time?',
     opts: [
@@ -1298,7 +1335,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's102',
-    topic: '1. Variables & Lab Safety',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'easy',
     q: 'What should you do immediately if an acid splashes onto your skin in the science laboratory?',
     opts: [
@@ -1312,7 +1349,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's103',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'An element has 17 protons, 18 neutrons, and 17 electrons. What is its mass number?',
     opts: ['35', '17', '18', '52'],
@@ -1321,7 +1358,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's104',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '4. Ions',
     difficulty: 'medium',
     q: 'When chlorine (2,8,7) reacts with sodium (2,8,1), how does chlorine become a chloride ion, Cl⁻?',
     opts: [
@@ -1335,7 +1372,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's105',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'easy',
     q: 'Which gas is produced when any Group 1 alkali metal reacts with cold water?',
     opts: ['Hydrogen (H₂)', 'Oxygen (O₂)', 'Carbon dioxide (CO₂)', 'Nitrogen (N₂)'],
@@ -1344,7 +1381,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's106',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'hard',
     q: 'Compare lithium (2,1) and potassium (2,8,8,1). State one similarity and one difference.',
     opts: [
@@ -1358,7 +1395,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's107',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '5. Chemical bonding',
     difficulty: 'easy',
     q: 'How many electrons are shared in a single covalent bond between two atoms?',
     opts: ['1 pair (2 electrons)', '1 electron total', '4 pairs (8 electrons)', '16 electrons'],
@@ -1367,7 +1404,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's108',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '7. Properties of ionic and covalent compounds',
     difficulty: 'medium',
     q: 'Which statement correctly compares ionic compounds and simple covalent compounds?',
     opts: [
@@ -1381,7 +1418,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's109',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '7. Properties of ionic and covalent compounds',
     difficulty: 'hard',
     q: 'In carbon dioxide (CO₂), the bonds INSIDE the molecule between C and O are strong covalent bonds, while the forces BETWEEN CO₂ molecules are weak. Why is CO₂ a gas at room temperature?',
     opts: [
@@ -1395,7 +1432,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's110',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'easy',
     q: 'Which plant transport tissue carries dissolved sugars (sucrose) from leaves to roots and growing shoots?',
     opts: ['Phloem', 'Xylem', 'Root cap', 'Cuticle'],
@@ -1404,7 +1441,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's111',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '8. Minerals',
     difficulty: 'medium',
     q: 'What happens to a plant if its soil lacks nitrate ions?',
     opts: [
@@ -1418,7 +1455,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's112',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '8. Minerals',
     difficulty: 'medium',
     q: 'What happens to a plant if its soil lacks magnesium ions?',
     opts: [
@@ -1432,7 +1469,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's113',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '9. Photosynthesis',
     difficulty: 'medium',
     q: 'Name three factors that can limit or affect the rate of photosynthesis.',
     opts: [
@@ -1446,7 +1483,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's114',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'medium',
     q: 'Which three groups of living organisms carry out respiration, releasing CO₂ into the atmosphere?',
     opts: [
@@ -1460,7 +1497,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's115',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'hard',
     q: 'In a sealed tube containing BOTH a water plant and a freshwater shrimp in bright light, the hydrogencarbonate indicator stays RED. Why?',
     opts: [
@@ -1474,7 +1511,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's116',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'hard',
     q: 'Substance E has mass 340 g and volume 38 cm³. Calculate its density to two significant figures.',
     opts: ['8.9 g/cm³', '9.0 g/cm³', '0.11 g/cm³', '89 g/cm³'],
@@ -1483,7 +1520,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's117',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'hard',
     q: 'A model boat has a volume of 250 cm³. What is the maximum mass of this boat that will still float in water (density 1.0 g/cm³)?',
     opts: ['250 g', '125 g', '500 g', '25 g'],
@@ -1492,7 +1529,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's118',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'hard',
     q: 'Which statement about air density is TRUE?',
     opts: [
@@ -1506,58 +1543,63 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's119',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'hard',
-    q: 'How is amplitude correctly measured on an oscilloscope waveform graph?',
+    q: "A student ties back long hair, closes the Bunsen collar to an orange safety flame when not heating, and wears goggles. Why use the orange flame when paused?",
     opts: [
-      "From the undisturbed centre line to a wave crest",
-      "From the highest crest down to the lowest trough",
-      "Along the horizontal time axis between two peaks",
-      "By counting total complete cycles per single second",
+      "It is visible and cooler",
+      "It boils liquids much faster",
+      "It uses pure oxygen gas",
+      "It melts glass test tubes",
     ],
     answer: 0,
-    explain: 'Amplitude is the maximum displacement from the equilibrium centre line—not crest-to-trough.',
+    explain: "With the air hole closed, the yellow/orange safety flame is bright and clearly visible so no one accidentally walks into an unseen roaring flame.",
   },
   {
     id: 's120',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '6. Simple and giant structures',
     difficulty: 'hard',
-    q: 'Two identical sound waves meet IN STEP (crest meets crest, trough meets trough). What is the resulting waveform?',
+    q: "Chlorine gas (Cl₂) boils at −34°C whereas silicon dioxide (SiO₂) melts above 1700°C. What explains this huge difference?",
     opts: [
-      "Reinforcement: same frequency, double wave amplitude",
-      "Total silence with a completely flat oscilloscope line",
-      "Cancellation leaving half the original sound frequency",
-      "A loud pulse with zero frequency and zero wavelength",
+      "Simple molecules vs giant covalent lattice",
+      "Ionic attraction vs metallic sharing",
+      "Heavier chlorine nuclei vs light oxygen",
+      "Weak bonds inside Cl₂ molecules",
     ],
     answer: 0,
-    explain: 'In-step waves reinforce each other, adding their amplitudes together while keeping the same frequency.',
+    explain: "Cl₂ consists of simple molecules with weak intermolecular forces between them, whereas SiO₂ is a giant covalent lattice held by strong bonds throughout.",
   },
   {
     id: 's121',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '8. Minerals',
     difficulty: 'hard',
-    q: 'A car engine changes chemical energy into 3500 J total of thermal and kinetic energy. How much chemical energy was transferred?',
-    opts: ['3500 J', '1750 J', '7000 J', '350 J'],
+    q: "In a mineral investigation, Solution A has 2.0% nitrate / 1.0% Mg, Solution B has 6.0% nitrate / 0.2% Mg, and Solution C has 4.0% nitrate / 1.2% Mg. Which grows stunted yellow leaves?",
+    opts: [
+      "Solution B due to low magnesium",
+      "Solution C due to high magnesium",
+      "Solution A due to medium nitrate",
+      "All three grow equally yellow",
+    ],
     answer: 0,
-    explain: 'Energy is conserved: total input chemical energy equals total output energy (3500 J).',
+    explain: "Solution B has very little magnesium (0.2%), causing chlorophyll shortage and yellow leaves despite high nitrate.",
   },
   {
     id: 's122',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'hard',
-    q: 'In a convection heater placed near the floor of a room, how does warm air circulate?',
+    q: "Why can mineral ions sometimes still enter root hair cells even if soil mineral concentration is lower than inside the cell, while water enters by osmosis?",
     opts: [
-      "Less dense warm air rises; denser cool air sinks",
-      "Heated air becomes denser and sinks to the floor",
-      "Air molecules stay frozen and conduct like copper",
-      "Thermal energy spreads strictly via evaporation",
+      "Water moves by osmosis across membrane",
+      "Phloem pumps water downward to soil",
+      "Stomata push soil minerals into leaves",
+      "Xylem destroys root cell membranes",
     ],
     answer: 0,
-    explain: 'Heating causes fluid to expand, become less dense, and rise, creating a convection current.',
+    explain: "Water always moves by osmosis from a more dilute soil solution into the more concentrated root hair cytoplasm across a partially permeable membrane.",
   },
   {
     id: 's123',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'hard',
     q: 'Why does potassium react more vigorously with water than lithium?',
     opts: [
@@ -1571,7 +1613,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's124',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'medium',
     q: 'Which part of a plant is responsible for both gas exchange for photosynthesis and most water loss by transpiration?',
     opts: [
@@ -1585,7 +1627,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's125',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '5. Chemical bonding',
     difficulty: 'easy',
     q: 'What holds oppositely charged ions together in an ionic compound like MgO?',
     opts: [
@@ -1600,7 +1642,7 @@ export const scienceQuestions: QuestionItem[] = [
   // ==================== ADDITIONAL HARD QUESTIONS (126-150) ====================
   {
     id: 's126',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'hard',
     q: 'Two students get repeats of 12.1 s, 12.3 s, 25.8 s, and 12.2 s for a reaction time. What is the correct mean time excluding the anomaly?',
     opts: ['12.2 s', '15.6 s', '12.3 s', '14.5 s'],
@@ -1609,7 +1651,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's127',
-    topic: '1. Variables & Lab Safety',
+    topic: '2. Safety in the laboratory (including the use of laboratory tools)',
     difficulty: 'hard',
     q: 'Why is a burette or volumetric pipette chosen instead of a 250 cm³ beaker when adding 25.0 cm³ of acid in a rate investigation?',
     opts: [
@@ -1623,7 +1665,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's128',
-    topic: '1. Variables & Lab Safety',
+    topic: '1. Variables',
     difficulty: 'hard',
     q: 'When testing how catalyst mass affects oxygen volume produced, a student keeps temperature constant using a thermostatic water bath. Why?',
     opts: [
@@ -1637,7 +1679,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's129',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '4. Ions',
     difficulty: 'hard',
     q: 'An ion X²⁻ has 18 electrons and a mass number of 32. How many protons and neutrons does a neutral atom of X have?',
     opts: [
@@ -1651,7 +1693,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's130',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '5. Chemical bonding',
     difficulty: 'hard',
     q: 'Calcium (atomic number 20, electronic structure 2,8,8,2) reacts with fluorine (2,7). What ions are formed and what is the formula of calcium fluoride?',
     opts: ['Ca²⁺ and F⁻ → CaF₂', 'Ca⁺ and F²⁻ → Ca₂F', 'Ca²⁺ and F²⁻ → CaF', 'Ca²⁻ and F⁺ → CaF₂'],
@@ -1660,7 +1702,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's131',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'hard',
     q: 'Element Z is in Group 1, Period 4. Which statement about Z compared with sodium (Group 1, Period 3) is true?',
     opts: [
@@ -1674,7 +1716,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's132',
-    topic: '2. Atomic Structure, Ions & Periodic Table Trends',
+    topic: '12. Trends in the periodic table',
     difficulty: 'hard',
     q: 'Why do isotopes of the same element (such as carbon-12 and carbon-14) have identical chemical properties?',
     opts: [
@@ -1688,7 +1730,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's133',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '4. Ions',
     difficulty: 'hard',
     q: 'Aluminium oxide consists of Al³⁺ and O²⁻ ions. What is its empirical chemical formula?',
     opts: ['Al₂O₃', 'Al₃O₂', 'AlO', 'AlO₃'],
@@ -1697,7 +1739,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's134',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '7. Properties of ionic and covalent compounds',
     difficulty: 'hard',
     q: 'Why does graphite conduct electricity whereas diamond does not, even though both are made solely of carbon?',
     opts: [
@@ -1711,7 +1753,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's135',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '7. Properties of ionic and covalent compounds',
     difficulty: 'hard',
     q: 'Substance Q melts at −7°C, boils at 59°C, and does not conduct electricity when liquid or solid. What structure does Q have?',
     opts: [
@@ -1725,7 +1767,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's136',
-    topic: '3. Molecules, Bonding & Structures',
+    topic: '3. Molecules',
     difficulty: 'hard',
     q: 'How many pairs of electrons are shared between the two nitrogen atoms in a molecule of nitrogen gas, N₂ (nitrogen has 5 outer electrons)?',
     opts: [
@@ -1739,7 +1781,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's137',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '10. Pathways of water and minerals',
     difficulty: 'hard',
     q: 'If a gardener leaves a plant in humid, still air at 10°C vs dry, windy air at 30°C, how and why does transpiration rate change?',
     opts: [
@@ -1753,7 +1795,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's138',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '8. Minerals',
     difficulty: 'hard',
     q: 'Why can a plant still look pale yellow even when grown in soil rich in nitrate ions?',
     opts: [
@@ -1767,7 +1809,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's139',
-    topic: '4. Plant Transport, Minerals & Photosynthesis',
+    topic: '9. Photosynthesis',
     difficulty: 'hard',
     q: 'A potted plant kept in the dark for 48 hours tests negative with iodine solution. When one leaf half is covered in black foil and placed in bright light, only the uncovered half turns blue-black. Why was it kept in the dark first?',
     opts: [
@@ -1781,7 +1823,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's140',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'hard',
     q: 'Why does global deforestation increase atmospheric carbon dioxide in TWO separate ways?',
     opts: [
@@ -1795,7 +1837,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's141',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'hard',
     q: 'In an airtight ecosystem jar containing pondweed and snails, at night the pH of the water drops slightly. Why?',
     opts: [
@@ -1809,7 +1851,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's142',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'hard',
     q: 'An irregularly shaped rock has mass 84 g. Dropped into a measuring cylinder containing 40 cm³ of water, the level rises to 75 cm³. What is its density?',
     opts: ['2.4 g/cm³', '1.12 g/cm³', '2.1 g/cm³', '35 g/cm³'],
@@ -1818,7 +1860,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's143',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'hard',
     q: 'A hollow metal box of total volume 500 cm³ has walls of mass 320 g and traps 150 g of sand inside. Will it float in water (1.0 g/cm³)?',
     opts: [
@@ -1832,72 +1874,77 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's144',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '3. Molecules',
     difficulty: 'hard',
-    q: 'Why does a vacuum flask have BOTH a silvered inner glass surface AND a vacuum gap between its walls?',
+    q: "When ice melts and liquid water boils at 100°C, which forces are overcome during boiling?",
     opts: [
-      "Vacuum stops conduction/convection; silvering cuts radiation",
-      "Vacuum halts infrared radiation; silvered glass aids convection",
-      "Both flask walls maximise thermal conduction to keep hot",
-      "The vacuum gap converts infrared heat straight into sound",
+      "Weak forces between H₂O molecules",
+      "Strong covalent O–H bonds inside H₂O",
+      "Ionic attractions between H⁺ and O²⁻",
+      "Nuclear forces inside oxygen atoms",
     ],
     answer: 0,
-    explain: 'Conduction and convection require particles (prevented by vacuum); radiation can cross vacuum (reflected by shiny surfaces).',
+    explain: "Boiling simple molecular substances breaks weak intermolecular forces between intact H₂O molecules, leaving covalent O–H bonds unbroken.",
   },
   {
     id: 's145',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '4. Ions',
     difficulty: 'hard',
-    q: 'Why are matt black solar water-heater pipes mounted behind a glass cover on a roof?',
+    q: "Why do an atom of sodium (11 protons, 11 electrons) and a sodium ion Na⁺ (11 protons, 10 electrons) belong to the SAME element?",
     opts: [
-      "Black matte absorbs infrared best; glass cuts convection loss",
-      "Black paint reflects sunlight inside while glass pulls vacuum",
-      "Dark matte coatings block thermal conduction in copper pipe",
-      "Sealed window glass boosts rapid evaporation inside pipes",
+      "Both nuclei still contain 11 protons",
+      "Both particles share 10 shell electrons",
+      "Both particles carry zero net charge",
+      "Both have full third electron shells",
     ],
     answer: 0,
-    explain: 'Dark matt surfaces are the strongest absorbers/emitters of infrared radiation, while trapped air under glass minimizes convection loss.',
+    explain: "An element is defined by its atomic (proton) number; forming an ion changes only electrons, never the number of protons.",
   },
   {
     id: 's146',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '7. Properties of ionic and covalent compounds',
     difficulty: 'hard',
-    q: 'Sound wave X has amplitude 3 cm and frequency 400 Hz. Wave Y has amplitude 1.5 cm and frequency 800 Hz. How does Y sound compared with X?',
+    q: "Unknown solid W melts at 44°C, dissolves poorly in water, and never conducts electricity even when melted. How should W be classified?",
     opts: [
-      'Quieter and higher pitched',
-      'Louder and higher pitched',
-      'Quieter and lower pitched',
-      'Louder and lower pitched',
+      "A simple molecular covalent compound",
+      "A giant ionic lattice compound",
+      "A pure Group 1 alkali metal",
+      "A giant covalent carbon lattice",
     ],
     answer: 0,
-    explain: 'Smaller amplitude (1.5 vs 3 cm) means quieter; higher frequency (800 vs 400 Hz) means higher pitch.',
+    explain: "A very low melting point (44°C) and zero electrical conductivity when molten match simple molecular covalent structures.",
   },
   {
     id: 's147',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '12. Trends in the periodic table',
     difficulty: 'hard',
-    q: 'Noise-cancelling headphones record external engine noise and play back a second sound wave inside the ear cup. How must the two waves align?',
+    q: "Rubidium (Rb) sits directly below potassium (K) in Group 1. Compared with potassium (m.p. 63°C), what do you predict for rubidium with cold water?",
     opts: [
-      "Same frequency/amplitude, crest-to-trough cancellation",
-      "Double the frequency aligned crest-to-crest in step",
-      "Exact same frequency and crest-to-crest reinforcement",
-      "Half the frequency so vibrations drain out as warmth",
+      "Lower melting point and faster reaction",
+      "Higher melting point and slower reaction",
+      "No reaction and solid salt precipitate",
+      "Equal melting point and zero fizzing",
     ],
     answer: 0,
-    explain: 'When identical waves meet half a cycle out of step (crest on trough), their displacements cancel to near zero.',
+    explain: "Going down Group 1, melting points decrease (Rb ≈ 39°C < 63°C) while reactivity increases because the outer electron is farther from the nucleus.",
   },
   {
     id: 's148',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'hard',
-    q: 'A crane uses 2500 J of electrical energy. 1625 J becomes gravitational potential energy of the lifted load, and the rest warms the motor. What percentage of energy is usefully transferred?',
-    opts: ['65%', '35%', '75%', '60%'],
+    q: "A solid cube of side 2 cm has mass 21.6 g. Another sample of the SAME pure metal has mass 108 g. What is the second sample’s density?",
+    opts: [
+      "2.7 g/cm³ (same material property)",
+      "13.5 g/cm³ (five times larger)",
+      "0.54 g/cm³ (divided by five)",
+      "10.8 g/cm³ (halved sample volume)",
+    ],
     answer: 0,
-    explain: 'Useful % = (1625 ÷ 2500) × 100 = 65% (with 35% dissipated as thermal energy).',
+    explain: "Volume of cube = 2³ = 8 cm³; density = 21.6 ÷ 8 = 2.7 g/cm³. Density is an intrinsic property of a pure material regardless of sample size.",
   },
   {
     id: 's149',
-    topic: '6. Density, Thermal Transfer, Sound & Energy',
+    topic: '13. Density',
     difficulty: 'hard',
     q: 'Liquid A (mass 180 g, volume 150 cm³) and Liquid B (mass 160 g, volume 200 cm³) do not mix and are poured into a tall cylinder. Which sits at the bottom and why?',
     opts: [
@@ -1911,7 +1958,7 @@ export const scienceQuestions: QuestionItem[] = [
   },
   {
     id: 's150',
-    topic: '5. Carbon Cycle',
+    topic: '11. Carbon cycle',
     difficulty: 'hard',
     q: 'When limestone (calcium carbonate) reacts with rainwater or is heated in cement kilns, how does this affect the carbon cycle?',
     opts: [
