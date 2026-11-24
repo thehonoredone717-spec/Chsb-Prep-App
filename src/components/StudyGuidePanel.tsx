@@ -1,6 +1,7 @@
 import { ArrowRight, BookOpenCheck } from 'lucide-react';
 import { UI_COPY, pickText } from '../data/subjects';
 import { SubjectConfig, UILanguage } from '../types/quiz';
+import { FormattedMathText } from './FormattedMathText';
 
 interface StudyGuidePanelProps {
   subject: SubjectConfig;
@@ -75,7 +76,9 @@ export function StudyGuidePanel({ subject, lang, onStartQuiz }: StudyGuidePanelP
                       aria-hidden="true"
                       className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-700"
                     />
-                    <span>{point}</span>
+                    <span>
+                      <FormattedMathText text={point} />
+                    </span>
                   </li>
                 ))}
               </ul>

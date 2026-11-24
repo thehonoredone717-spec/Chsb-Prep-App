@@ -675,6 +675,13 @@ function esc(str) {
     .replace(/"/g, '&quot;');
 }
 
+function fmtMath(str) {
+  return esc(str)
+    .replace(/\\^\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)/g, '<sup style="font-size:0.75em;font-weight:600;color:#115e59;margin-left:1px">$1</sup>')
+    .replace(/\\^([a-zA-Z0-9−+\\-]+)/g, '<sup style="font-size:0.75em;font-weight:600;color:#115e59;margin-left:1px">$1</sup>')
+    .replace(/\\b([a-zA-Z])_([a-zA-Z0-9]+)\\b/g, '$1<sub style="font-size:0.75em;font-weight:600;color:#115e59;margin-left:1px">$2</sub>');
+}
+
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -1020,7 +1027,7 @@ function renderGuideView(sub) {
     html += '<article class="card"><h3 class="font-display" style="font-size:18px;font-weight:700">' + esc(sg.title) + '</h3>';
     html += '<ul style="list-style:none;padding:0;margin:12px 0 0">';
     sg.points.forEach(pt => {
-      html += '<li class="dot-li"><span class="teal-dot"></span><span>' + esc(pt) + '</span></li>';
+      html += '<li class="dot-li"><span class="teal-dot"></span><span>' + fmtMath(pt) + '</span></li>';
     });
     html += '</ul></article>';
   });
@@ -1166,7 +1173,7 @@ function renderQuizView(sub) {
       html += '<div><strong>' + esc(copy.yourAnswer) + ': </strong><span style="color:' + (isOk ? 'var(--ok)' : 'var(--bad)') + '">' + esc(selText) + '</span></div>';
       html += '<div><strong>' + esc(copy.correctAnswer) + ': </strong><span style="color:var(--ok);font-weight:500">' + esc(corText) + '</span></div>';
       html += '</div>';
-      html += '<p style="margin:8px 0 0;font-size:12px;color:#475569"><strong>' + esc(copy.explanation) + ': </strong>' + esc(loc(aq.source.explain)) + '</p>';
+      html += '<p style="margin:8px 0 0;font-size:12px;color:#475569"><strong>' + esc(copy.explanation) + ': </strong>' + fmtMath(loc(aq.source.explain)) + '</p>';
       html += '</article>';
     });
     html += '</div></div></section>';
@@ -1227,7 +1234,7 @@ function renderQuizView(sub) {
     html += '<p style="margin:0;font-weight:600;display:flex;align-items:center;gap:6px">';
     html += '<span style="color:' + (isOk ? 'var(--ok)' : 'var(--bad)') + ';display:inline-flex;align-items:center;gap:6px">' + (isOk ? ICONS.check + '<span>' + esc(copy.correctBadge) + '</span>' : ICONS.cross + '<span>' + esc(copy.incorrectBadge) + '</span>') + '</span>';
     html += '<span style="color:#94a3b8">·</span><span>' + esc(copy.explanation) + '</span></p>';
-    html += '<p style="margin:6px 0 0">' + esc(loc(cur.source.explain)) + '</p>';
+    html += '<p style="margin:6px 0 0">' + fmtMath(loc(cur.source.explain)) + '</p>';
     html += '</div>';
   }
 

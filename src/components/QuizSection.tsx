@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AttemptRecord, UI_COPY, pickText } from '../data/subjects';
+import { FormattedMathText } from './FormattedMathText';
 import {
   ActiveQuizQuestion,
   DifficultyLevel,
@@ -505,7 +506,7 @@ export function QuizSection({
 
                     <p className="mt-2 text-xs leading-relaxed text-slate-600">
                       <span className="font-semibold text-slate-700">{copy.explanation}: </span>
-                      {getLocalizedField(q.source.explain, lang)}
+                      <FormattedMathText text={getLocalizedField(q.source.explain, lang)} />
                     </p>
                   </article>
                 );
@@ -662,7 +663,7 @@ export function QuizSection({
                     <span>{copy.explanation}</span>
                   </p>
                   <p className="mt-1.5 text-slate-700">
-                    {getLocalizedField(activeQuestion.source.explain, lang)}
+                    <FormattedMathText text={getLocalizedField(activeQuestion.source.explain, lang)} />
                   </p>
                 </div>
               )}

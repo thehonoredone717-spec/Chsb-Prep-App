@@ -18,8 +18,11 @@ export const mathStudyGuide: StudyGuideItem[] = [
   {
     title: 'Powers & Standard Form',
     points: [
-      'Index laws: a^m × a^n = a^(m+n), a^m ÷ a^n = a^(m−n), (a^m)^n = a^(mn), a^0 = 1, a^(−n) = 1 / a^n.',
-      'Standard form: A × 10^n where 1 ≤ A < 10 and n is an integer (positive for large numbers, negative for small decimals).',
+      'Multiply same base: a^m × a^n = a^(m+n)  — add the powers (e.g., 2^3 × 2^4 = 2^7).',
+      'Divide same base: a^m ÷ a^n = a^(m−n)  — subtract the powers (e.g., 5^6 ÷ 5^2 = 5^4).',
+      'Power of a power: (a^m)^n = a^(mn)  — multiply the powers (e.g., (2^3)^2 = 2^6).',
+      'Zero & negative powers: a^0 = 1 (e.g., 5^0 = 1) and a^(−n) = 1 / a^n (e.g., 2^(−3) = 1 / 2^3 = 1/8).',
+      'Standard form: A × 10^n where 1 ≤ A < 10 and n is an integer (positive for large numbers, negative for small decimals, e.g., 4,500 = 4.5 × 10^3; 0.03 = 3 × 10^(−2)).',
     ],
   },
   {
