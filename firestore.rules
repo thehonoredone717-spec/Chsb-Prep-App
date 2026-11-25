@@ -51,6 +51,17 @@ service cloud.firestore {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isValidSubjectId(id) {
+      return id is string && id in ['math', 'history', 'science', 'computing', 'english', 'uzbek'];
+    }
+
+    function canManageSubjectPermission(subjectId) {
+      return isAdmin()
+        || (isComputingTeacher() && subjectId == 'computing')
+        || (isMathTeacher() && subjectId == 'math')
+        || (isScienceTeacher() && subjectId == 'science');
+    }
+
     function incoming() {
       return request.resource.data;
     }
@@ -136,6 +147,24 @@ service cloud.firestore {
         && data.createdAt == request.time;
     }
 
+    function isValidSubjectPermission(data, subjectId) {
+      return data.keys().hasAll(['subjectId', 'prohibited', 'updatedByUid', 'updatedByName', 'updatedAt'])
+        && data.keys().hasOnly(['subjectId', 'prohibited', 'updatedByUid', 'updatedByName', 'updatedAt'])
+        && data.subjectId is string
+        && isValidSubjectId(data.subjectId)
+        && data.subjectId == subjectId
+        && data.prohibited is bool
+        && data.updatedByUid is string
+        && data.updatedByUid.size() >= 1
+        && data.updatedByUid.size() <= 128
+        && data.updatedByUid == request.auth.uid
+        && data.updatedByName is string
+        && data.updatedByName.size() >= 1
+        && data.updatedByName.size() <= 60
+        && data.updatedAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
     // 4. Collection Match Blocks
     match /users/{userId} {
       allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
@@ -191,6 +220,27 @@ service cloud.firestore {
 
       allow update: if false;
       allow delete: if isAdmin() && isValidId(attemptId);
+    }
+
+    match /subjectPermissions/{subjectId} {
+      allow get: if isSignedIn() && isValidSubjectId(subjectId);
+      allow list: if false;
+
+      allow create: if isSignedIn()
+        && isValidSubjectId(subjectId)
+        && canManageSubjectPermission(subjectId)
+        && isValidSubjectPermission(incoming(), subjectId);
+
+      allow update: if isSignedIn()
+        && isValidSubjectId(subjectId)
+        && canManageSubjectPermission(subjectId)
+        && isValidSubjectPermission(incoming(), subjectId)
+        && incoming().subjectId == existing().subjectId
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'prohibited', 'updatedByUid', 'updatedByName', 'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidSubjectId(subjectId);
     }
   }
 }

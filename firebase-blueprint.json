@@ -131,6 +131,35 @@
         "completedAt",
         "createdAt"
       ]
+    },
+    "SubjectPermission": {
+      "title": "SubjectPermission",
+      "description": "Per-subject Allow / Prohibit access toggle managed by subject teachers and admin",
+      "type": "object",
+      "properties": {
+        "subjectId": {
+          "type": "string",
+          "enum": ["math", "history", "science", "computing", "english", "uzbek"]
+        },
+        "prohibited": {
+          "type": "boolean"
+        },
+        "updatedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "updatedByName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["subjectId", "prohibited", "updatedByUid", "updatedByName", "updatedAt"]
     }
   },
   "firestore": {
@@ -141,6 +170,10 @@
     "/attempts/{attemptId}": {
       "schema": { "$ref": "#/entities/QuizAttempt" },
       "description": "Completed quiz attempts visible to the student owner and verified teacher/admin"
+    },
+    "/subjectPermissions/{subjectId}": {
+      "schema": { "$ref": "#/entities/SubjectPermission" },
+      "description": "Per-subject Allow/Prohibit state controlled by subject teachers (own subject) and admin (all subjects)"
     }
   }
 }

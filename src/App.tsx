@@ -13,16 +13,23 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { AlertTriangle } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AuthGate } from './components/AuthGate';
 import { OverviewSection } from './components/OverviewSection';
+import { PermissionView } from './components/PermissionView';
 import { QuizSection } from './components/QuizSection';
 import { ResultsHistoryView } from './components/ResultsHistoryView';
 import { StudyGuidePanel } from './components/StudyGuidePanel';
 import { SubjectBar } from './components/SubjectBar';
 import { AppView, TeacherScope, TopBar } from './components/TopBar';
-import { AttemptRecord, SUBJECT_MAP } from './data/subjects';
+import {
+  AttemptRecord,
+  SUBJECTS,
+  SUBJECT_MAP,
+  SubjectPermission,
+  pickText,
+} from './data/subjects';
 import {
   OperationType,
   UserProfile,
@@ -70,10 +77,15 @@ export default function App() {
   const [isQuizRunning, setIsQuizRunning] = useState<boolean>(false);
   const [pendingNavAction, setPendingNavAction] = useState<(() => void) | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(() => isFullscreenActive());
+  const [subjectPermissions, setSubjectPermissions] = useState<
+    Partial<Record<SubjectId, SubjectPermission>>
+  >({});
+  const [savingPermissionId, setSavingPermissionId] = useState<SubjectId | null>(null);
 
   const pendingSignupRef = useRef<{ username: string; displayName: string } | null>(null);
   const finishQuizRef = useRef<(() => void) | null>(null);
   const hasAttemptedFirstFullscreenRef = useRef<boolean>(false);
+  const hasManualSubjectSelectionRef = useRef<boolean>(false);
 
   if (fatalError) {
     throw fatalError;
@@ -155,6 +167,7 @@ export default function App() {
         setUserProfile(null);
         setUsersList([]);
         setHistory([]);
+        setSubjectPermissions({});
         setAuthReady(true);
         return;
       }
@@ -330,16 +343,75 @@ export default function App() {
       );
     }
 
+    const permissionUnsubs = SUBJECTS.map((subject) =>
+      onSnapshot(
+        doc(db, 'subjectPermissions', subject.id),
+        (snap) => {
+          setSubjectPermissions((prev) => {
+            if (!snap.exists()) {
+              if (!(subject.id in prev)) return prev;
+              const next = { ...prev };
+              delete next[subject.id];
+              return next;
+            }
+            const raw = snap.data() as Partial<SubjectPermission>;
+            return {
+              ...prev,
+              [subject.id]: {
+                subjectId: subject.id,
+                prohibited: raw.prohibited === true,
+                updatedByUid: raw.updatedByUid,
+                updatedByName: raw.updatedByName,
+              },
+            };
+          });
+        },
+        (err) => {
+          try {
+            handleFirestoreError(err, OperationType.GET, `subjectPermissions/${subject.id}`);
+          } catch (wrapped) {
+            setFatalError(wrapped as Error);
+          }
+        }
+      )
+    );
+
     return () => {
       unsubscribeAttempts();
       unsubscribeUsers();
+      permissionUnsubs.forEach((unsub) => unsub());
     };
   }, [authReady, authUser, userProfile, isFullAdmin, isCompTeacher, isMathTch, isScienceTch]);
 
+  const prohibitedSubjects = useMemo(() => {
+    const set = new Set<SubjectId>();
+    SUBJECTS.forEach((s) => {
+      if (subjectPermissions[s.id]?.prohibited) {
+        set.add(s.id);
+      }
+    });
+    return set;
+  }, [subjectPermissions]);
+
+  useEffect(() => {
+    if (
+      !hasManualSubjectSelectionRef.current &&
+      prohibitedSubjects.has(activeSubjectId)
+    ) {
+      const firstOpen = SUBJECTS.find((s) => !prohibitedSubjects.has(s.id));
+      if (firstOpen) {
+        setActiveSubjectId(firstOpen.id);
+      }
+    }
+  }, [prohibitedSubjects, activeSubjectId]);
+
   const activeSubject = SUBJECT_MAP[activeSubjectId];
+  const isCurrentSubjectProhibited =
+    prohibitedSubjects.has(activeSubjectId) &&
+    (activeView === 'quiz' || activeView === 'guide');
 
   const requestSectionLeave = (action: () => void) => {
-    if (activeView === 'quiz' && isQuizRunning) {
+    if (activeView === 'quiz' && isQuizRunning && !prohibitedSubjects.has(activeSubjectId)) {
       setPendingNavAction(() => action);
       return;
     }
@@ -347,6 +419,7 @@ export default function App() {
   };
 
   const handleSelectView = (view: AppView) => {
+    if (view === 'permission' && teacherScope === 'none') return;
     if (view === activeView) return;
     requestSectionLeave(() => setActiveView(view));
   };
@@ -354,23 +427,53 @@ export default function App() {
   const handleSelectSubjectFromBar = (id: SubjectId) => {
     if (id === activeSubjectId && activeView === 'quiz') return;
     requestSectionLeave(() => {
+      hasManualSubjectSelectionRef.current = true;
       setActiveSubjectId(id);
-      if (activeView === 'subjects' || activeView === 'results') {
+      if (activeView === 'subjects' || activeView === 'results' || activeView === 'permission') {
         setActiveView('quiz');
       }
     });
   };
 
   const handleStartSubjectQuiz = (id: SubjectId) => {
+    hasManualSubjectSelectionRef.current = true;
     setActiveSubjectId(id);
     setActiveView('quiz');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenSubjectGuide = (id: SubjectId) => {
+    hasManualSubjectSelectionRef.current = true;
     setActiveSubjectId(id);
     setActiveView('guide');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSetSubjectProhibited = (subjectId: SubjectId, prohibited: boolean) => {
+    if (!authUser || !userProfile || teacherScope === 'none') return;
+    if (!isFullAdmin && teacherScope !== subjectId) return;
+
+    const path = `subjectPermissions/${subjectId}`;
+    setSavingPermissionId(subjectId);
+    void (async () => {
+      try {
+        await setDoc(doc(db, 'subjectPermissions', subjectId), {
+          subjectId,
+          prohibited,
+          updatedByUid: authUser.uid,
+          updatedByName: sanitizeDisplayName(userProfile.displayName, userProfile.username),
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        try {
+          handleFirestoreError(err, OperationType.WRITE, path);
+        } catch (wrapped) {
+          setFatalError(wrapped as Error);
+        }
+      } finally {
+        setSavingPermissionId(null);
+      }
+    })();
   };
 
   const handleRecordAttempt = (record: AttemptRecord) => {
@@ -514,7 +617,89 @@ export default function App() {
         onChangeLang={setLang}
         activeSubjectId={activeSubjectId}
         onSelectSubject={handleSelectSubjectFromBar}
+        prohibitedSubjects={prohibitedSubjects}
       />
+
+      {isCurrentSubjectProhibited && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[110] flex flex-col items-center justify-center bg-rose-700 p-6 text-center text-white"
+        >
+          <div className="w-full max-w-2xl rounded-2xl border-2 border-white/40 bg-rose-900/90 p-8 shadow-2xl sm:p-10">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-white/15 text-white">
+              <ShieldAlert className="h-11 w-11" aria-hidden="true" />
+            </div>
+
+            <h2 className="mt-6 font-display text-2xl font-extrabold tracking-tight text-white sm:text-4xl">
+              {lang === 'uz'
+                ? `${pickText(activeSubject.shortLabel, lang).toUpperCase()} BO‘LIMI HOZIRCHA TAQIQLANGAN!`
+                : `${pickText(activeSubject.shortLabel, lang).toUpperCase()} SECTION IS PROHIBITED!`}
+            </h2>
+
+            <p className="mx-auto mt-4 max-w-lg text-base font-medium leading-relaxed text-rose-100 sm:text-lg">
+              {lang === 'uz'
+                ? `Hozircha ${pickText(activeSubject.shortLabel, lang)} fani bo‘yicha testlar va qo‘llanma o‘qituvchi/admin tomonidan yopilgan. Iltimos, boshqa ochiq fanlarni tanlang.`
+                : `Quizzes and study materials for ${pickText(activeSubject.shortLabel, lang)} are currently prohibited by the teacher/admin. Please choose another available subject.`}
+            </p>
+
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const firstOpen = SUBJECTS.find((s) => !prohibitedSubjects.has(s.id));
+                  if (firstOpen) {
+                    setActiveSubjectId(firstOpen.id);
+                  }
+                  setActiveView('subjects');
+                }}
+                className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-white px-6 text-base font-extrabold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                {lang === 'uz' ? 'Fanlar bo‘limiga qaytish' : 'Back to Subjects'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('results')}
+                className="inline-flex min-h-[48px] items-center justify-center rounded-xl border-2 border-white/50 bg-rose-800/70 px-6 text-base font-bold text-white transition-colors hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                {lang === 'uz' ? 'Natijalar' : 'Results'}
+              </button>
+              {teacherScope !== 'none' && (
+                <button
+                  type="button"
+                  onClick={() => setActiveView('permission')}
+                  className="inline-flex min-h-[48px] items-center justify-center rounded-xl border-2 border-white/50 bg-rose-950/70 px-6 text-base font-bold text-white transition-colors hover:bg-rose-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  Permission
+                </button>
+              )}
+            </div>
+
+            {SUBJECTS.some((s) => !prohibitedSubjects.has(s.id)) && (
+              <div className="mt-6 border-t border-white/20 pt-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-rose-200">
+                  {lang === 'uz' ? 'Ochiq fanlardan birini tanlang:' : 'Choose an available subject:'}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                  {SUBJECTS.filter((s) => !prohibitedSubjects.has(s.id)).map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        hasManualSubjectSelectionRef.current = true;
+                        setActiveSubjectId(s.id);
+                      }}
+                      className="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/30 bg-rose-950/60 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-rose-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                    >
+                      {pickText(s.shortLabel, lang)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {pendingNavAction && (
         <div
@@ -563,12 +748,13 @@ export default function App() {
             lang={lang}
             activeSubjectId={activeSubjectId}
             history={history}
+            prohibitedSubjects={prohibitedSubjects}
             onStartSubjectQuiz={handleStartSubjectQuiz}
             onOpenSubjectGuide={handleOpenSubjectGuide}
           />
         )}
 
-        {activeView === 'quiz' && (
+        {activeView === 'quiz' && !prohibitedSubjects.has(activeSubjectId) && (
           <QuizSection
             subject={activeSubject}
             lang={lang}
@@ -581,7 +767,7 @@ export default function App() {
           />
         )}
 
-        {activeView === 'guide' && (
+        {activeView === 'guide' && !prohibitedSubjects.has(activeSubjectId) && (
           <StudyGuidePanel
             subject={activeSubject}
             lang={lang}
@@ -598,6 +784,16 @@ export default function App() {
             onDeleteAttempt={handleDeleteAttempt}
             onClearAllAttempts={handleClearAllAttempts}
             onOpenSubjectQuiz={handleStartSubjectQuiz}
+          />
+        )}
+
+        {activeView === 'permission' && teacherScope !== 'none' && (
+          <PermissionView
+            lang={lang}
+            teacherScope={teacherScope}
+            permissions={subjectPermissions}
+            savingSubjectId={savingPermissionId}
+            onSetSubjectProhibited={handleSetSubjectProhibited}
           />
         )}
       </main>

@@ -24,6 +24,14 @@ export interface AttemptRecord {
   cheated?: boolean;
 }
 
+export interface SubjectPermission {
+  subjectId: SubjectId;
+  prohibited: boolean;
+  updatedByUid?: string;
+  updatedByName?: string;
+  updatedAt?: string;
+}
+
 export const SUBJECTS: SubjectConfig[] = [
   {
     id: 'math',
@@ -126,6 +134,7 @@ export const UI_COPY: Record<
     navTest: string;
     navGuide: string;
     navResults: string;
+    navPermission: string;
     downloadHtml: string;
     heroTitle: string;
     heroSubtitle: string;
@@ -205,6 +214,7 @@ export const UI_COPY: Record<
     navTest: 'Test',
     navGuide: "Qo'llanma",
     navResults: 'Natijalar',
+    navPermission: 'Permission',
     downloadHtml: 'HTML Yuklash',
     heroTitle: '7-Sinf ChSB Tayyorlov Platformasi',
     heroSubtitle:
@@ -284,6 +294,7 @@ export const UI_COPY: Record<
     navTest: 'Quiz',
     navGuide: 'Study Guide',
     navResults: 'Results',
+    navPermission: 'Permission',
     downloadHtml: 'Download HTML',
     heroTitle: 'Grade 7 ChSB Exam Prep Platform',
     heroSubtitle:

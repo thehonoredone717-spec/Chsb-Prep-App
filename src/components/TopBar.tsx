@@ -11,7 +11,7 @@ import { UI_COPY } from '../data/subjects';
 import { UserProfile } from '../firebase';
 import { UILanguage } from '../types/quiz';
 
-export type AppView = 'subjects' | 'quiz' | 'guide' | 'results';
+export type AppView = 'subjects' | 'quiz' | 'guide' | 'results' | 'permission';
 export type TeacherScope = 'none' | 'computing' | 'math' | 'science' | 'all';
 
 interface TopBarProps {
@@ -50,6 +50,7 @@ export function TopBar({
     { id: 'quiz', label: copy.navTest },
     { id: 'guide', label: copy.navGuide },
     { id: 'results', label: copy.navResults },
+    ...(isAnyTeacher ? [{ id: 'permission' as AppView, label: copy.navPermission }] : []),
   ];
 
   const badgeText =
