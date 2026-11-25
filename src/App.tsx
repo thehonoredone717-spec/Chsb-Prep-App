@@ -575,6 +575,10 @@ export default function App() {
           />
         )}
       </main>
+
+      <footer className="border-t border-slate-200/80 bg-white/60 py-4 text-center text-xs font-medium text-slate-500">
+        Developer: <span className="font-semibold text-slate-700">Ibrohimbek Xujanazarov</span>
+      </footer>
     </div>
   );
 }

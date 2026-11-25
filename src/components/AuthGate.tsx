@@ -383,6 +383,10 @@ export function AuthGate({ lang, onChangeLang, onPrepareSignup }: AuthGateProps)
               : 'Teachers can sign in with their verified Google account to view all students’ test results.'}
           </p>
         </div>
+
+        <p className="mt-6 text-center text-xs font-medium text-slate-500">
+          Developer: <span className="font-semibold text-slate-700">Ibrohimbek Xujanazarov</span>
+        </p>
       </main>
     </div>
   );
