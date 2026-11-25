@@ -84,7 +84,6 @@ export default function App() {
 
   const pendingSignupRef = useRef<{ username: string; displayName: string } | null>(null);
   const finishQuizRef = useRef<(() => void) | null>(null);
-  const hasAttemptedFirstFullscreenRef = useRef<boolean>(false);
   const hasManualSubjectSelectionRef = useRef<boolean>(false);
 
   if (fatalError) {
@@ -99,32 +98,10 @@ export default function App() {
     }
   }, [lang]);
 
-  // Enter fullscreen automatically on site visit (plus on first interaction if blocked before gesture)
+  // Keep fullscreen state synced and block right-click context menu (fullscreen starts when quiz Start is clicked)
   useEffect(() => {
     const syncFullscreen = () => {
-      const active = isFullscreenActive();
-      setIsFullscreen(active);
-      if (active) {
-        hasAttemptedFirstFullscreenRef.current = true;
-      }
-    };
-
-    void requestAppFullscreen().then((entered) => {
-      if (entered) {
-        hasAttemptedFirstFullscreenRef.current = true;
-        setIsFullscreen(true);
-      }
-    });
-
-    const handleFirstGesture = () => {
-      if (hasAttemptedFirstFullscreenRef.current || isFullscreenActive()) {
-        hasAttemptedFirstFullscreenRef.current = true;
-        return;
-      }
-      hasAttemptedFirstFullscreenRef.current = true;
-      void requestAppFullscreen().then((entered) => {
-        if (entered) setIsFullscreen(true);
-      });
+      setIsFullscreen(isFullscreenActive());
     };
 
     const handleBlockContextMenu = (e: MouseEvent) => {
@@ -134,15 +111,11 @@ export default function App() {
     document.addEventListener('fullscreenchange', syncFullscreen);
     document.addEventListener('webkitfullscreenchange', syncFullscreen);
     document.addEventListener('contextmenu', handleBlockContextMenu, { capture: true });
-    window.addEventListener('click', handleFirstGesture, { capture: true });
-    window.addEventListener('keydown', handleFirstGesture, { capture: true });
 
     return () => {
       document.removeEventListener('fullscreenchange', syncFullscreen);
       document.removeEventListener('webkitfullscreenchange', syncFullscreen);
       document.removeEventListener('contextmenu', handleBlockContextMenu, { capture: true });
-      window.removeEventListener('click', handleFirstGesture, { capture: true });
-      window.removeEventListener('keydown', handleFirstGesture, { capture: true });
     };
   }, []);
 
@@ -154,7 +127,6 @@ export default function App() {
       }
       void exitAppFullscreen();
     } else {
-      hasAttemptedFirstFullscreenRef.current = true;
       void requestAppFullscreen(isQuizRunning);
     }
   };

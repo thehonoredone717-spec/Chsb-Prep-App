@@ -716,7 +716,6 @@ let lastShotPenaltyAt = 0;
 let pendingNavAction = null;
 let blurConfirmId = null;
 let awayIntervalId = null;
-let hasAttemptedFirstFs = false;
 
 function isFsActive() {
   return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
@@ -768,7 +767,6 @@ function toggleFullScreen() {
       else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
     } catch (e) {}
   } else {
-    hasAttemptedFirstFs = true;
     enterFullScreen(running);
   }
 }
@@ -1704,18 +1702,6 @@ document.getElementById('printBtn').onclick = () => {
 };
 document.getElementById('langUz').onclick = () => { lang = 'uz'; try { localStorage.setItem(LANG_KEY, 'uz'); } catch (e) {} render(); };
 document.getElementById('langEn').onclick = () => { lang = 'en'; try { localStorage.setItem(LANG_KEY, 'en'); } catch (e) {} render(); };
-
-enterFullScreen(false);
-function handleFirstFsGesture() {
-  if (hasAttemptedFirstFs || isFsActive()) {
-    hasAttemptedFirstFs = true;
-    return;
-  }
-  hasAttemptedFirstFs = true;
-  enterFullScreen(activeView === 'quiz' && started && !submitted);
-}
-window.addEventListener('click', handleFirstFsGesture, { capture: true });
-window.addEventListener('keydown', handleFirstFsGesture, { capture: true });
 
 startSession('easy', 1);
 </script>
