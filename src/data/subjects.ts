@@ -193,11 +193,13 @@ export const UI_COPY: Record<
     computingTeacherBadge: string;
     mathTeacherBadge: string;
     scienceTeacherBadge: string;
+    englishTeacherBadge: string;
     studentBadge: string;
     teacherResultsTitle: string;
     computingResultsTitle: string;
     mathResultsTitle: string;
     scienceResultsTitle: string;
+    englishResultsTitle: string;
     studentCol: string;
     allStudents: string;
     allSubjects: string;
@@ -275,11 +277,13 @@ export const UI_COPY: Record<
     computingTeacherBadge: "Informatika O'qituvchisi",
     mathTeacherBadge: "Matematika O'qituvchisi",
     scienceTeacherBadge: "Science O'qituvchisi",
+    englishTeacherBadge: "Ingliz tili O'qituvchisi",
     studentBadge: "O'quvchi",
     teacherResultsTitle: "Barcha o'quvchilarning ChSB natijalari",
     computingResultsTitle: "O'quvchilarning Informatika (Computing) natijalari",
     mathResultsTitle: "O'quvchilarning Matematika natijalari",
     scienceResultsTitle: "O'quvchilarning Science (Tabiiy fanlar) natijalari",
+    englishResultsTitle: "O'quvchilarning Ingliz tili natijalari",
     studentCol: "O'quvchi",
     allStudents: "Barcha o'quvchilar",
     allSubjects: 'Barcha fanlar',
@@ -356,11 +360,13 @@ export const UI_COPY: Record<
     computingTeacherBadge: 'Computing Teacher',
     mathTeacherBadge: 'Math Teacher',
     scienceTeacherBadge: 'Science Teacher',
+    englishTeacherBadge: 'English Teacher',
     studentBadge: 'Student',
     teacherResultsTitle: 'All Students ChSB Results',
     computingResultsTitle: "Students' Computing Results",
     mathResultsTitle: "Students' Math Results",
     scienceResultsTitle: "Students' Science Results",
+    englishResultsTitle: "Students' English Results",
     studentCol: 'Student',
     allStudents: 'All students',
     allSubjects: 'All subjects',

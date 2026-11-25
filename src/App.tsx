@@ -43,6 +43,7 @@ import {
   isComputingTeacher,
   isMathTeacher,
   isScienceTeacher,
+  isEnglishTeacher,
   isTeacherAdmin,
   sanitizeDisplayName,
 } from './firebase';
@@ -160,7 +161,8 @@ export default function App() {
             isTeacherAdmin(user) ||
             isComputingTeacher(user) ||
             isMathTeacher(user) ||
-            isScienceTeacher(user);
+            isScienceTeacher(user) ||
+            isEnglishTeacher(user);
 
           if (!snap.exists()) {
             const pending = pendingSignupRef.current;
@@ -231,6 +233,7 @@ export default function App() {
   const isCompTeacher = isComputingTeacher(authUser);
   const isMathTch = isMathTeacher(authUser);
   const isScienceTch = isScienceTeacher(authUser);
+  const isEnglishTch = isEnglishTeacher(authUser);
   const teacherScope: TeacherScope = isFullAdmin
     ? 'all'
     : isCompTeacher
@@ -239,7 +242,9 @@ export default function App() {
         ? 'math'
         : isScienceTch
           ? 'science'
-          : 'none';
+          : isEnglishTch
+            ? 'english'
+            : 'none';
 
   // Subscribe to attempts only when auth and userProfile are ready
   useEffect(() => {
@@ -254,7 +259,9 @@ export default function App() {
           ? query(attemptsCollection, where('subjectId', '==', 'math'))
           : isScienceTch
             ? query(attemptsCollection, where('subjectId', '==', 'science'))
-            : query(attemptsCollection, where('userId', '==', authUser.uid));
+            : isEnglishTch
+              ? query(attemptsCollection, where('subjectId', '==', 'english'))
+              : query(attemptsCollection, where('userId', '==', authUser.uid));
 
     const unsubscribeAttempts = onSnapshot(
       attemptsQuery,
