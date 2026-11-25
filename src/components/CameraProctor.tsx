@@ -7,10 +7,25 @@ import {
   ShieldAlert,
   Video,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { UILanguage } from '../types/quiz';
 
 export type ProctorStatus = 'facing' | 'looking_away' | 'no_face' | 'camera_off';
+export type ProctorCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+const CORNER_STORAGE_KEY = 'g7_chsb_proctor_corner_v1';
+
+function loadSavedCorner(): ProctorCorner {
+  try {
+    const raw = window.localStorage.getItem(CORNER_STORAGE_KEY);
+    if (raw === 'top-left' || raw === 'top-right' || raw === 'bottom-left' || raw === 'bottom-right') {
+      return raw;
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return 'bottom-right';
+}
 
 export interface CameraProctorProps {
   lang: UILanguage;
@@ -61,22 +76,52 @@ export function CameraProctor({
   const [proctorStatus, setProctorStatus] = useState<ProctorStatus>('camera_off');
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  const [corner, setCorner] = useState<ProctorCorner>(() => loadSavedCorner());
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const awayStartTimeRef = useRef<number | null>(null);
   const nativeFaceDetectorRef = useRef<unknown>(null);
   const nativeSupportedRef = useRef<boolean | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Bind video element to media stream
+  const attachVideoElement = useCallback(
+    (node: HTMLVideoElement | null) => {
+      videoRef.current = node;
+      if (node && stream) {
+        if (node.srcObject !== stream) {
+          node.srcObject = stream;
+        }
+        node.play().catch(() => {
+          // Video autoplay policy handled
+        });
+      }
+    },
+    [stream]
+  );
+
+  // Re-bind video element whenever stream, variant, cameraStatus, or minimized state changes
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.play().catch(() => {
+    const node = videoRef.current;
+    if (node && stream) {
+      if (node.srcObject !== stream) {
+        node.srcObject = stream;
+      }
+      node.play().catch(() => {
         // Video autoplay policy handled
       });
     }
-  }, [stream]);
+  }, [stream, variant, isMinimized, cameraStatus]);
+
+  const updateCorner = useCallback((next: ProctorCorner) => {
+    setCorner(next);
+    try {
+      window.localStorage.setItem(CORNER_STORAGE_KEY, next);
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
 
   // Initialize native FaceDetector if supported in Chromium
   useEffect(() => {
@@ -206,13 +251,13 @@ export function CameraProctor({
         const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
 
         const isSkin =
-          cb >= 75 &&
-          cb <= 130 &&
-          cr >= 131 &&
-          cr <= 178 &&
-          r > 35 &&
-          r >= g &&
-          g >= b - 10;
+          cb >= 77 &&
+          cb <= 127 &&
+          cr >= 133 &&
+          cr <= 173 &&
+          r > 42 &&
+          r > g &&
+          g > b;
 
         if (isSkin) {
           skinCount++;
@@ -259,13 +304,13 @@ export function CameraProctor({
         const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
 
         const isSkin =
-          cb >= 75 &&
-          cb <= 130 &&
-          cr >= 131 &&
-          cr <= 178 &&
-          r > 35 &&
-          r >= g &&
-          g >= b - 10;
+          cb >= 77 &&
+          cb <= 127 &&
+          cr >= 133 &&
+          cr <= 173 &&
+          r > 42 &&
+          r > g &&
+          g > b;
 
         if (isSkin) {
           if (x < centerX) leftSkin++;
@@ -352,9 +397,12 @@ export function CameraProctor({
           setSecondsRemaining(null);
         }
       } else {
-        // Not active (preview mode or modal open): reset timer cleanly
-        awayStartTimeRef.current = null;
-        setSecondsRemaining(null);
+        // Not active (preview mode before quiz starts): show status indicator without penalties
+        if (status === 'looking_away' || status === 'no_face') {
+          setSecondsRemaining(2);
+        } else {
+          setSecondsRemaining(null);
+        }
       }
     }, SCAN_INTERVAL_MS);
 
@@ -381,26 +429,22 @@ export function CameraProctor({
       };
     }
     if (proctorStatus === 'looking_away') {
-      const countdownSuffix =
-        isActive && secondsRemaining !== null ? ` (${secondsRemaining}s)` : '';
       return {
         bg: 'bg-amber-100 text-amber-900 border-amber-400 animate-pulse',
         dot: 'bg-amber-500',
         text:
           lang === 'uz'
-            ? `⚠️ Boshqa tarafga qaralyapti!${countdownSuffix}`
-            : `⚠️ Looking away!${countdownSuffix}`,
+            ? `⚠️ Boshqa tarafga qaralyapti! (${secondsRemaining ?? 2}s)`
+            : `⚠️ Looking away! (${secondsRemaining ?? 2}s)`,
       };
     }
-    const noFaceSuffix =
-      isActive && secondsRemaining !== null ? ` (${secondsRemaining}s)` : '';
     return {
       bg: 'bg-rose-100 text-rose-900 border-rose-400 animate-pulse',
       dot: 'bg-rose-500',
       text:
         lang === 'uz'
-          ? `✕ Yuz ko‘rinmadi!${noFaceSuffix}`
-          : `✕ No face detected!${noFaceSuffix}`,
+          ? `✕ Yuz ko‘rinmadi! (${secondsRemaining ?? 2}s)`
+          : `✕ No face detected! (${secondsRemaining ?? 2}s)`,
     };
   };
 
@@ -440,7 +484,7 @@ export function CameraProctor({
           {cameraStatus === 'active' ? (
             <div className="relative w-full overflow-hidden rounded-xl border-2 border-slate-300 bg-black shadow-inner aspect-4/3 max-h-56">
               <video
-                ref={videoRef}
+                ref={attachVideoElement}
                 autoPlay
                 playsInline
                 muted
@@ -507,13 +551,63 @@ export function CameraProctor({
   const isAwayAlert =
     proctorStatus === 'looking_away' || proctorStatus === 'no_face';
 
+  const cornerPosClass: Record<ProctorCorner, string> = {
+    'top-left': 'top-4 left-4',
+    'top-right': 'top-4 right-4',
+    'bottom-left': 'bottom-4 left-4',
+    'bottom-right': 'bottom-4 right-4',
+  };
+
+  const handleFloatingPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    setDragOffset({ x: 0, y: 0 });
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handleFloatingPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current) return;
+    setDragOffset({
+      x: e.clientX - dragStartRef.current.x,
+      y: e.clientY - dragStartRef.current.y,
+    });
+  };
+
+  const handleFloatingPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current) return;
+    dragStartRef.current = null;
+    setDragOffset(null);
+    const isLeft = e.clientX < window.innerWidth / 2;
+    const isTop = e.clientY < window.innerHeight / 2;
+    const snapped: ProctorCorner = isTop
+      ? isLeft
+        ? 'top-left'
+        : 'top-right'
+      : isLeft
+        ? 'bottom-left'
+        : 'bottom-right';
+    updateCorner(snapped);
+  };
+
+  const cornerOptions: { id: ProctorCorner; labelUz: string; labelEn: string }[] = [
+    { id: 'top-left', labelUz: 'Yuqori chap', labelEn: 'Top left' },
+    { id: 'top-right', labelUz: "Yuqori o'ng", labelEn: 'Top right' },
+    { id: 'bottom-left', labelUz: 'Pastki chap', labelEn: 'Bottom left' },
+    { id: 'bottom-right', labelUz: "Pastki o'ng", labelEn: 'Bottom right' },
+  ];
+
   return (
     <div
       role="region"
       aria-label="Webcam Proctor"
-      className={`fixed bottom-4 right-4 z-40 transition-all duration-200 select-none ${
-        isMinimized ? 'w-48' : 'w-56 sm:w-64'
-      }`}
+      style={
+        dragOffset
+          ? { transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0)` }
+          : undefined
+      }
+      className={`fixed ${cornerPosClass[corner]} z-50 select-none ${
+        dragOffset ? '' : 'transition-all duration-200'
+      } ${isMinimized ? 'w-52' : 'w-56 sm:w-64'}`}
     >
       <div
         className={`overflow-hidden rounded-2xl border-2 shadow-2xl backdrop-blur-md transition-colors ${
@@ -522,8 +616,13 @@ export function CameraProctor({
             : 'border-slate-800 bg-slate-900/90 text-white'
         }`}
       >
-        {/* Floating Widget Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-3 py-1.5 text-xs">
+        {/* Floating Widget Header (drag to any corner or click 2x2 corner grid) */}
+        <div
+          onPointerDown={handleFloatingPointerDown}
+          onPointerMove={handleFloatingPointerMove}
+          onPointerUp={handleFloatingPointerUp}
+          className="flex cursor-grab items-center justify-between border-b border-white/10 px-3 py-1.5 text-xs active:cursor-grabbing"
+        >
           <div className="flex items-center gap-1.5">
             <span
               className={`h-2 w-2 rounded-full ${
@@ -533,7 +632,31 @@ export function CameraProctor({
             <span className="font-bold tracking-tight text-[11px]">PROCTOR</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {/* 4-Corner Switcher (2x2 mini grid) */}
+            <div
+              role="group"
+              aria-label={lang === 'uz' ? 'Kamera burchagi' : 'Camera corner'}
+              className="grid grid-cols-2 gap-0.5 rounded border border-white/15 bg-black/30 p-0.5"
+              title={lang === 'uz' ? 'Kamerani istalgan burchakka ko‘chirish' : 'Move camera to any corner'}
+            >
+              {cornerOptions.map((opt) => {
+                const active = corner === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => updateCorner(opt.id)}
+                    aria-label={lang === 'uz' ? opt.labelUz : opt.labelEn}
+                    title={lang === 'uz' ? opt.labelUz : opt.labelEn}
+                    className={`h-2.5 w-2.5 rounded-[2px] transition-colors ${
+                      active ? 'bg-teal-400' : 'bg-slate-600 hover:bg-slate-400'
+                    }`}
+                  />
+                );
+              })}
+            </div>
+
             <span
               className={`font-mono-num text-[11px] font-bold ${
                 warningsLeft === 3
@@ -542,7 +665,7 @@ export function CameraProctor({
                     ? 'text-amber-400'
                     : 'text-rose-400'
               }`}
-              title="Qolgan ogohlantirishlar"
+              title={lang === 'uz' ? 'Qolgan ogohlantirishlar' : 'Warnings remaining'}
             >
               {warningsLeft}/{maxWarnings}
             </span>
@@ -565,7 +688,7 @@ export function CameraProctor({
         {!isMinimized && (
           <div className="relative aspect-4/3 w-full bg-black">
             <video
-              ref={videoRef}
+              ref={attachVideoElement}
               autoPlay
               playsInline
               muted

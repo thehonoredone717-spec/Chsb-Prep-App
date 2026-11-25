@@ -27,6 +27,7 @@ type AuthTab = 'login' | 'register';
 
 function mapAuthError(code: string | undefined, lang: UILanguage): string {
   const uz = lang === 'uz';
+  const host = typeof window !== 'undefined' ? window.location.hostname : '';
   switch (code) {
     case 'auth/invalid-credential':
     case 'auth/wrong-password':
@@ -34,6 +35,10 @@ function mapAuthError(code: string | undefined, lang: UILanguage): string {
       return uz
         ? "Foydalanuvchi nomi (yoki email) yoxud parol noto'g'ri."
         : 'Invalid username (or email) or password.';
+    case 'auth/invalid-email':
+      return uz
+        ? "Email yoki foydalanuvchi nomi formati noto'g'ri."
+        : 'Invalid email or username format.';
     case 'auth/email-already-in-use':
       return uz
         ? 'Bu foydalanuvchi nomi allaqachon band. Boshqasini tanlang yoki tizimga kiring.'
@@ -46,18 +51,31 @@ function mapAuthError(code: string | undefined, lang: UILanguage): string {
       return uz
         ? "Username + parol orqali kirish uchun Firebase Console'da Email/Password usulini yoqish kerak (Authentication -> Sign-in method -> Email/Password). Hozircha Google orqali kirishingiz mumkin."
         : 'Email/Password sign-in is not yet enabled in Firebase Console (Authentication -> Sign-in method -> Email/Password). You can sign in with Google right now.';
+    case 'auth/unauthorized-domain':
+      return uz
+        ? `Ushbu domen (${host}) Firebase Console -> Authentication -> Settings -> Authorized domains ro'yxatiga qo'shilmagan.`
+        : `This domain (${host}) is not listed in Firebase Console -> Authentication -> Settings -> Authorized domains.`;
+    case 'auth/popup-blocked':
+      return uz
+        ? "Brauzer Google kirish oynasini (popup) blokladi. Iltimos, brauzerda popup oynalarga ruxsat bering."
+        : 'Browser blocked the Google sign-in popup. Please allow popups for this site and try again.';
     case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
       return uz
         ? 'Google kirish oynasi yopildi. Qayta urinib ko‘ring.'
         : 'Google sign-in popup was closed. Please try again.';
+    case 'auth/network-request-failed':
+      return uz
+        ? "Tarmoq xatoligi yuz berdi. Internet aloqasini tekshirib qayta urinib ko'ring."
+        : 'Network error occurred. Please check your connection and try again.';
     case 'auth/too-many-requests':
       return uz
         ? "Juda ko'p urinish bo'ldi. Biroz kutib qayta urinib ko'ring."
         : 'Too many attempts. Please wait a moment and try again.';
     default:
       return uz
-        ? 'Kirishda xatolik yuz berdi. Qayta urinib ko‘ring.'
-        : 'Authentication failed. Please try again.';
+        ? `Kirishda xatolik yuz berdi${code ? ` (${code})` : ''}. Qayta urinib ko'ring.`
+        : `Authentication failed${code ? ` (${code})` : ''}. Please try again.`;
   }
 }
 

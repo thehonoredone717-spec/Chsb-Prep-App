@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   BookOpen,
+  Calculator,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -14,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRecord, UI_COPY, pickText } from '../data/subjects';
 import { CameraProctor } from './CameraProctor';
 import { FormattedMathText } from './FormattedMathText';
+import { ScientificCalculator } from './ScientificCalculator';
 import {
   ActiveQuizQuestion,
   DifficultyLevel,
@@ -135,6 +137,10 @@ export function QuizSection({
     'idle' | 'requesting' | 'active' | 'denied' | 'error'
   >('idle');
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [calculatorOpen, setCalculatorOpen] = useState<boolean>(false);
+  const lastRafAtRef = useRef<number>(
+    typeof performance !== 'undefined' ? performance.now() : 0
+  );
 
   const requestCamera = useCallback(async (): Promise<boolean> => {
     if (cameraStream && cameraStream.active) {
@@ -159,18 +165,6 @@ export function QuizSection({
         },
         audio: false,
       });
-      const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.onended = () => {
-          setCameraStream(null);
-          setCameraStatus('error');
-          setCameraError(
-            lang === 'uz'
-              ? 'Kamera uzildi! Testni davom ettirish uchun kamerani qayta yoqing.'
-              : 'Camera disconnected! Please re-enable your camera to continue.'
-          );
-        };
-      }
       setCameraStream(stream);
       setCameraStatus('active');
       return true;
@@ -470,8 +464,87 @@ export function QuizSection({
       wasFullscreenInTestRef.current = true;
     }
 
+    lastRafAtRef.current = performance.now();
+    let rafId = 0;
+    let unmounted = false;
+
+    const rafLoop = (now: number) => {
+      if (unmounted) return;
+      lastRafAtRef.current = now;
+      rafId = window.requestAnimationFrame(rafLoop);
+    };
+    rafId = window.requestAnimationFrame(rafLoop);
+
+    const startAwayTracking = (backdateMs = 0) => {
+      if (submittedRef.current) return;
+      if (awayStartedAtRef.current !== null) return;
+      awayStartedAtRef.current = Date.now() - Math.max(0, backdateMs);
+      deductedThisAwayRef.current = 0;
+      setIsAway(true);
+      setGraceSecondsLeft(GRACE_SECONDS);
+      playWarningBeep(false);
+    };
+
+    const stopAwayTracking = () => {
+      if (blurConfirmTimerRef.current !== null) {
+        window.clearTimeout(blurConfirmTimerRef.current);
+        blurConfirmTimerRef.current = null;
+      }
+      if (awayStartedAtRef.current === null) return;
+
+      const elapsedMs = Date.now() - awayStartedAtRef.current;
+      const stepsPassed = Math.floor(elapsedMs / (GRACE_SECONDS * 1000));
+      if (stepsPassed > deductedThisAwayRef.current) {
+        const delta = stepsPassed - deductedThisAwayRef.current;
+        deductedThisAwayRef.current = stepsPassed;
+        const nextWarnings = Math.max(0, warningsLeftRef.current - delta);
+        warningsLeftRef.current = nextWarnings;
+        setWarningsLeft(nextWarnings);
+        if (nextWarnings <= 0) {
+          forceZeroSubmitRef.current();
+          return;
+        }
+      }
+      if (submittedRef.current) return;
+
+      const lostCount = deductedThisAwayRef.current;
+      awayStartedAtRef.current = null;
+      deductedThisAwayRef.current = 0;
+      setIsAway(false);
+      setGraceSecondsLeft(GRACE_SECONDS);
+      document.title = originalTitleRef.current;
+
+      if (lostCount > 0) {
+        setWarningModal({
+          remaining: warningsLeftRef.current,
+          deductedCount: lostCount,
+        });
+      }
+    };
+
     const tickAwayProgress = () => {
-      if (awayStartedAtRef.current === null || submittedRef.current) return;
+      if (submittedRef.current) return;
+
+      const hiddenOrUnfocused =
+        document.hidden ||
+        document.visibilityState !== 'visible' ||
+        !document.hasFocus();
+      const rafGapMs = performance.now() - lastRafAtRef.current;
+      const rafStalled = rafGapMs > 1200;
+
+      if (hiddenOrUnfocused || rafStalled) {
+        if (awayStartedAtRef.current === null) {
+          startAwayTracking(rafStalled ? Math.min(1000, Math.floor(rafGapMs)) : 0);
+        }
+      } else if (
+        awayStartedAtRef.current !== null &&
+        (!wasFullscreenInTestRef.current || isFullscreenActive())
+      ) {
+        stopAwayTracking();
+        return;
+      }
+
+      if (awayStartedAtRef.current === null) return;
       const elapsedMs = Date.now() - awayStartedAtRef.current;
       const stepsPassed = Math.floor(elapsedMs / (GRACE_SECONDS * 1000));
 
@@ -498,45 +571,11 @@ export function QuizSection({
           : `⚠️ (${secLeft}s) Return to quiz! — ${warningsLeftRef.current}/${MAX_WARNINGS}`;
     };
 
-    const startAwayTracking = () => {
-      if (submittedRef.current) return;
-      if (awayStartedAtRef.current !== null) return;
-      awayStartedAtRef.current = Date.now();
-      deductedThisAwayRef.current = 0;
-      setIsAway(true);
-      setGraceSecondsLeft(GRACE_SECONDS);
-      tickAwayProgress();
-    };
-
-    const stopAwayTracking = () => {
-      if (blurConfirmTimerRef.current !== null) {
-        window.clearTimeout(blurConfirmTimerRef.current);
-        blurConfirmTimerRef.current = null;
-      }
-      if (awayStartedAtRef.current === null) return;
-
-      tickAwayProgress();
-      if (submittedRef.current) return;
-
-      const lostCount = deductedThisAwayRef.current;
-      awayStartedAtRef.current = null;
-      deductedThisAwayRef.current = 0;
-      setIsAway(false);
-      setGraceSecondsLeft(GRACE_SECONDS);
-      document.title = originalTitleRef.current;
-
-      if (lostCount > 0) {
-        setWarningModal({
-          remaining: warningsLeftRef.current,
-          deductedCount: lostCount,
-        });
-      }
-    };
-
     const handleVisibilityChange = () => {
       if (submittedRef.current) return;
       if (document.hidden || document.visibilityState !== 'visible') {
         startAwayTracking();
+        tickAwayProgress();
       } else if (document.hasFocus()) {
         stopAwayTracking();
       }
@@ -547,12 +586,24 @@ export function QuizSection({
       if (blurConfirmTimerRef.current !== null) {
         window.clearTimeout(blurConfirmTimerRef.current);
       }
-      // Immediate cover when losing focus (blocks Ask Gemini / Google Lens / Snipping Tool / Win+G captures)
+      // Immediate cover when losing focus (blocks virtual desktop switches, Ask Gemini, Snipping Tool, etc.)
       startAwayTracking();
+      tickAwayProgress();
+    };
+
+    const handleFocusOut = () => {
+      if (submittedRef.current) return;
+      window.setTimeout(() => {
+        if (!submittedRef.current && (!document.hasFocus() || document.hidden)) {
+          startAwayTracking();
+          tickAwayProgress();
+        }
+      }, 60);
     };
 
     const handleWindowFocus = () => {
       if (submittedRef.current) return;
+      lastRafAtRef.current = performance.now();
       if (!document.hidden && document.hasFocus()) {
         stopAwayTracking();
       }
@@ -563,12 +614,14 @@ export function QuizSection({
       if (isFullscreenActive()) {
         wasFullscreenInTestRef.current = true;
         setFullscreenLost(false);
+        lastRafAtRef.current = performance.now();
         if (!document.hidden && document.hasFocus()) {
           stopAwayTracking();
         }
       } else if (wasFullscreenInTestRef.current) {
         setFullscreenLost(true);
         startAwayTracking();
+        tickAwayProgress();
       }
     };
 
@@ -583,13 +636,14 @@ export function QuizSection({
         e.code === 'MetaLeft' ||
         e.code === 'MetaRight' ||
         e.metaKey;
+      const isAltTab = e.altKey && e.key === 'Tab';
       const isBlockedCtrlCombo =
         e.ctrlKey &&
         (['p', 's', 'u', 'c', 'x', 'a', 'g'].includes(keyLower) ||
           (e.shiftKey && ['i', 'j', 'c', 's'].includes(keyLower)));
       const isSystemNavKey = e.key === 'Escape' || e.key === 'F11' || e.key === 'F12';
 
-      if (isPrintScreen || isMetaOrWin || isBlockedCtrlCombo || isSystemNavKey) {
+      if (isPrintScreen || isMetaOrWin || isAltTab || isBlockedCtrlCombo || isSystemNavKey) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -597,14 +651,15 @@ export function QuizSection({
       const isScreenshotOrSystemCombo =
         isPrintScreen ||
         isMetaOrWin ||
+        isAltTab ||
         (e.ctrlKey && e.shiftKey && keyLower === 's') ||
         (e.ctrlKey && keyLower === 'p') ||
         (isMetaOrWin && e.shiftKey && ['3', '4', '5', 's'].includes(keyLower));
 
       if (isScreenshotOrSystemCombo) {
         triggerInstantPenalty(
-          'Skrinshot olish, Pusk (Win) yoki Win+G tugmalarini bosish taqiqlanadi! 1 ta ogohlantirish olib tashlandi.',
-          'Screenshots, Start (Win), and Win+G are prohibited! 1 warning was deducted.'
+          'Skrinshot olish, boshqa desktop/oynaga o‘tish yoki Win / Win+G tugmalarini bosish taqiqlanadi! 1 ta ogohlantirish olib tashlandi.',
+          'Screenshots, switching desktops/windows, Start (Win), and Win+G are prohibited! 1 warning was deducted.'
         );
       }
     };
@@ -613,10 +668,13 @@ export function QuizSection({
       e.preventDefault();
     };
 
-    const intervalId = window.setInterval(tickAwayProgress, 250);
+    const intervalId = window.setInterval(tickAwayProgress, 200);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('focusout', handleFocusOut);
+    document.addEventListener('freeze', handleWindowBlur);
+    window.addEventListener('pagehide', handleWindowBlur);
     window.addEventListener('blur', handleWindowBlur);
     window.addEventListener('focus', handleWindowFocus);
     window.addEventListener('keydown', handleKeyGuard, { capture: true });
@@ -628,6 +686,8 @@ export function QuizSection({
     document.addEventListener('dragstart', preventAction, { capture: true });
 
     return () => {
+      unmounted = true;
+      window.cancelAnimationFrame(rafId);
       window.clearInterval(intervalId);
       if (blurConfirmTimerRef.current !== null) {
         window.clearTimeout(blurConfirmTimerRef.current);
@@ -636,6 +696,9 @@ export function QuizSection({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('focusout', handleFocusOut);
+      document.removeEventListener('freeze', handleWindowBlur);
+      window.removeEventListener('pagehide', handleWindowBlur);
       window.removeEventListener('blur', handleWindowBlur);
       window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('keydown', handleKeyGuard, { capture: true });
@@ -695,6 +758,19 @@ export function QuizSection({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setCalculatorOpen((open) => !open)}
+              className={`inline-flex min-h-[42px] items-center gap-2 rounded-lg border px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
+                calculatorOpen
+                  ? 'border-teal-700 bg-teal-50 text-teal-800'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Calculator className="h-4 w-4 text-teal-700" aria-hidden="true" />
+              <span>{lang === 'uz' ? 'Kalkulyator' : 'Calculator'}</span>
+            </button>
+
             <button
               type="button"
               onClick={onOpenGuide}
@@ -1028,8 +1104,8 @@ export function QuizSection({
             </h2>
             <p className="mt-4 text-base leading-relaxed text-rose-100">
               {lang === 'uz'
-                ? '3 ta ogohlantirish ham sarflandi (boshqa tarafga qarash, yuzni berkitish yoki boshqa oyna/saytga o‘tish sababli). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
-                : 'All 3 warnings were used (looking away from screen, obscuring face, or leaving the test window). Your score was recorded as 0 / 25 (0%).'}
+                ? '3 ta ogohlantirish ham sarflandi (3 soniyadan ortiq boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
+                : 'All 3 warnings were used (you stayed outside the test tab, window, or desktop for over 3 seconds). Your score was recorded as 0 / 25 (0%).'}
             </p>
             <button
               type="button"
@@ -1143,8 +1219,8 @@ export function QuizSection({
                 </h2>
                 <p className="mt-1 text-sm text-rose-800">
                   {lang === 'uz'
-                    ? '3 ta ogohlantirish ham sarflandi (boshqa tarafga qarash, yuzni berkitish yoki boshqa oyna/saytga o‘tish sababli). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
-                    : 'All 3 warnings were used (looking away from screen, obscuring face, or leaving the test window). Your score for this test was recorded as 0 / 25 (0%).'}
+                    ? '3 ta ogohlantirish ham sarflandi (3 soniyadan ortiq boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
+                    : 'All 3 warnings were used (you stayed outside the test tab, window, or desktop for over 3 seconds). Your score for this test was recorded as 0 / 25 (0%).'}
                 </p>
               </div>
             </div>
@@ -1407,9 +1483,23 @@ export function QuizSection({
                     {getDifficultyLabel(activeQuestion.source.difficulty, lang)}
                   </span>
                 </span>
-                <span className="font-mono-num">
-                  {copy.questionOf} {currentIndex + 1} / {QUESTIONS_PER_TEST}
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCalculatorOpen((open) => !open)}
+                    className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
+                      calculatorOpen
+                        ? 'border-teal-700 bg-teal-50 text-teal-800'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Calculator className="h-3.5 w-3.5 text-teal-700" aria-hidden="true" />
+                    <span>{lang === 'uz' ? 'Kalkulyator' : 'Calculator'}</span>
+                  </button>
+                  <span className="font-mono-num">
+                    {copy.questionOf} {currentIndex + 1} / {QUESTIONS_PER_TEST}
+                  </span>
+                </div>
               </div>
 
               {activeQuestion.source.context && (
@@ -1546,50 +1636,11 @@ export function QuizSection({
         </div>
       )}
 
-      {/* Blocking overlay if camera disconnects mid-test */}
-      {started && !submitted && cameraStatus !== 'active' && !isAway && !securityViolationMsg && !fullscreenLost && (
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          className="fixed inset-0 z-[105] flex flex-col items-center justify-center bg-rose-700 p-6 text-center text-white"
-        >
-          <div className="w-full max-w-xl rounded-2xl border-2 border-white/40 bg-rose-900/90 p-8 shadow-2xl sm:p-10">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-white">
-              <ShieldAlert className="h-9 w-9" aria-hidden="true" />
-            </div>
-            <h2 className="mt-5 font-display text-2xl font-extrabold text-white sm:text-4xl">
-              {lang === 'uz' ? 'KAMERA UZILDI!' : 'CAMERA DISCONNECTED!'}
-            </h2>
-            <p className="mt-4 text-base leading-relaxed text-rose-100 sm:text-lg">
-              {cameraError ||
-                (lang === 'uz'
-                  ? 'Testni davom ettirish uchun veb-kamerani qayta yoqing.'
-                  : 'Re-enable your webcam to continue the test.')}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                void requestCamera();
-              }}
-              className="mt-7 inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-white px-6 text-base font-extrabold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            >
-              {lang === 'uz' ? 'Kamerani qayta yoqish' : 'Re-enable Camera'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Webcam Proctor Widget during active test */}
+      {/* Live Floating Corner Camera Proctor (active during test, movable to any corner) */}
       {started && !submitted && (
         <CameraProctor
           lang={lang}
-          isActive={
-            !isAway &&
-            !warningModal &&
-            !securityViolationMsg &&
-            !fullscreenLost &&
-            cameraStatus === 'active'
-          }
+          isActive={true}
           warningsLeft={warningsLeft}
           maxWarnings={MAX_WARNINGS}
           onViolation={triggerInstantPenalty}
@@ -1600,6 +1651,13 @@ export function QuizSection({
           variant="floating"
         />
       )}
+
+      {/* In-App Scientific Calculator */}
+      <ScientificCalculator
+        lang={lang}
+        open={calculatorOpen}
+        onClose={() => setCalculatorOpen(false)}
+      />
     </section>
   );
 }

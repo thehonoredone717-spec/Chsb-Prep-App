@@ -19,8 +19,8 @@
    - `mode` must be one of `['practice', 'exam']`.
    - `score` (`0..25`), `total` (`25`), `percentage` (`0..100`), `grade` (`2, 3, 4, 5`), `elapsedSeconds` (`0..86400`) must be valid bounded integers.
    - `createdAt` must equal `request.time` on creation.
-   - Score records are immutable after creation (`update: if false`) and can only be deleted by the verified full admin (`delete: if isAdmin() && isValidId(attemptId)`).
-   - Listing attempts (`allow list`) requires verified full admin status, verified Computing Teacher (`zarifa.xojiyeva2281@gmail.com`) scoped strictly to `resource.data.subjectId == 'computing'`, OR `resource.data.userId == request.auth.uid` for students.
+   - Score records are immutable after creation (`update: if false`) and can only be deleted by a verified full admin (`thehonoredone.717@gmail.com` or `ibrohimbekxujanazarov@gmail.com`) (`delete: if isAdmin() && isValidId(attemptId)`).
+   - Listing attempts (`allow list`) requires verified full admin status, verified subject teacher status scoped strictly to their assigned `resource.data.subjectId`, OR `resource.data.userId == request.auth.uid` for students.
 
 ## 2. The "Dirty Dozen" Adversarial Payloads
 1. **Shadow Field Injection on User Create**: Including `{ ..., "isAdmin": true }` in `/users/{uid}` -> Rejected by `hasOnly(...)`.

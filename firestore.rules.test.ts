@@ -130,4 +130,11 @@ export const DIRTY_DOZEN_CASES = [
     auth: { uid: 'comp_teacher', email: 'zarifa.xojiyeva2281@gmail.com', email_verified: true },
     expected: 'PERMISSION_DENIED',
   },
+  {
+    name: '14. Unverified Second Admin Email Spoof on Attempts List',
+    target: 'attempts',
+    operation: 'list',
+    auth: { uid: 'spoof2', email: 'ibrohimbekxujanazarov@gmail.com', email_verified: false },
+    expected: 'PERMISSION_DENIED',
+  },
 ] as const;

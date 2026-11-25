@@ -38,8 +38,8 @@ export const SUBJECTS: SubjectConfig[] = [
     title: { uz: 'Matematika (G7)', en: 'Mathematics (G7)' },
     shortLabel: { uz: 'Matematika', en: 'Math' },
     subtitle: {
-      uz: 'Darajalar, standart shakl, tenglamalar, doira, grafiklar va foizlar (11 mavzu)',
-      en: 'Powers, standard form, linear equations, circles, graphs & percentages (11 topics)',
+      uz: "Unit 9.1–9.3: Daraja va standart shakl, sonlar sistemasi, algebra, tenglamalar, 2D/3D shakllar va Pifagor teoremasi (7 mavzu)",
+      en: "Units 9.1–9.3: Indices & standard form, number system, algebra, simultaneous equations, 2D/3D shapes & Pythagoras' theorem (7 topics)",
     },
     questionLangNote: { uz: 'Savollar tili: Inglizcha', en: 'Question language: English' },
     topics: mathTopics,

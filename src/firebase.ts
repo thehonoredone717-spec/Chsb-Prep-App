@@ -9,6 +9,8 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 export const TEACHER_EMAIL = 'thehonoredone.717@gmail.com';
+export const OWNER_ADMIN_EMAIL = 'ibrohimbekxujanazarov@gmail.com';
+export const ADMIN_EMAILS = [TEACHER_EMAIL, OWNER_ADMIN_EMAIL] as const;
 export const COMPUTING_TEACHER_EMAIL = 'zarifa.xojiyeva2281@gmail.com';
 export const MATH_TEACHER_EMAIL = 'qoqonovtohir@gmail.com';
 export const SCIENCE_TEACHER_EMAIL = 'mohinurteshayeva19@gmail.com';
@@ -88,7 +90,8 @@ async function testConnection() {
 void testConnection();
 
 export function isTeacherAdmin(user: User | null): boolean {
-  return Boolean(user && user.email?.toLowerCase() === TEACHER_EMAIL && user.emailVerified);
+  const email = user?.email?.toLowerCase();
+  return Boolean(user && email && ADMIN_EMAILS.some((adminEmail) => adminEmail === email) && user.emailVerified);
 }
 
 export function isComputingTeacher(user: User | null): boolean {
