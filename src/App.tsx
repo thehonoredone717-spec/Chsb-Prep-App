@@ -581,8 +581,8 @@ export default function App() {
           <AlertTriangle className="h-4 w-4 shrink-0 text-rose-100" aria-hidden="true" />
           <span>
             {lang === 'uz'
-              ? 'OGOHLANTIRISH: Test paytida boshqa sayt, oyna yoki desktopga 3 soniyadan ortiq o‘tish, to‘liq ekrandan chiqish, skrinshot olish va Pusk / Win+G bosish taqiqlanadi (3 ta ogohlantirish tugasa, natija darhol 0 bo‘ladi).'
-              : 'WARNING: During a test, leaving to another tab, window, or desktop for over 3 seconds, exiting fullscreen, taking screenshots, or pressing Win / Win+G is prohibited (3 warnings used = immediate 0 score).'}
+              ? 'OGOHLANTIRISH: Test paytida veb-kamera nazorati faol — boshqa tarafga burilib qarash, yuzni berkitish, boshqa oyna/desktopga 3 soniyadan ortiq o‘tish, skrinshot olish va Win / Win+G bosish taqiqlanadi (3 ta ogohlantirish tugasa, natija darhol 0 bo‘ladi).'
+              : 'WARNING: Real-time webcam proctoring is active — looking away/turning your head, obscuring face, leaving to another tab/window for over 3s, taking screenshots, or pressing Win / Win+G is prohibited (3 warnings = immediate 0 score).'}
           </span>
         </div>
       </div>

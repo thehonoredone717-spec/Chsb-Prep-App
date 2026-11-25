@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRecord, UI_COPY, pickText } from '../data/subjects';
+import { CameraProctor } from './CameraProctor';
 import { FormattedMathText } from './FormattedMathText';
 import {
   ActiveQuizQuestion,
@@ -128,6 +129,73 @@ export function QuizSection({
     typeof document !== 'undefined' ? document.title : 'Grade 7 ChSB'
   );
 
+  // Camera proctoring state & permissions
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraStatus, setCameraStatus] = useState<
+    'idle' | 'requesting' | 'active' | 'denied' | 'error'
+  >('idle');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const requestCamera = useCallback(async (): Promise<boolean> => {
+    if (cameraStream && cameraStream.active) {
+      setCameraStatus('active');
+      return true;
+    }
+    setCameraStatus('requesting');
+    setCameraError(null);
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        throw new Error(
+          lang === 'uz'
+            ? 'Brauzeringizda veb-kamera funksiyasi mavjud emas'
+            : 'Camera access is not supported by your browser'
+        );
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 480 },
+          height: { ideal: 360 },
+        },
+        audio: false,
+      });
+      setCameraStream(stream);
+      setCameraStatus('active');
+      return true;
+    } catch (err: unknown) {
+      const errName = (err as { name?: string })?.name;
+      let msg =
+        lang === 'uz'
+          ? 'Kameraga ulanishda xatolik yuz berdi. Brauzer sozlamalarida kameraga ruxsat bering.'
+          : 'Failed to access camera. Please allow camera permissions in browser settings.';
+      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+        msg =
+          lang === 'uz'
+            ? 'Kameradan foydalanish rad etildi. Brauzer manzillar panelidagi qulf belgisini bosib kameraga ruxsat bering.'
+            : 'Camera access was denied. Please click the lock icon in the address bar to allow camera.';
+        setCameraStatus('denied');
+      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+        msg =
+          lang === 'uz'
+            ? 'Kompyuteringizda veb-kamera topilmadi.'
+            : 'No webcam was found on this computer.';
+        setCameraStatus('error');
+      } else {
+        setCameraStatus('error');
+      }
+      setCameraError(msg);
+      return false;
+    }
+  }, [cameraStream, lang]);
+
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
   const resetFocusGuard = useCallback(() => {
     if (blurConfirmTimerRef.current !== null) {
       window.clearTimeout(blurConfirmTimerRef.current);
@@ -229,7 +297,11 @@ export function QuizSection({
     });
   };
 
-  const handleBeginTest = () => {
+  const handleBeginTest = async () => {
+    if (cameraStatus !== 'active') {
+      const ok = await requestCamera();
+      if (!ok) return;
+    }
     resetFocusGuard();
     setElapsedSeconds(0);
     setStarted(true);
@@ -328,6 +400,32 @@ export function QuizSection({
     setSubmitted(true);
   };
 
+  const triggerInstantPenalty = useCallback(
+    (reasonUz: string, reasonEn: string) => {
+      if (submittedRef.current) return;
+      const now = Date.now();
+      if (now - lastScreenshotPenaltyRef.current < 1500) return;
+      lastScreenshotPenaltyRef.current = now;
+
+      try {
+        void navigator.clipboard?.writeText?.('').catch(() => {});
+      } catch {
+        // Ignore clipboard errors
+      }
+
+      const nextWarnings = Math.max(0, warningsLeftRef.current - 1);
+      warningsLeftRef.current = nextWarnings;
+      setWarningsLeft(nextWarnings);
+      if (nextWarnings <= 0) {
+        forceZeroSubmitRef.current();
+        return;
+      }
+      playWarningBeep(false);
+      setSecurityViolationMsg(lang === 'uz' ? reasonUz : reasonEn);
+    },
+    [lang]
+  );
+
   // Sync running state and submit callback with App navigation guard
   const finishHandlerRef = useRef<() => void>(() => {});
   finishHandlerRef.current = handleSubmit;
@@ -421,29 +519,6 @@ export function QuizSection({
           deductedCount: lostCount,
         });
       }
-    };
-
-    const triggerInstantPenalty = (reasonUz: string, reasonEn: string) => {
-      if (submittedRef.current) return;
-      const now = Date.now();
-      if (now - lastScreenshotPenaltyRef.current < 1500) return;
-      lastScreenshotPenaltyRef.current = now;
-
-      try {
-        void navigator.clipboard?.writeText?.('').catch(() => {});
-      } catch {
-        // Ignore clipboard errors
-      }
-
-      const nextWarnings = Math.max(0, warningsLeftRef.current - 1);
-      warningsLeftRef.current = nextWarnings;
-      setWarningsLeft(nextWarnings);
-      if (nextWarnings <= 0) {
-        forceZeroSubmitRef.current();
-        return;
-      }
-      playWarningBeep(false);
-      setSecurityViolationMsg(lang === 'uz' ? reasonUz : reasonEn);
     };
 
     const handleVisibilityChange = () => {
@@ -560,7 +635,7 @@ export function QuizSection({
       document.removeEventListener('dragstart', preventAction, { capture: true });
       document.title = originalTitleRef.current;
     };
-  }, [started, submitted, lang, subject.id, difficulty, variant, rotationCount]);
+  }, [started, submitted, lang, subject.id, difficulty, variant, rotationCount, triggerInstantPenalty]);
 
   const answeredCount = Object.keys(answers).length;
   const activeQuestion = questions[currentIndex];
@@ -1008,9 +1083,22 @@ export function QuizSection({
           </h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
             {lang === 'uz'
-              ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Boshlagandan keyin boshqa sayt, oyna yoki desktopga 3 soniyadan ortiq o‘tsangiz 1 ta ogohlantirish kamayadi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
-              : `This variant contains ${QUESTIONS_PER_TEST} questions (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Once started, leaving to another tab, window, or desktop for over 3 seconds removes 1 warning (3 warnings max; exhausting all 3 gives 0).`}
+              ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Test paytida veb-kamera nazorati faol bo‘ladi — boshqa tarafga 2.5 soniyadan ortiq burilib qarash, yuzni berkitish yoki boshqa oyna/desktopga o‘tish ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
+              : `This variant contains ${QUESTIONS_PER_TEST} questions (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Webcam proctoring is active during the test — turning your head away for over 2.5 seconds, obscuring face, or leaving the quiz window removes 1 warning (3 warnings max; exhausting all 3 gives 0).`}
           </p>
+
+          <CameraProctor
+            lang={lang}
+            isActive={false}
+            warningsLeft={warningsLeft}
+            maxWarnings={MAX_WARNINGS}
+            onViolation={triggerInstantPenalty}
+            stream={cameraStream}
+            cameraStatus={cameraStatus}
+            cameraError={cameraError}
+            onRequestCamera={requestCamera}
+            variant="preview-card"
+          />
 
           <button
             type="button"
@@ -1018,7 +1106,13 @@ export function QuizSection({
             className="mt-6 inline-flex min-h-[46px] items-center justify-center gap-2 rounded-lg bg-teal-700 px-8 text-base font-bold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
           >
             <Play className="h-4 w-4 fill-current" aria-hidden="true" />
-            <span>Start</span>
+            <span>
+              {cameraStatus === 'active'
+                ? 'Start Test'
+                : lang === 'uz'
+                  ? 'Kamera bilan boshlash'
+                  : 'Start with Camera'}
+            </span>
           </button>
         </div>
       ) : submitted && resultsSummary ? (
