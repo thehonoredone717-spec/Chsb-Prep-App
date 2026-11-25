@@ -2,12 +2,9 @@ import {
   AlertTriangle,
   Camera,
   CameraOff,
-  CheckCircle2,
   Maximize2,
   Minimize2,
-  RefreshCw,
   ShieldAlert,
-  ShieldCheck,
   Video,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -209,13 +206,13 @@ export function CameraProctor({
         const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
 
         const isSkin =
-          cb >= 77 &&
-          cb <= 127 &&
-          cr >= 133 &&
-          cr <= 173 &&
-          r > 42 &&
-          r > g &&
-          g > b;
+          cb >= 75 &&
+          cb <= 130 &&
+          cr >= 131 &&
+          cr <= 178 &&
+          r > 35 &&
+          r >= g &&
+          g >= b - 10;
 
         if (isSkin) {
           skinCount++;
@@ -262,13 +259,13 @@ export function CameraProctor({
         const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
 
         const isSkin =
-          cb >= 77 &&
-          cb <= 127 &&
-          cr >= 133 &&
-          cr <= 173 &&
-          r > 42 &&
-          r > g &&
-          g > b;
+          cb >= 75 &&
+          cb <= 130 &&
+          cr >= 131 &&
+          cr <= 178 &&
+          r > 35 &&
+          r >= g &&
+          g >= b - 10;
 
         if (isSkin) {
           if (x < centerX) leftSkin++;
@@ -355,12 +352,9 @@ export function CameraProctor({
           setSecondsRemaining(null);
         }
       } else {
-        // Not active (preview mode before quiz starts): show status indicator without penalties
-        if (status === 'looking_away' || status === 'no_face') {
-          setSecondsRemaining(2);
-        } else {
-          setSecondsRemaining(null);
-        }
+        // Not active (preview mode or modal open): reset timer cleanly
+        awayStartTimeRef.current = null;
+        setSecondsRemaining(null);
       }
     }, SCAN_INTERVAL_MS);
 
@@ -387,22 +381,26 @@ export function CameraProctor({
       };
     }
     if (proctorStatus === 'looking_away') {
+      const countdownSuffix =
+        isActive && secondsRemaining !== null ? ` (${secondsRemaining}s)` : '';
       return {
         bg: 'bg-amber-100 text-amber-900 border-amber-400 animate-pulse',
         dot: 'bg-amber-500',
         text:
           lang === 'uz'
-            ? `⚠️ Boshqa tarafga qaralyapti! (${secondsRemaining ?? 2}s)`
-            : `⚠️ Looking away! (${secondsRemaining ?? 2}s)`,
+            ? `⚠️ Boshqa tarafga qaralyapti!${countdownSuffix}`
+            : `⚠️ Looking away!${countdownSuffix}`,
       };
     }
+    const noFaceSuffix =
+      isActive && secondsRemaining !== null ? ` (${secondsRemaining}s)` : '';
     return {
       bg: 'bg-rose-100 text-rose-900 border-rose-400 animate-pulse',
       dot: 'bg-rose-500',
       text:
         lang === 'uz'
-          ? `✕ Yuz ko‘rinmadi! (${secondsRemaining ?? 2}s)`
-          : `✕ No face detected! (${secondsRemaining ?? 2}s)`,
+          ? `✕ Yuz ko‘rinmadi!${noFaceSuffix}`
+          : `✕ No face detected!${noFaceSuffix}`,
     };
   };
 
