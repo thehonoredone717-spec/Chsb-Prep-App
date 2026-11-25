@@ -11,32 +11,83 @@ export const computingTopics: string[] = [
   '8. The CPU and registers',
   '9. Programming languages and logic',
   '10. Design, AI and industry',
+  '11. Network scalability (9DC.03)',
 ];
 
 export const computingStudyGuide: StudyGuideItem[] = [
   {
-    title: 'Networks, Topologies, Servers & Packets',
+    title: '1. Networks, Topologies & Connectivity (Tarmoqlar va Topologiyalar)',
     points: [
-      'Star topology connects each device to a central switch; Bus topology shares one backbone cable with terminators at both ends to absorb signals.',
-      'Router connects different networks (e.g., LAN to internet); WAP connects wireless devices; NIC + MAC address identify each device.',
-      'Packet switching: data splits into packets with IP addresses and packet numbers (to reassemble in order). TCP/IP transfers data; HTTPS = HTTP + encryption.',
+      'Star topology connects each device individually to a central switch (a single cable break affects only that device, though switch failure halts the network and extra Ethernet cabling adds cost).',
+      'Bus topology shares one backbone cable with terminators at both ends to absorb signals and stop reflection/colliding; a main backbone break halts the whole bus.',
+      'Ring topology sends data one way around a closed loop to avoid collisions, yet a single broken cable breaks the entire ring; Mesh topology provides direct multi-node backup links.',
+      'Router connects different networks (e.g., LAN to the internet); WAP connects wireless devices; NIC + MAC address uniquely identify each device. Key needs: active internet connection, high-bandwidth, low interference, fit-for-purpose design.',
     ],
   },
   {
-    title: 'Data, Storage, Sound & Error Checking',
+    title: '2. Network Scalability Factors — 9DC.03 (Masshtablanuvchanlik omillari)',
     points: [
-      'Units: Bit → Nibble (4 bits) → Byte (8 bits) → Kilobyte (1000 bytes) → Megabyte (1000 KB).',
-      'Sound: ADC converts analogue voice to digital. Sample rate = samples/sec (Hz); Bit depth = bits per sample.',
-      'Errors: power surges & interference flip bits. Even parity bit makes total count of 1s even.',
+      'Network scalability is the ability of a network to accommodate new users, devices, and rising data traffic without losing speed, stability, or rebuilding from scratch.',
+      'Bandwidth: video conferencing and cloud services raise traffic; fiber-optic cabling, high-speed ports, and reserved capacity prevent bottlenecks and high latency.',
+      'Hardware (Routers, Switches, Servers): plan for spare ports to plug in new devices, modular hardware (expansion cards/modules instead of full replacement), and enough processing power to forward large packet volumes without delay.',
+      'IP Addressing: rapid expansion exhausts older IPv4 ranges; subnetting divides networks into logical segments efficiently, while IPv6 provides a virtually unlimited address pool.',
+      'Topology, Security, Redundancy & Cost: star or hierarchical (tree) topologies let new rooms/departments join cleanly; scalable firewalls, encryption, and access controls guard a wider attack surface; redundant routers/backup paths automatically reroute traffic on failure; cost planning balances budget against phased upgrades.',
     ],
   },
   {
-    title: 'Software, Security, CPU & Programming',
+    title: '3. Protocols, TCP/IP, Packet Switching & HTTP/HTTPS',
     points: [
-      'OS & NOS manage hardware/networks; device drivers run connected hardware; utilities include antivirus and disc defragmenter.',
-      'Security: Biometrics (fingerprint/face), 2FA (password + phone code), Encryption (scrambles plaintext), Firewall (filters traffic), Brute-force (dictionary guessing).',
-      'CPU Fetch-Decode-Execute: PC (next instruction address), MAR (memory address accessed), MDR (data read/written), CIR (current instruction), ALU (math/logic), ACC (ALU results), CU (control signals).',
-      'Languages: HLL (human-readable) vs LLL/Assembly; Compiler translates whole program at once, Interpreter line-by-line, Assembler converts assembly to machine code.',
+      'Packet switching splits files into small packets containing Sender IP, Receiver IP, Packet number (e.g., 5/340 for ordered reassembly and detecting lost packets), and binary Data. Different packets can travel along separate router routes.',
+      'Paul Baran (early 1960s) invented packet switching so data continues reaching its destination via alternative paths even if some network devices fail.',
+      'TCP/IP governs internet data transmission and acknowledgements; DNS translates domain names (e.g., google.com) into IP addresses; Mail, Print, and Web servers manage shared network services.',
+      'HTTP and HTTPS let browsers fetch web documents; HTTPS adds encryption against eavesdroppers. Request Headers (e.g., :authority, :method: GET, :path: /, :scheme: https, accept: text/html, user-agent) carry domain, file type, and browser details.',
+    ],
+  },
+  {
+    title: '4. Data Storage, Unit Conversions & Sound Digitisation',
+    points: [
+      'Transistors are tiny switches inside chips: ON = 1, OFF = 0. A single binary digit (1 or 0) is a bit; 4 bits = Nibble; 8 bits = Byte (represents one ASCII character, e.g., 01000001 = "A").',
+      'Storage ladder: Bit → Nibble (4 bits) → Byte (8 bits) → Kilobyte (1000 B) → Megabyte (1000 KB) → Gigabyte (1000 MB) → Terabyte (1000 GB) → Petabyte (1000 TB). Multiply by 1000 going to smaller units, divide by 1000 going to larger units (note: MiB divides by 1024^2).',
+      'Examples: 300 characters × 1 byte = 0.3 KB (2,400 bits); 12,000,000 bits ÷ 8 = 1,500,000 bytes = 1.5 MB; 2 PB = 2,000,000 GB.',
+      'Sound digitisation (ADC): Microphone captures analogue waves → Sampling (measuring amplitude at regular intervals) → Quantization (rounding each sample to the nearest whole number) → Encoding (saving as binary 0s and 1s). DAC converts digital audio back for speakers.',
+      'Sound size formula: File Size (bits) = Sample Rate (Hz) × Bit Depth (bits) × Duration (s) × Channels. Worked example: 60s stereo at 44,100 Hz, 16-bit = 84,672,000 bits = 10,584,000 bytes = 10.09 MiB.',
+    ],
+  },
+  {
+    title: '5. Transmission Errors & Parity Checking',
+    points: [
+      'Power surges and electrical interference (devices placed close together) can flip binary 0s and 1s during transmission; shielding around copper cables reduces noise.',
+      'Parity checking agrees on an Even or Odd protocol and adds 1 parity bit to a 7-bit sequence: Even parity keeps total 1s even (e.g., 1001100 → parity 1; 1001000 → parity 0; 01111101 with six 1s = OK).',
+      'Under Odd parity, total 1s must be odd: receiving 01000100 (two 1s) or 00000000 (zero 1s, even) signals an error and requires re-sending.',
+      'Parity strength & limits: fast and requires very little computing power, yet cannot identify which exact bit was corrupted and can miss an even number of simultaneous bit flips. Echo checks, ARQ, and check digits (ISBN/barcodes) provide additional checking.',
+    ],
+  },
+  {
+    title: '6. Software, OS, Utilities & Cybersecurity',
+    points: [
+      'Software splits into Applications software (word processors, spreadsheets, web browsers) and Systems software, which divides into Operating System (OS/NOS hardware/CPU/interface manager) and Utility software.',
+      'Device drivers act as translators enabling plug-and-play setup for external hardware; Antivirus/anti-malware/anti-spyware detect threats; Backup utilities protect against loss.',
+      'Disc fragmentation happens when the OS scatters pieces of saved files across an HDD; a Disc Defragmenter regroups blocks side-by-side so the OS loads them into RAM faster (never run on an SSD).',
+      'Datasets stored in column/row tables (medical, school, police, customer, bank records) are guarded by Firewalls, User Access Controls (administrator, staff, student groups), Encryption (scrambles plaintext), Biometrics (fingerprint/face/voice), and 2FA.',
+      'Strong Password Policies require >10 characters mixing letters, numbers, and symbols, excluding usernames or dates and requiring regular changes to slow brute-force dictionary attacks.',
+    ],
+  },
+  {
+    title: '7. The CPU, Buses, Registers & Fetch–Decode–Execute',
+    points: [
+      'CPU cores contain CU (Control Unit), ALU (Arithmetic Logic Unit), System Clock (sends vital synchronization timing signals), Cache (fast L1/L2 SRAM), and work directly with IAS (Immediate Access Store = RAM), unlike secondary backing storage.',
+      'Key registers in the FDE cycle: PC (address of next instruction, increments by 1), MAR (memory address being read/written), MDR/MBR (data or instruction read from or written to RAM), CIR (current instruction split into opcode + operand), ACC (intermediate ALU results).',
+      'Three system buses: Address Bus is unidirectional (CPU → RAM; 16-bit carries 2^16 = 65,536 addresses, 32-bit carries 2^32); Data Bus is bidirectional (CPU ↔ RAM/I/O, word length 16/32/64 bits); Control Bus is bidirectional (control/timing signals).',
+      'Memory Read vs Write: READ copies address → MAR → sends Read signal → fetches word into MDR; WRITE places data → MDR → target address → MAR → sends Write signal.',
+    ],
+  },
+  {
+    title: '8. Translators, Logic Circuits, Design, ML & Industry 4.0',
+    points: [
+      'Languages: High-Level Languages (Python, human-readable) vs Low-Level Assembly; Assembler translates assembly to machine code. Compilers (C, C++) produce fast standalone executables, hide source code, list all errors together, and translate a 1,000-iteration loop once; Interpreters (Python, JS) stop at the first error (e.g., line 5) and re-translate loop lines every run.',
+      'Conditional operators (=, >, <, >=, <=, <>) feed AND, OR, NOT logic gates. Always evaluate brackets first with intermediate label P, e.g., X = (A AND B) OR C vs X = (A OR B) AND C or X = NOT (A OR B).',
+      'Design & Prototyping: UX, Accessibility, Ergonomics, Haptic tech (vibration feedback), AR, Foldable screens, and W3C standards (founded 1994 by Tim Berners-Lee for HTML/CSS/accessibility). Follow the 5-stage prototype cycle using NIST usability metrics (completion time, error count, success rate).',
+      'Machine Learning & Industry 4.0: ML learns from patterns (predictive phone keyboards, speech translation, self-driving cars, banking fraud detection, medical diagnosis, masked/sunglasses facial recognition, routing, targeted ads). Factories use CAD/CAM, sensor-guided robots, chatbots, and RFID (passive vs active) for efficiency & predictive maintenance despite setup costs and job shifts.',
     ],
   },
 ];
@@ -2793,5 +2844,1271 @@ export const computingQuestions: QuestionItem[] = [
     },
     answer: 0,
     explain: { en: 'Unicode expands character representation globally while remaining backward-compatible with ASCII.', uz: 'Unicode jahon alifbolari va maxsus belgilarni yagona standartda qo‘llab-quvvatlaydi.' },
+  },
+  // ==================== 45 NEW BILINGUAL QUESTIONS (9DC.03 SCALABILITY + EXPANDED SYLLABUS) ====================
+  // ---------- 15 EASY ----------
+  {
+    id: 'c151',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'easy',
+    q: {
+      en: 'What does network scalability (9DC.03) mean when designing a computer network?',
+      uz: 'Kompyuter tarmog‘ini loyihalashda tarmoq masshtablanuvchanligi (9DC.03) nimani anglatadi?',
+    },
+    opts: {
+      uz: [
+        "Tezlikni yo‘qotmay yangi qurilma va trafikni qabul qilish qobiliyati",
+        "Hamma kompyuterni har oy bitta umumiy shina kabeliga almashtirish",
+        "Tarmoqdagi har bir foydalanuvchi uchun internet tezligini cheklash",
+        "Yangi kompyuter qo‘shilsa eski switch va kabellarni tashlab yuborish",
+      ],
+      en: [
+        "Accommodating new devices and traffic without losing speed or stability",
+        "Replacing every switch and cable whenever one extra computer joins",
+        "Limiting daily internet speed for each user connected to the office LAN",
+        "Moving all computers onto one shared unshielded backbone cable monthly",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'A scalable network expands smoothly for new users, devices, and data traffic without rebuilding from scratch.',
+      uz: 'Masshtablanuvchan tarmoq tezlik va barqarorlikni yo‘qotmasdan yangi qurilma va trafikni oson qabul qiladi.',
+    },
+  },
+  {
+    id: 'c152',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'easy',
+    q: {
+      en: 'Why do network designers choose switches with spare ports when setting up an office LAN?',
+      uz: 'Ofis tarmog‘ini qurishda dizaynerlar nima uchun zaxira portlari (spare ports) bor switchlarni tanlaydi?',
+    },
+    opts: {
+      uz: [
+        "Yangi switch olmay turib qo‘shimcha qurilmalarni oson ulash uchun",
+        "Elektr toki o‘chganda barcha kompyuterlarga quvvat uzatish uchun",
+        "Har bir qurilmaning shaxsiy IPv4 manzilini butunlay yashirish uchun",
+        "Kabel uchlaridagi signallarni terminator kabi yutib yuborish uchun",
+      ],
+      en: [
+        "Connecting extra computers, printers, or access points without buying switches",
+        "Delivering mains battery backup power to every desktop during blackouts",
+        "Hiding every local workstation’s unique IPv4 address from web browsers",
+        "Absorbing stray electrical reflections at cable ends like a bus terminator",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Spare ports on switches let administrators add new computers, printers, or WAPs without replacing hardware.',
+      uz: 'Zaxira portlar yangi kompyuter, printer yoki Wi-Fi nuqtalarini qo‘shimcha xarajatsiz ulash imkonini beradi.',
+    },
+  },
+  {
+    id: 'c153',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'easy',
+    q: {
+      en: 'How does redundancy improve a large scalable network?',
+      uz: 'Zaxiralash (redundancy) katta masshtablanuvchan tarmoq ishini qanday yaxshilaydi?',
+    },
+    opts: {
+      uz: [
+        "Tarmoqdagi bir xil fayllarni o‘chirib saqlash joyini bo‘shatadi",
+        "Asosiy kabel yoki router buzilsa trafikni zaxira yo‘lga o‘tkazadi",
+        "Tashqaridan kiradigan xakerlarni avtomatik tarzda parolsiz kiritadi",
+        "Barcha qurilmalarning MAC manzilini bitta umumiy raqamga birlashtiradi",
+      ],
+      en: [
+        "Deletes duplicate files across school servers to save hard drive space",
+        "Reroutes traffic over backup hardware or paths if a main link fails",
+        "Allows external hackers to sign into staff servers without passwords",
+        "Merges every workstation’s network card MAC address into one single ID",
+      ],
+    },
+    answer: 1,
+    explain: {
+      en: 'Redundant pathways and backup routers automatically reroute traffic so a single failure does not disconnect users.',
+      uz: 'Zaxira yo‘llar va routerlar asosiy qism ishdan chiqqanda trafikni avtomatik boshqa yo‘lga burib, uzilishni oldini oladi.',
+    },
+  },
+  {
+    id: 'c154',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'easy',
+    q: {
+      en: 'Which cabling upgrade directly increases network bandwidth for growing video and cloud traffic?',
+      uz: 'Video qo‘ng‘iroq va bulutli xizmatlar ortganda qaysi kabel turi tarmoq o‘tkazish qobiliyatini (bandwidth) oshiradi?',
+    },
+    opts: {
+      uz: [
+        "Bitta uzun koaksial shina kabeli",
+        "Zaxira portisiz eski telefon simi",
+        "Yuqori tezlikdagi optik tolali kabel",
+        "Himoyalanmagan ikki juftli qisqa sim",
+      ],
+      en: [
+        "A single shared coaxial bus line",
+        "Legacy phone wire with no spare ports",
+        "High-capacity fiber-optic cabling",
+        "Unshielded two-wire legacy doorbell cable",
+      ],
+    },
+    answer: 2,
+    explain: {
+      en: 'Fiber-optic cabling carries far higher bandwidth with low latency to prevent bottlenecks as traffic scales.',
+      uz: 'Optik tolali kabellar katta hajmdagi ma’lumotlarni yuqori tezlikda va kam kechikish bilan uzatadi.',
+    },
+  },
+  {
+    id: 'c155',
+    topic: '1. Networks and topologies',
+    difficulty: 'easy',
+    q: {
+      en: 'What is a key disadvantage of choosing a Star topology over a Bus topology for a small classroom?',
+      uz: 'Kichik sinf xonasi uchun Shina (Bus) topologiyasiga nisbatan Yulduz (Star) topologiyasining asosiy kamchiligi nima?',
+    },
+    opts: {
+      uz: [
+        "Ko‘proq Ethernet kabeli va markaziy switch uchun qo‘shimcha xarajat",
+        "Bitta kompyuter kabeli uzilsa butun tarmoq darhol ishdan chiqadi",
+        "Ulanish uchun kabelning ikkala uchiga terminator o‘rnatish shart",
+        "Ma’lumotlar bir vaqtda har doim faqat bitta yo‘nalishda harakatlanadi",
+      ],
+      en: [
+        "Requires more Ethernet cabling and extra cost for a central switch",
+        "Cutting one student cable immediately brings down every workstation",
+        "Must attach signal-absorbing terminators at both ends of the bus",
+        "Signals can circulate strictly in a single one-way closed loop path",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Star networks require dedicated Ethernet cable from every device plus a central switch, increasing setup cost.',
+      uz: 'Yulduz topologiyasida har bir qurilmaga alohida kabel va markaziy switch kerak bo‘lgani uchun xarajat yuqoriroq bo‘ladi.',
+    },
+  },
+  {
+    id: 'c156',
+    topic: '3. Protocols and packets',
+    difficulty: 'easy',
+    q: {
+      en: 'A video file is split into 340 packets and packet 5 is labelled "5/340". Why is that packet number included?',
+      uz: 'Video fayl 340 ta paketga bo‘lindi va 5-paketga "5/340" raqami yozildi. Bu raqam nima uchun kerak?',
+    },
+    opts: {
+      uz: [
+        "Qabul qiluvchi fayl kadrlarini tartib bilan tiklab yo‘qolganini bilishi uchun",
+        "Videoni tovushsiz qilish va barcha kadrlar hajmini ikki barobar oshirish uchun",
+        "Jo‘natuvchi IP manzilini xakerlardan himoya qilish uchun almashtirib turish",
+        "Tarmoqdagi switch portlari sonini 340 tagacha avtomatik ko‘paytirish uchun",
+      ],
+      en: [
+        "Allows ordered reassembly and detects if any packet is dropped on the way",
+        "Mutes the soundtrack and doubles the frame resolution inside browsers",
+        "Replaces the sender IP address automatically on every network hop",
+        "Expands the physical Ethernet switch port count up to 340 sockets",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Packet sequence numbers (such as 5/340) let the receiver put packets back in order and spot missing ones.',
+      uz: 'Paket tartib raqami (masalan, 5/340) qabul qiluvchiga ma’lumotni to‘g‘ri tartibda yig‘ish va yo‘qolgan paketni aniqlash imkonini beradi.',
+    },
+  },
+  {
+    id: 'c157',
+    topic: '4. Data, storage and sound',
+    difficulty: 'easy',
+    q: {
+      en: 'Inside a processor chip, what does a transistor represent when its electrical switch is ON versus OFF?',
+      uz: 'Protsessor chipi ichidagi tranzistor kaliti YONIQ (ON) va O‘CHIQ (OFF) holatda qanday qiymatni bildiradi?',
+    },
+    opts: {
+      uz: [
+        "YONIQ = 1 va O‘CHIQ = 0",
+        "YONIQ = 8 va O‘CHIQ = 4",
+        "YONIQ = A va O‘CHIQ = Z",
+        "YONIQ = 0 va O‘CHIQ = 2",
+      ],
+      en: [
+        "ON = 1 and OFF = 0",
+        "ON = 8 and OFF = 4",
+        "ON = A and OFF = Z",
+        "ON = 0 and OFF = 2",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Transistors represent binary digits: ON represents binary 1 and OFF represents binary 0.',
+      uz: 'Tranzistor elektr kaliti bo‘lib, ON holati ikkilik 1 ni, OFF holati esa 0 ni bildiradi.',
+    },
+  },
+  {
+    id: 'c158',
+    topic: '4. Data, storage and sound',
+    difficulty: 'easy',
+    q: {
+      en: 'In standard 8-bit ASCII, the binary byte 01000001 represents which single character?',
+      uz: 'Standart 8-bitli ASCII kodlashda 01000001 bayti qaysi bitta belgini ifodalaydi?',
+    },
+    opts: {
+      uz: [
+        "Bo‘sh joy belgisini",
+        "Katta \"A\" harfini",
+        "Raqamli \"9\" belgisini",
+        "Yulduzcha \"*\" belgisini",
+      ],
+      en: [
+        "A blank spacebar key",
+        "The capital letter \"A\"",
+        "The decimal digit \"9\"",
+        "An asterisk symbol \"*\"",
+      ],
+    },
+    answer: 1,
+    explain: {
+      en: '01000001 in binary equals 65 in denary, which represents uppercase "A" in ASCII.',
+      uz: 'Ikkilik 01000001 o‘nlikda 65 ga teng bo‘lib, ASCII jadvalida katta "A" harfini bildiradi.',
+    },
+  },
+  {
+    id: 'c159',
+    topic: '4. Data, storage and sound',
+    difficulty: 'easy',
+    q: {
+      en: 'A plain-text document has 300 characters (1 byte per character). Using 1 KB = 1000 bytes, what is its file size?',
+      uz: 'Matn hujjatida 300 ta belgi bor (1 belgi = 1 bayt). 1 KB = 1000 bayt bo‘lsa, hujjat hajmi necha KB bo‘ladi?',
+    },
+    opts: {
+      uz: [
+        "30 KB",
+        "3.0 KB",
+        "0.3 KB",
+        "300 KB",
+      ],
+      en: [
+        "30 KB",
+        "3.0 KB",
+        "0.3 KB",
+        "300 KB",
+      ],
+    },
+    answer: 2,
+    explain: {
+      en: '300 characters × 1 byte = 300 bytes. Dividing by 1000 gives 300 ÷ 1000 = 0.3 KB.',
+      uz: '300 ta belgi × 1 bayt = 300 bayt. 1000 ga bo‘lsak, 300 ÷ 1000 = 0.3 KB hosil bo‘ladi.',
+    },
+  },
+  {
+    id: 'c160',
+    topic: '6. Software and utilities',
+    difficulty: 'easy',
+    q: {
+      en: 'Under systems software, which two main subcategories manage a digital device?',
+      uz: 'Tizimli dasturiy ta’minot (systems software) raqamli qurilmada qaysi ikkita asosiy bo‘limga bo‘linadi?',
+    },
+    opts: {
+      uz: [
+        "Operatsion tizim (OS) va utilita dasturlar (utilities)",
+        "Matn muharriri va elektron jadval dasturlari",
+        "Veb-brauzerlar va mobil o‘yin ilovalari",
+        "Kompilyatorlar va grafik chizish dasturlari",
+      ],
+      en: [
+        "Operating system (OS) and utility software",
+        "Word processors and digital spreadsheet apps",
+        "Web browsers and mobile gaming applications",
+        "Graphical photo editors and slide presenters",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Systems software breaks down into the operating system (platform & hardware control) and utility software (maintenance).',
+      uz: 'Tizimli dasturiy ta’minot operatsion tizim (OS) hamda qurilmaga xizmat ko‘rsatuvchi utilitalardan iborat.',
+    },
+  },
+  {
+    id: 'c161',
+    topic: '7. Security and authentication',
+    difficulty: 'easy',
+    q: {
+      en: 'In a school network, why are user access controls divided into groups such as "administrator", "staff", and "student"?',
+      uz: 'Maktab tarmog‘ida foydalanuvchi kirish huquqlari nima uchun "administrator", "staff" va "student" guruhlariga ajratiladi?',
+    },
+    opts: {
+      uz: [
+        "Foydalanuvchilarga faqat ruxsat etilgan ma’lumotlarni ko‘rsatish uchun",
+        "Barcha o‘quvchilarga o‘qituvchilar maoshi jadvallarini o‘zgartirish uchun",
+        "Maktab kompyuterlaridagi barcha parol siyosatlarini butunlay o‘chirish uchun",
+        "Har bir guruhga turli xildagi antivirus fayllarini o‘chirib tashlash uchun",
+      ],
+      en: [
+        "Restricts sensitive datasets so users access only authorized data",
+        "Lets students edit teacher payroll records and school grades freely",
+        "Disables password rules completely across every classroom workstation",
+        "Deletes utility software automatically for any non-admin logins",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Role-based user access groups protect confidential school, student progress, and contact datasets from misuse.',
+      uz: 'Foydalanuvchi guruhlari maxfiy ma’lumotlar bazalarini (o‘quvchi baholari, ota-ona ma’lumotlari) ruxsatsiz ko‘rishdan himoya qiladi.',
+    },
+  },
+  {
+    id: 'c162',
+    topic: '8. The CPU and registers',
+    difficulty: 'easy',
+    q: {
+      en: 'What is the main difference between Immediate Access Store (IAS / RAM) and backing store (HDD/SSD)?',
+      uz: 'Tezkor xotira (IAS / RAM) bilan tashqi saqlash xotirasi (HDD/SSD) o‘rtasidagi asosiy farq nimada?',
+    },
+    opts: {
+      uz: [
+        "CPU IAS bilan bevosita ishlaydi; backing store fayllarni doimiy saqlaydi",
+        "IAS faqat elektr o‘chganda, backing store esa CPU ichida doimiy ishlaydi",
+        "Backing store faqat registrlar, IAS esa qattiq magnit diskdan iborat",
+        "Ikkalasi ham faqat matn chop etuvchi printer driverlarini saqlaydi",
+      ],
+      en: [
+        "CPU accesses IAS directly while running; backing store saves long-term",
+        "IAS keeps data with power off; backing store runs inside the ALU",
+        "Backing store consists purely of CPU registers without any flash",
+        "Both types exist only inside external keyboards to store drivers",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'IAS (RAM) holds active instructions/data for fast CPU access, whereas backing storage preserves files permanently.',
+      uz: 'CPU ishlayotgan dasturlarni tezkor IAS (RAM) dan oladi; doimiy saqlash uchun esa backing store (HDD/SSD) ishlatiladi.',
+    },
+  },
+  {
+    id: 'c163',
+    topic: '9. Programming languages and logic',
+    difficulty: 'easy',
+    q: {
+      en: 'In conditional statements, what does the operator "<>" mean?',
+      uz: 'Shartli operatorlar jadvalida "<>" belgisi nimani anglatadi?',
+    },
+    opts: {
+      uz: [
+        "Teng emas (not equal to)",
+        "Katta yoki teng (greater or equal)",
+        "Kichik yoki teng (less or equal)",
+        "Ikkiga bo‘lib ko‘paytirish",
+      ],
+      en: [
+        "Not equal to",
+        "Greater than or equal to",
+        "Less than or equal to",
+        "Exactly equal to",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'The conditional operator <> checks whether two values are NOT equal to each other.',
+      uz: '<> shartli operatori ikkita qiymat bir-biriga teng emasligini tekshiradi.',
+    },
+  },
+  {
+    id: 'c164',
+    topic: '10. Design, AI and industry',
+    difficulty: 'easy',
+    q: {
+      en: 'Which technology gives physical touch feedback, such as a phone vibrating when you type or tap a button?',
+      uz: 'Tugma bosilganda telefonning tebranishi orqali teginish hissini beruvchi texnologiya qaysi?',
+    },
+    opts: {
+      uz: [
+        "Haptik texnologiya (Haptic technology)",
+        "Disk defragmenteri (Defragmenter)",
+        "Paritet tekshiruvi (Parity check)",
+        "Shina terminatori (Bus terminator)",
+      ],
+      en: [
+        "Haptic technology",
+        "Disc defragmentation",
+        "Parity-checking bit",
+        "Bus terminator plug",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Haptic technology creates touch sensations and vibrations to confirm user interactions on digital devices.',
+      uz: 'Haptik texnologiya qurilmalarda tebranish va teginish javobini berib foydalanuvchiga sezgi taqdim etadi.',
+    },
+  },
+  {
+    id: 'c165',
+    topic: '10. Design, AI and industry',
+    difficulty: 'easy',
+    q: {
+      en: 'When your phone keyboard learns words you often type and suggests the next word, which technology is it using?',
+      uz: 'Telefon klaviaturasi tez-tez yozadigan so‘zlaringizni eslab qolib keyingi so‘zni taklif qilsa, u nimadan foydalanadi?',
+    },
+    opts: {
+      uz: [
+        "Mashinali o‘qitish (Machine learning)",
+        "To‘g‘ridan-to‘g‘ri kabel almashtirish",
+        "Tarmoq shina terminatori",
+        "Ovozli signalni raqamsiz saqlash",
+      ],
+      en: [
+        "Machine learning",
+        "Direct cable shielding",
+        "Network bus terminating",
+        "Analogue tape encoding",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Machine learning lets systems improve predictions over time from your past typing patterns.',
+      uz: 'Mashinali o‘qitish avvalgi yozuvlaringiz asosida vaqt o‘tishi bilan aniqroq bashorat qilishni o‘rganadi.',
+    },
+  },
+
+  // ---------- 15 MEDIUM ----------
+  {
+    id: 'c166',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'medium',
+    q: {
+      en: 'As more devices join a large company network, older IPv4 ranges begin running out. Which TWO IP strategies solve this?',
+      uz: 'Katta tashkilot tarmog‘iga qurilmalar ko‘payib IPv4 manzillar tugay boshlasa, qaysi IKKI usul muammoni hal qiladi?',
+    },
+    opts: {
+      uz: [
+        "Tarmoqni mantiqiy qismlarga bo‘lish (subnetting) va IPv6 ga tayyorlik",
+        "Har bir qavatdagi routerlarni o‘chirib bitta umumiy shina kabel qo‘yish",
+        "Barcha kompyuterlarga bir xil bitta IPv4 manzilini takroran biriktirish",
+        "IP manzillarni bekor qilib faqat printer nomlari bilan aloqa qilish",
+      ],
+      en: [
+        "Using proper subnetting into segments and ensuring IPv6 compatibility",
+        "Removing all office routers and linking PCs onto one bus cable",
+        "Assigning the exact same static IPv4 number to every employee laptop",
+        "Deleting IP addresses entirely and routing strictly by printer brand",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Subnetting manages IP ranges efficiently while IPv6 provides a virtually unlimited supply of unique addresses.',
+      uz: 'Subnetting manzillarni samarali taqsimlaydi, IPv6 esa deyarli cheksiz noyob IP manzillar zaxirasini beradi.',
+    },
+  },
+  {
+    id: 'c167',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'medium',
+    q: {
+      en: 'Which two network topologies allow new rooms, floors, or departments to be added easily without disrupting existing users?',
+      uz: 'Qaysi tarmoq topologiyalari mavjud foydalanuvchilarga xalaqit bermay yangi xona, qavat yoki bo‘limlarni oson ulash imkonini beradi?',
+    },
+    opts: {
+      uz: [
+        "Yulduz (Star) va iyerarxik/daraxtsimon (hierarchical/tree) topologiya",
+        "Terminatorsiz ochiq shina (Bus) va bitta simli halqa (Ring)",
+        "To‘g‘ridan-to‘g‘ri printerga ulangan bitta nuqtadan-nuqtaga sim",
+        "Faqat bitta simsiz uy routeriga ulanadigan yopiq zanjir liniyasi",
+      ],
+      en: [
+        "Star topology and modular hierarchical (tree) topology",
+        "Unshielded single-cable Bus and single-loop Ring topology",
+        "Direct peer-to-peer link connected through a single printer",
+        "A closed daisy-chain loop relying on one home wireless hub",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Star and hierarchical (tree) topologies are modular, letting whole new floors or branches plug into distribution switches cleanly.',
+      uz: 'Yulduz va iyerarxik (daraxt) topologiyalari modulli bo‘lib, tarmoqni to‘xtatmasdan yangi bo‘limlarni qo‘shishga imkon beradi.',
+    },
+  },
+  {
+    id: 'c168',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'medium',
+    q: {
+      en: 'Why does hardware "modularity" make a router or core switch more scalable than a sealed non-expandable unit?',
+      uz: 'Nima uchun apparatdagi "modullilik" (modularity) router yoki switch uchun yopiq qurilmadan ko‘ra masshtabliroq hisoblanadi?',
+    },
+    opts: {
+      uz: [
+        "Butun qurilmani almashtirmay kengaytirish kartalari/modullar qo‘shiladi",
+        "Qurilma ichidagi barcha sovutish ventilyatorlarini butunlay olib tashlaydi",
+        "Modullilik tarmoqda kiberhujumlar bo‘lganda parol talabini o‘chiradi",
+        "Tarmoqdagi optik tolali kabellarni oddiy mis simga almashtirib beradi",
+      ],
+      en: [
+        "Lets administrators add expansion cards or modules instead of replacing units",
+        "Removes internal cooling fans automatically when extra traffic arrives",
+        "Disables all network firewall checks during large cloud backups",
+        "Converts fiber-optic cables back into thin telephone wire automatically",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Modular hardware supports plug-in expansion cards and high-speed ports as needs grow, saving full replacement costs.',
+      uz: 'Modulli qurilmalarga kerak bo‘lganda qo‘shimcha kengaytirish kartalari qo‘shilib, butun qurilmani almashtirishdan saqlaydi.',
+    },
+  },
+  {
+    id: 'c169',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'medium',
+    q: {
+      en: 'Hundreds of students stream HD lessons simultaneously and experience high latency. Which factor in 9DC.03 is causing this bottleneck?',
+      uz: 'Yuzlab o‘quvchilar bir vaqtda HD dars tomosha qilganda tarmoq sekinlashsa (high latency), 9DC.03 bo‘yicha qaysi omil yetishmayapti?',
+    },
+    opts: {
+      uz: [
+        "O‘tkazish qobiliyati (Bandwidth) va zaxira quvvat yetishmasligi",
+        "Har bir o‘quvchi kompyuterida printer driveri o‘rnatilmagani",
+        "Barcha fayllar ASCII o‘rniga 16-bitli tovush sifatida saqlangani",
+        "O‘quvchilar veb-brauzerda HTTPS o‘rniga parol siyosatini yoqqani",
+      ],
+      en: [
+        "Insufficient network bandwidth causing congestion bottlenecks",
+        "Missing local printer drivers inside student classroom laptops",
+        "Text documents being stored with 8-bit ASCII codes instead of bits",
+        "Students enabling strong two-factor password policies at login",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Insufficient bandwidth creates traffic bottlenecks and high latency when data-heavy streaming grows.',
+      uz: 'Katta hajmli video trafik oshganda o‘tkazish qobiliyati (bandwidth) yetishmasligi tiqilinchi (bottleneck) va kechikishga olib keladi.',
+    },
+  },
+  {
+    id: 'c170',
+    topic: '1. Networks and topologies',
+    difficulty: 'medium',
+    q: {
+      en: 'Compare a Ring topology with a Bus topology when transmitting packets.',
+      uz: 'Paketlarni uzatishda Halqa (Ring) va Shina (Bus) topologiyalarini taqqoslang.',
+    },
+    opts: {
+      uz: [
+        "Halqada signal bir yo‘nalishda yurib to‘qnashuv bo‘lmaydi, lekin sim uzilsa to‘xtaydi",
+        "Halqa topologiyasi ishga tushishi uchun kabel uchlarida terminatorlar shart",
+        "Shina topologiyasida bitta kompyuter o‘chsa qolgan barcha kabellar uziladi",
+        "Ikkala topologiya ham har bir qurilmani markaziy switchga alohida ulaydi",
+      ],
+      en: [
+        "Ring flows one way avoiding collisions, yet any cable break stops the ring",
+        "Ring networks must place two terminators at open ends to absorb signals",
+        "Bus cables automatically connect every workstation to a central hub",
+        "Both topologies send packets in parallel directly between every node",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'In a ring, one-way flow avoids collisions, but breaking the closed loop stops transmission across the ring.',
+      uz: 'Halqada ma’lumot bir yo‘nalishda oqib to‘qnashuvni oldini oladi, ammo bitta kabel uzilsa butun halqa to‘xtaydi.',
+    },
+  },
+  {
+    id: 'c171',
+    topic: '3. Protocols and packets',
+    difficulty: 'medium',
+    q: {
+      en: 'Who invented packet switching in the early 1960s, and what problem did it solve?',
+      uz: '1960-yillar boshida paketli kommutatsiyani (packet switching) kim yaratgan va u qaysi muammoni hal qilgan?',
+    },
+    opts: {
+      uz: [
+        "Paul Baran — tarmoq tuguni buzilsa ham paketni boshqa yo‘l bilan yetkazish",
+        "Tim Berners-Lee — barcha brauzerlar uchun CSS ranglarini avtomatlashtirish",
+        "John von Neumann — qattiq diskdagi fayl bo‘laklarini yonma-yon joylash",
+        "Alan Turing — USB fleshka xotiralariga paritet bitini qo‘shish",
+      ],
+      en: [
+        "Paul Baran — redirecting packets via alternate routes if devices fail",
+        "Tim Berners-Lee — styling colors inside early mobile HTML browsers",
+        "John von Neumann — defragmenting mechanical hard drives automatically",
+        "George Boole — compressing digital MP3 audio streams into 4-bit nibbles",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Paul Baran designed packet switching in the early 1960s so data could route around failed network nodes.',
+      uz: 'Paul Baran 1960-yillar boshida tarmoqdagi bir qism ishdan chiqqanda ham paketlarni boshqa yo‘ldan yetkazish g‘oyasini ishlab chiqqan.',
+    },
+  },
+  {
+    id: 'c172',
+    topic: '4. Data, storage and sound',
+    difficulty: 'medium',
+    q: {
+      en: 'Convert 12,000,000 bits into Megabytes (using 1 byte = 8 bits and 1 MB = 1,000,000 bytes).',
+      uz: '12 000 000 bitni Megabayt (MB) ga aylantiring (1 bayt = 8 bit, 1 MB = 1 000 000 bayt).',
+    },
+    opts: {
+      uz: [
+        "12 MB",
+        "1.5 MB",
+        "0.15 MB",
+        "96 MB",
+      ],
+      en: [
+        "12 MB",
+        "1.5 MB",
+        "0.15 MB",
+        "96 MB",
+      ],
+    },
+    answer: 1,
+    explain: {
+      en: '12,000,000 bits ÷ 8 = 1,500,000 bytes. Dividing by 1,000,000 bytes gives 1.5 MB.',
+      uz: '12 000 000 ÷ 8 = 1 500 000 bayt. 1 000 000 ga bo‘lsak, 1.5 MB chiqadi.',
+    },
+  },
+  {
+    id: 'c173',
+    topic: '4. Data, storage and sound',
+    difficulty: 'medium',
+    q: {
+      en: 'Using 1000-based textbook storage units, how many Gigabytes (GB) equal 2 Petabytes (PB)?',
+      uz: 'Darslikdagi 1000 ga karrali o‘lchov birliklari bo‘yicha 2 Petabayt (PB) necha Gigabayt (GB) ga teng?',
+    },
+    opts: {
+      uz: [
+        "2,000 GB",
+        "200,000 GB",
+        "2,000,000 GB",
+        "20,000 GB",
+      ],
+      en: [
+        "2,000 GB",
+        "200,000 GB",
+        "2,000,000 GB",
+        "20,000 GB",
+      ],
+    },
+    answer: 2,
+    explain: {
+      en: '2 PB × 1000 = 2,000 TB; 2,000 TB × 1000 = 2,000,000 GB.',
+      uz: '2 PB = 2000 TB; 2000 TB × 1000 = 2 000 000 GB bo‘ladi.',
+    },
+  },
+  {
+    id: 'c174',
+    topic: '5. Transmission errors and checks',
+    difficulty: 'medium',
+    q: {
+      en: 'Using EVEN parity, what should the parity bit be for the 7-bit sequence 1001100 vs 1001000?',
+      uz: 'JUFT paritet (Even parity) qoidasida 1001100 va 1001000 ketma-ketliklariga mos ravishda qaysi paritet bitlari qo‘yiladi?',
+    },
+    opts: {
+      uz: [
+        "1001100 uchun 1; 1001000 uchun 0",
+        "1001100 uchun 0; 1001000 uchun 1",
+        "Ikkala ketma-ketlik uchun ham 1",
+        "Ikkala ketma-ketlik uchun ham 0",
+      ],
+      en: [
+        "1 for 1001100; and 0 for 1001000",
+        "0 for 1001100; and 1 for 1001000",
+        "1 for both 7-bit data sequences",
+        "0 for both 7-bit data sequences",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: '1001100 has three 1s, so parity 1 makes four (even); 1001000 already has two 1s, so parity is 0.',
+      uz: '1001100 da uchta 1 bor — juft bo‘lishi uchun 1 qo‘shiladi; 1001000 da ikkita 1 bor — shuning uchun paritet 0 bo‘ladi.',
+    },
+  },
+  {
+    id: 'c175',
+    topic: '5. Transmission errors and checks',
+    difficulty: 'medium',
+    q: {
+      en: 'A smartwatch & phone use EVEN parity and receive 01111101. A PC & server use ODD parity and receive 01000100. Which detects an error?',
+      uz: 'Soat va telefon JUFT paritetda 01111101 baytini, kompyuter va server TOQ paritetda 01000100 baytini qabul qildi. Qaysi birida xato aniqlanadi?',
+    },
+    opts: {
+      uz: [
+        "Faqat PC va serverda (01000100 da ikkita 1 — juft, xato)",
+        "Faqat soat va telefonda (01111101 da oltita 1 — xato)",
+        "Ikkala qurilmada ham uzatish xatosi aniqlanadi",
+        "Ikkala qurilmada ham hech qanday xato aniqlanmaydi",
+      ],
+      en: [
+        "Only PC/server (01000100 has two 1s — even, violates odd)",
+        "Only smartwatch/phone (01111101 has six 1s — fails even)",
+        "Both pairs detect a parity error upon reception",
+        "Neither device pair detects any transmission error",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: '01111101 has six 1s (valid for even parity). 01000100 has two 1s (even), which fails odd parity.',
+      uz: '01111101 da oltita 1 bor (juft paritetga mos). 01000100 da esa ikkita 1 bor — bu toq paritet uchun xato.',
+    },
+  },
+  {
+    id: 'c176',
+    topic: '6. Software and utilities',
+    difficulty: 'medium',
+    q: {
+      en: 'How does a device driver support "plug-and-play" when you connect a new USB camera or printer?',
+      uz: 'Yangi USB kamera yoki printerni ulaganda qurilma drayveri (device driver) "plug-and-play" tizimini qanday qo‘llab-quvvatlaydi?',
+    },
+    opts: {
+      uz: [
+        "Qurilmani avtomatik aniqlab OS bilan ishlashini darhol sozlaydi",
+        "Qattiq diskdagi barcha bo‘sh joylarni va fayl bloklarini zichlaydi",
+        "Tarmoqdagi barcha paketlarga oddiy paritet bitini qo‘shib beradi",
+        "Barcha parollarni avtomatik 10 ta belgidan uzun qilib yangilaydi",
+      ],
+      en: [
+        "Automatically detects and configures new hardware with the OS",
+        "Compresses fragments across a spinning hard drive into folders",
+        "Appends even parity check bits to outgoing internet web packets",
+        "Forces every employee account to exceed ten password characters",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Device drivers bridge the OS and new hardware so plug-and-play peripherals work right after connecting.',
+      uz: 'Drayver operatsion tizim va yangi qurilma o‘rtasida tarjimon bo‘lib, qurilma ulangan zahoti ishlashini ta’minlaydi.',
+    },
+  },
+  {
+    id: 'c177',
+    topic: '7. Security and authentication',
+    difficulty: 'medium',
+    q: {
+      en: 'Which password follows a strong network password policy designed to resist brute-force dictionary attacks?',
+      uz: 'Brute-force (lug‘at) hujumiga qarshi kuchli parol siyosatiga to‘liq javob beradigan variant qaysi?',
+    },
+    opts: {
+      uz: [
+        "Kamida 11+ belgi: katta-kichik harf, raqam, belgi; ism/sanasiz",
+        "Foydalanuvchi ismi va tug‘ilgan yili yozilgan 6 ta harfli parol",
+        "Oson esda qoladigan bir xil 8 ta raqamdan iborat maxfiy kod",
+        "Hech qachon o‘zgartirilmaydigan qisqa 7 ta kichik harfli so‘z",
+      ],
+      en: [
+        "Over 10 chars mixing letters, digits, symbols; no name or date",
+        "Six lowercase letters combining user surname and birth year",
+        "Easy-to-remember eight repeated digits kept forever unchanged",
+        "A single seven-letter English dictionary word reused on apps",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Strong policies enforce >10 characters mixing letters, numbers, and symbols, without usernames or dates, changed regularly.',
+      uz: 'Kuchli siyosat 10 tadan ko‘p harf-raqam-belgi aralashmasini, ism va sanasiz bo‘lishini hamda muntazam yangilanishni talab qiladi.',
+    },
+  },
+  {
+    id: 'c178',
+    topic: '8. The CPU and registers',
+    difficulty: 'medium',
+    q: {
+      en: 'What role does the System Clock perform inside the CPU during the Fetch–Decode–Execute cycle?',
+      uz: 'Fetch–Decode–Execute siklida CPU ichidagi tizim soati (System Clock) qanday vazifani bajaradi?',
+    },
+    opts: {
+      uz: [
+        "CPU komponentlari ishini muvofiqlashtiruvchi vaqt signallarini beradi",
+        "Ekranda foydalanuvchiga mahalliy mintaqa vaqtini chiroyli ko‘rsatadi",
+        "Internetdan yuklangan barcha fayllarni qattiq diskka doimiy yozadi",
+        "Elektr o‘chsa RAM ichidagi barcha dasturlarni saqlab turishga yordam beradi",
+      ],
+      en: [
+        "Sends vital timing signals that synchronise operations across the CPU",
+        "Formats only the calendar date displayed on the desktop taskbar",
+        "Saves downloaded browser audio streams permanently onto the HDD",
+        "Preserves volatile RAM contents safely during sudden power blackouts",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'The system clock emits regular electrical pulses that keep all CPU stages and buses synchronised.',
+      uz: 'Tizim soati protsessor bloklari va shinalarining bir maromda hamda sinxron ishlashini boshqaradi.',
+    },
+  },
+  {
+    id: 'c179',
+    topic: '9. Programming languages and logic',
+    difficulty: 'medium',
+    q: {
+      en: 'For a school sports event, a student CANNOT enter if they are absent (A = True) OR late to the track (B = True). If A = False and B = True, what does X = NOT (A OR B) output?',
+      uz: 'Sport musobaqasiga o‘quvchi darsda yo‘q (A) YOKI kechikkan (B) bo‘lsa qatnasha olmaydi. Agar A = False va B = True bo‘lsa, X = NOT (A OR B) natijasi nima bo‘ladi?',
+    },
+    opts: {
+      uz: [
+        "True (Rost)",
+        "False (Yolg‘on)",
+        "Syntax error",
+        "2",
+      ],
+      en: [
+        "True",
+        "False",
+        "Syntax error",
+        "2",
+      ],
+    },
+    answer: 1,
+    explain: {
+      en: 'Evaluate brackets first: (False OR True) = True. Then NOT True = False — the late student cannot participate.',
+      uz: 'Avval qavs hisoblanadi: (False OR True) = True. Keyin NOT True = False — kechikkan o‘quvchi qatnasha olmaydi.',
+    },
+  },
+  {
+    id: 'c180',
+    topic: '10. Design, AI and industry',
+    difficulty: 'medium',
+    q: {
+      en: 'What is the role of the World Wide Web Consortium (W3C), founded by Tim Berners-Lee in 1994?',
+      uz: '1994-yilda Tim Berners-Lee asos solgan W3C (World Wide Web Consortium) tashkilotining vazifasi nima?',
+    },
+    opts: {
+      uz: [
+        "HTML, CSS va veb-kirish imkoniyati (accessibility) standartlarini yaratish",
+        "Dunyo bo‘ylab barcha maktab Wi-Fi routerlariga IPv4 manzil sotish",
+        "Har bir yangi kompyuter uchun maxsus CPU registrlarini ishlab chiqarish",
+        "Foydalanuvchilarning ijtimoiy tarmoqdagi barcha parollarini saqlab turish",
+      ],
+      en: [
+        "Setting open web standards like HTML, CSS, and web accessibility",
+        "Selling IPv4 address blocks exclusively to regional school districts",
+        "Manufacturing physical CPU control units and address buses worldwide",
+        "Storing encrypted user banking passwords on public search servers",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'W3C publishes global open standards (HTML, CSS, accessibility guidelines) so websites work across all browsers and devices.',
+      uz: 'W3C veb-sahifalar barcha brauzer va qurilmalarda birdek hamda hamma uchun qulay ishlashi uchun HTML, CSS kabi standartlarni belgilaydi.',
+    },
+  },
+
+  // ---------- 15 HARD ----------
+  {
+    id: 'c181',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'hard',
+    q: {
+      en: 'Why does "security scalability" become harder as an organisation expands from one office to five branches?',
+      uz: 'Tashkilot bitta ofisdan beshta filialga kengayganda nima uchun "xavfsizlik masshtablanuvchanligi" (security scalability) qiyinlashadi?',
+    },
+    opts: {
+      uz: [
+        "Kirish nuqtalari ko‘payib hujum yuzasi kengayadi; himoya tezlikni tushirmasligi kerak",
+        "Kengayish natijasida barcha brauzerlar HTTPS ni avtomatik HTTP ga o‘tkazib yuboradi",
+        "Filial routerlari ko‘paysa tashqi xakerlar faqat bitta ASCII baytini ko‘ra oladi",
+        "Tarmoq kattalashsa markaziy fayrvol kompyuterdagi barcha ALU larni o‘chiradi",
+      ],
+      en: [
+        "More entry points widen the attack surface; security must scale without latency",
+        "Adding branch switches forces every browser to downgrade HTTPS into HTTP",
+        "Extra office routers restrict outside attackers to reading only one ASCII bit",
+        "Larger enterprise networks automatically disable processor ALU circuits on PCs",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'More devices create more entry points (a wider attack surface), so centralized firewalls, encryption, and access controls must scale without slowing traffic.',
+      uz: 'Qurilmalar ko‘payishi bilan hujum yuzasi kengayadi; shuning uchun markazlashgan fayrvol, shifrlash va kirish nazorati tezlikni pasaytirmay o‘sishi shart.',
+    },
+  },
+  {
+    id: 'c182',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'hard',
+    q: {
+      en: 'In network scalability (9DC.03), what is the main danger of buying cheap, non-expandable hardware upfront versus phased planning?',
+      uz: 'Tarmoq loyihalashda (9DC.03) bosqichma-bosqich rejalashtirish o‘rniga arzon va kengaymaydigan qurilmalar olish qanday xavf tug‘diradi?',
+    },
+    opts: {
+      uz: [
+        "Keyinchalik kengayishda barcha qurilmalarni qimmatga to‘liq almashtirishga to‘g‘ri keladi",
+        "Arzon qurilmalar har doim optik tolali kabel tezligini sun’iy ravishda ikki barobar oshiradi",
+        "Kengaymaydigan switchlar tarmoqdagi har bir foydalanuvchini administratorga aylantiradi",
+        "Bunday uskunalar tarmoqqa yangi IPv6 manzillarini o‘z-o‘zidan cheksiz qo‘shib boradi",
+      ],
+      en: [
+        "Forces costly complete hardware replacements once capacity limits are hit",
+        "Forces cheap switches to double fiber-optic transmission speed unexpectedly",
+        "Elevates every basic student login into a full top-level administrator role",
+        "Generates unlimited public IPv6 subnet ranges without router firmware",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Balancing cost means avoiding both overly expensive enterprise overkill upfront and cheap non-expandable hardware that forces full replacement later.',
+      uz: 'Samarali xarajat boshqaruvi hozirgi byudjetni saqlab, kelajakda hamma uskunani noldan almashtirishga majbur qilmaydigan bosqichma-bosqich rivojlanishni ta’minlaydi.',
+    },
+  },
+  {
+    id: 'c183',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'hard',
+    q: {
+      en: 'Why must core routers and switches have high processing power (9DC.03) as an organisation adds hundreds of cloud users?',
+      uz: 'Yuzlab bulutli foydalanuvchilar qo‘shilganda markaziy router va switchlarning protsessor quvvati (processing power) nima uchun yuqori bo‘lishi kerak?',
+    },
+    opts: {
+      uz: [
+        "Katta hajmdagi ma’lumot paketlarini kechikishsiz tezkor yo‘naltirish uchun",
+        "Tarmoqdagi har bir kabel uchiga mexanik terminator yasab berish uchun",
+        "Foydalanuvchilar matn yozganda ASCII harflarini tovush to‘lqiniga burish uchun",
+        "Maktab serveridagi barcha jadvallarni parolsiz ochiq ko‘rsatib qo‘yish uchun",
+      ],
+      en: [
+        "Forward huge volumes of incoming and outgoing packets without queuing delay",
+        "Manufacture physical cable terminators dynamically along unused switch ports",
+        "Convert plain ASCII keyboard text characters directly into analogue waves",
+        "Expose protected school dataset tables openly without firewall permissions",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Insufficient router/switch processing power slows down packet inspection and forwarding, causing bottlenecks even on fast cables.',
+      uz: 'Router va switch protsessori kuchsiz bo‘lsa, tezkor kabel bo‘lsa ham katta paket oqimini vaqtida yo‘naltira olmay kechikish yuzaga keladi.',
+    },
+  },
+  {
+    id: 'c184',
+    topic: '11. Network scalability (9DC.03)',
+    difficulty: 'hard',
+    q: {
+      en: 'A university adds a new 4-floor Engineering building. Which combination best satisfies 9DC.03 scalability factors?',
+      uz: 'Universitet yangi 4 qavatli bino qo‘shmoqda. Qaysi yechim to‘plami 9DC.03 masshtablanuvchanlik omillariga eng mos keladi?',
+    },
+    opts: {
+      uz: [
+        "Optik magistrallar, modulli switchlar (zaxira portli), subnetting/IPv6 va zaxira routerlar",
+        "Barcha 4 qavatni bitta uzun koaksial shina kabeliga ulangan arzon hubga ulash",
+        "Faqat bitta simsiz uy routeri va 250 ta qurilma uchun kichik statik IPv4 diapazoni",
+        "Xarajatlarni tejash uchun fayrvolni o‘chirib barcha portlarni maksimal band qilish",
+      ],
+      en: [
+        "Fiber uplinks, modular switches with spare ports, IPv6/subnets & backup routers",
+        "One shared bus cable chained across all four floors using cheap legacy hubs",
+        "A single home Wi-Fi access point running an unsegmented small IPv4 pool",
+        "Disabling perimeter firewalls and filling 100% of every switch socket on day one",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Fiber uplinks (bandwidth), modular switches with spare ports (hardware), IPv6/subnetting (IP addressing), hierarchical tree layout, and backup routers (redundancy) cover 9DC.03.',
+      uz: 'Optik tolali magistral (o‘tkazish qobiliyati), zaxira portli modulli switch (apparat), subnetting/IPv6 va zaxira routerlar 9DC.03 talablarini to‘liq qondiradi.',
+    },
+  },
+  {
+    id: 'c185',
+    topic: '3. Protocols and packets',
+    difficulty: 'hard',
+    q: {
+      en: 'In an HTTP/HTTPS Request Header sent to www.google.com, what do ":method: GET", ":scheme: https", and "accept: text/html" specify?',
+      uz: 'www.google.com ga yuborilgan HTTP/HTTPS Request Header da ":method: GET", ":scheme: https" va "accept: text/html" qatorlari nimani bildiradi?',
+    },
+    opts: {
+      uz: [
+        "Sahifani shifrlangan kanal orqali so‘rash va HTML veb-hujjat kutishini",
+        "Serverdagi qattiq diskni defragmentatsiya qilish buyrug‘i yuborilganini",
+        "Yuborilayotgan har bir rasm fayli toq paritet bitiga almashtirilganini",
+        "Tarmoqdagi switchlar barcha Ethernet kabellarini halqaga ulaganini",
+      ],
+      en: [
+        "Fetching a webpage over encrypted HTTPS and expecting an HTML document",
+        "Instructing remote cloud servers to defragment their physical disk blocks",
+        "Switching all uploaded video frames to use single-bit odd parity checks",
+        "Rewiring office Ethernet switches automatically into a one-way ring loop",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Request headers state the HTTP method (GET), encrypted protocol scheme (HTTPS), accepted document type (text/html), domain, and user-agent.',
+      uz: 'So‘rov sarlavhalari (Request Headers) sahifani olish usuli (GET), shifrlangan protokol (https) va kutilayotgan hujjat turini (text/html) ko‘rsatadi.',
+    },
+  },
+  {
+    id: 'c186',
+    topic: '4. Data, storage and sound',
+    difficulty: 'hard',
+    q: {
+      en: 'Put the three Analogue-to-Digital Converter (ADC) steps for digitising microphone sound in exact order, and explain quantization.',
+      uz: 'Mikrofondan tovushni raqamlashtirishdagi ADC ning uchta bosqichini to‘g‘ri tartibda joylashtiring va kvantlash (quantization) nimaligini aniqlang.',
+    },
+    opts: {
+      uz: [
+        "Sampling → Quantization (eng yaqin butun songa yaxlitlash) → Encoding (ikkilik)",
+        "Encoding → Sampling (fayl siqish) → Quantization (analog karnayga yuborish)",
+        "Quantization → Encoding (shifrlash) → Sampling (vaqt oralig‘ini kamaytirish)",
+        "Sampling → Defragmenting (disk yig‘ish) → Decoding (ovozni kuchaytirish)",
+      ],
+      en: [
+        "Sampling → Quantization (rounding samples to nearest whole) → Encoding (binary)",
+        "Encoding → Sampling (lossless zip) → Quantization (sending waves to speaker)",
+        "Quantization → Encoding (encryption) → Sampling (measuring once per file)",
+        "Sampling → Defragmenting (disk clean) → Decoding (boosting volume voltage)",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Sound is sampled at regular intervals, quantized (rounded to the nearest integer bit value), and encoded into binary.',
+      uz: 'Tovush avval muntazam oraliqlarda o‘lchanadi (sampling), so‘ng eng yaqin butun qiymatga yaxlitlanadi (quantization) va ikkilik kodga o‘tkaziladi (encoding).',
+    },
+  },
+  {
+    id: 'c187',
+    topic: '4. Data, storage and sound',
+    difficulty: 'hard',
+    q: {
+      en: 'Calculate the uncompressed file size of a 1-minute (60s) stereo audio track sampled at 44,100 Hz with a 16-bit depth (in binary MiB).',
+      uz: '44 100 Hz chastota va 16-bit chuqurlikda yozilgan 1 daqiqalik (60s) stereo (2 kanalli) audio faylning siqilmagan hajmini (MiB da) hisoblang.',
+    },
+    opts: {
+      uz: [
+        "10.09 MiB (84 672 000 bit / 10 584 000 bayt)",
+        "5.05 MiB (42 336 000 bit / 5 292 000 bayt)",
+        "20.18 MiB (169 344 000 bit / 21 168 000 bayt)",
+        "1.41 MiB (11 827 200 bit / 1 478 400 bayt)",
+      ],
+      en: [
+        "10.09 MiB (84,672,000 bits / 10,584,000 bytes)",
+        "5.05 MiB (42,336,000 bits / 5,292,000 bytes)",
+        "20.18 MiB (169,344,000 bits / 21,168,000 bytes)",
+        "1.41 MiB (11,827,200 bits / 1,478,400 bytes)",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: '44,100 × 16 × 60 × 2 = 84,672,000 bits ÷ 8 = 10,584,000 bytes ÷ (1024 × 1024) ≈ 10.09 MiB.',
+      uz: '44 100 × 16 × 60 × 2 = 84 672 000 bit ÷ 8 = 10 584 000 bayt ÷ (1024²) ≈ 10.09 MiB.',
+    },
+  },
+  {
+    id: 'c188',
+    topic: '5. Transmission errors and checks',
+    difficulty: 'hard',
+    q: {
+      en: 'A tablet and PC agree on an ODD parity protocol. The PC receives the byte 00000000. What happens next?',
+      uz: 'Planshet va kompyuter TOQ paritet (Odd parity) protokolini kelishgan. Kompyuter 00000000 baytini qabul qilsa nima sodir bo‘ladi?',
+    },
+    opts: {
+      uz: [
+        "Nolta 1 (juft son) bo‘lgani uchun xato aniqlanadi va qayta yuborish so‘raladi",
+        "Barcha bitlar 0 bo‘lgani uchun paritet tekshiruvi hech qanday xato topmaydi",
+        "Kompyuter oxirgi nolni avtomatik 1 ga almashtirib to‘g‘ri baytni tiklaydi",
+        "Toq paritet faqat 1 raqamidan iborat baytlarda ishlaydi, bu bayt o‘tkaziladi",
+      ],
+      en: [
+        "Zero 1s is an even count, so an error is detected and data must be re-sent",
+        "All zeros always passes odd parity without needing retransmission",
+        "The PC pinpoints the corrupted bit index and flips bit 8 locally",
+        "Odd parity ignores all-zero bytes because no electrical voltage arrived",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: '00000000 contains zero 1s (considered even). Under odd parity, an error is flagged; parity cannot fix the bit so data must be re-sent.',
+      uz: '00000000 baytida 1 lar soni 0 ta (juft). Toq paritet qoidasiga zid bo‘lgani uchun xato qayd etiladi va ma’lumot qayta so‘raladi.',
+    },
+  },
+  {
+    id: 'c189',
+    topic: '6. Software and utilities',
+    difficulty: 'hard',
+    q: {
+      en: 'Explain how file fragmentation occurs on a hard disc drive and how a disc defragmenter speeds up opening a file.',
+      uz: 'Qattiq diskda fayl fragmentatsiyasi qanday paydo bo‘ladi va disk defragmenteri faylni ochishni qanday tezlashtiradi?',
+    },
+    opts: {
+      uz: [
+        "OS bo‘laklarni diskka sochib saqlaydi; defragmenter yonma-yon yig‘ib RAM ga o‘qishni tezlaydi",
+        "Defragmenter foydalanuvchi hujjatlarini paritet bitlari bilan kichik paketlarga bo‘ladi",
+        "Fragmentatsiya faqat tarmoqdagi switchlar ikki xil fayrvol o‘rnatganda yuzaga keladi",
+        "Defragmenter fayllarni SSD xotiradan o‘chirib faqat CPU keshiga ko‘chirib qo‘yadi",
+      ],
+      en: [
+        "OS scatters saved blocks across disk; defrag regroups them side-by-side for faster RAM read",
+        "Defrag splits documents into smaller encrypted packets guarded by odd parity bits",
+        "Fragmentation only happens when office switches block outgoing HTTPS requests",
+        "Defrag removes files from local RAM and forces the ALU to process drives directly",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'The OS places file parts into free scattered HDD gaps; defragmentation puts blocks beside each other so the read/write head loads files into RAM faster.',
+      uz: 'OS fayl bo‘laklarini diskdagi bo‘sh joylarga tarqatib yozadi; defragmenter ularni yonma-yon terib, RAM ga o‘qish vaqtini qisqartiradi.',
+    },
+  },
+  {
+    id: 'c190',
+    topic: '8. The CPU and registers',
+    difficulty: 'hard',
+    q: {
+      en: 'When an instruction is held in the CIR (Current Instruction Register), what are its two parts: "opcode" and "operand"?',
+      uz: 'Joriy buyruq registrida (CIR) saqlanadigan buyruqning "opcode" va "operand" qismlari nimani anglatadi?',
+    },
+    opts: {
+      uz: [
+        "Opcode = bajariladigan amal (mas. ADD); Operand = qiymat yoki xotira manzili",
+        "Opcode = monitor piksellari soni; Operand = tarmoq kartasi MAC manzili",
+        "Opcode = faqat ovoz chastotasi (Hz); Operand = qattiq diskdagi fayl nomi",
+        "Opcode = foydalanuvchi paroli uzunligi; Operand = brauzer HTTP sarlavhasi",
+      ],
+      en: [
+        "Opcode = operation to execute (e.g., ADD); Operand = data or memory address",
+        "Opcode = monitor screen resolution; Operand = router’s MAC hardware ID",
+        "Opcode = sound sample frequency in Hz; Operand = HDD defragmenter map",
+        "Opcode = user password length rule; Operand = browser HTTP header field",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Inside CIR, the opcode tells the CU which operation to perform (e.g., ADD/LOAD), while the operand provides the data or target address.',
+      uz: 'CIR ichida opcode qaysi amalni bajarishni (masalan, ADD), operand esa qayta ishlanadigan ma’lumot yoki xotira manzilini ko‘rsatadi.',
+    },
+  },
+  {
+    id: 'c191',
+    topic: '8. The CPU and registers',
+    difficulty: 'hard',
+    q: {
+      en: 'During a CPU Memory READ operation from RAM, trace the exact register and bus sequence.',
+      uz: 'CPU tezkor xotiradan (RAM) ma’lumot o‘qish (Memory READ) jarayonida registrlar va shinalar ketma-ketligini ko‘rsating.',
+    },
+    opts: {
+      uz: [
+        "Manzil MAR ga → Address bus → Control bus READ signali → qiymat Data bus orqali MDR ga",
+        "Qiymat ACC ga → Control bus WRITE signali → manzil CIR dan to‘g‘ridan-to‘g‘ri HDD ga",
+        "Manzil MDR ga → Data bus → Control bus → keyingi buyruq manzili PC dan o‘chiriladi",
+        "Buyruq ALU ga → Address bus → Control bus → ma’lumot printer drayveriga uzatiladi",
+      ],
+      en: [
+        "Address to MAR → Address bus → Read signal on Control bus → contents via Data bus to MDR",
+        "Data directly to ACC → Write signal on Control bus → address stored inside backing HDD",
+        "Address into MDR → Data bus → Control bus → current Program Counter value is erased",
+        "Instruction into ALU → Address bus → Control bus → output routed directly to peripherals",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'For a Memory READ: the address loads into MAR and travels down the Address bus, Control bus sends a Read signal, and RAM returns the contents over the Data bus into MDR/MBR.',
+      uz: 'O‘qishda manzil MAR va Manzil shinasi orqali RAM ga boradi, Boshqaruv shinasi READ signalini yuboradi va natija Ma’lumot shinasi orqali MDR ga qaytadi.',
+    },
+  },
+  {
+    id: 'c192',
+    topic: '8. The CPU and registers',
+    difficulty: 'hard',
+    q: {
+      en: 'How many unique RAM memory addresses can a 16-bit Address Bus address compared with a 32-bit Address Bus?',
+      uz: '16-bitli Manzil shinasi (Address Bus) 32-bitli Manzil shinasiga qaraganda nechta noyob xotira manziliga murojaat qila oladi?',
+    },
+    opts: {
+      uz: [
+        "16-bit = 2^16 (65 536) ta manzil; 32-bit = 2^32 (4 milliarddan ortiq)",
+        "16-bit = 16 ta bayt; 32-bit = jami 32 ta kilobayt manzil",
+        "16-bit = 65 536 GB; 32-bit = har doim 1000 ta manzil bilan cheklanadi",
+        "Ikkalasi ham Data bus so‘z uzunligidan qat’i nazar bir xil 256 ta manzil",
+      ],
+      en: [
+        "16-bit = 2^16 (65,536) addresses; 32-bit = 2^32 (over 4.29 billion)",
+        "16-bit = 16 bytes maximum; 32-bit = exactly 32 kilobytes total",
+        "16-bit = 65,536 GB capacity; 32-bit = capped strictly at 1,000 words",
+        "Both widths access only 256 memory slots regardless of word size",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Each extra address bus line doubles addressable memory: 2^16 = 65,536 locations, while 2^32 = 4,294,967,296 locations.',
+      uz: 'Manzil shinasi kengligi n bit bo‘lsa, 2^n ta noyob manzilga murojaat qilinadi: 2^16 = 65 536, 2^32 = 4 milliarddan ortiq.',
+    },
+  },
+  {
+    id: 'c193',
+    topic: '9. Programming languages and logic',
+    difficulty: 'hard',
+    q: {
+      en: 'Compare a compiler and an interpreter on a program containing a 1,000-iteration loop AND a syntax error on line 5.',
+      uz: '1000 marta takrorlanadigan sikl (loop) va 5-qatorda sintaktik xato bo‘lgan dasturda kompilyator bilan interpretator qanday farqlanadi?',
+    },
+    opts: {
+      uz: [
+        "Kompilyator siklni 1 marta o‘girib xatolarni yig‘adi; interpretator 5-qatorda to‘xtab siklni 1000 marta o‘qiydi",
+        "Interpretator 1000 marta sikl kodini bitta .exe faylga yozadi va xatolarni oxirida ro‘yxat qiladi",
+        "Kompilyator har bir sikl aylanishida 5-qatorni qaytadan tarjima qilib interpretatordan sekin ishlaydi",
+        "Ikkala tarjimon ham 5-qatordagi sintaktik xatoni e’tiborsiz qoldirib dasturni oxirigacha bajaradi",
+      ],
+      en: [
+        "Compiler translates loop once and lists all errors; interpreter halts at line 5 and re-translates 1,000 times",
+        "Interpreter builds a standalone .exe executable once and prints every syntax error together at completion",
+        "Compiler pauses inside each of the 1,000 loop passes to re-read source lines, running far slower",
+        "Both translators silently skip line-5 syntax mistakes and execute the remaining loop automatically",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Compilers translate loop lines once into machine code and report all errors together; interpreters halt at line 5 and re-translate loop instructions on every pass.',
+      uz: 'Kompilyator siklni bir marta mashina kodiga o‘girib xatolarni jamlaydi; interpretator esa 5-qatorda to‘xtaydi va sikl ichini har aylanishda qayta tarjima qiladi.',
+    },
+  },
+  {
+    id: 'c194',
+    topic: '9. Programming languages and logic',
+    difficulty: 'hard',
+    q: {
+      en: 'For a school fun-run: "Stage 8 or Stage 9 AND permission = TRUE", written as X = (A OR B) AND C. If Stage = 8 (A=True, B=False) and permission = False (C=False), what is intermediate gate P and final output X?',
+      uz: 'Yugurish musobaqasi sharti: X = (A OR B) AND C (A: Stage=8, B: Stage=9, C: permission=TRUE). Agar o‘quvchi 8-sinf bo‘lsa-yu ruxsatnomasi yo‘q (C=False) bo‘lsa, oraliq P va yakuniy X nima bo‘ladi?',
+    },
+    opts: {
+      uz: [
+        "P = True, ammo X = False (qatnasha olmaydi)",
+        "P = True va X = True (qatnasha oladi)",
+        "P = False, ammo X = True (qatnasha oladi)",
+        "P = False va X = False (qatnasha olmaydi)",
+      ],
+      en: [
+        "P = True, yet final X = False (cannot attend)",
+        "P = True and final X = True (can attend)",
+        "P = False, yet final X = True (can attend)",
+        "P = False and final X = False (cannot attend)",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Brackets first: P = A OR B = True OR False = True. Then X = P AND C = True AND False = False.',
+      uz: 'Avval qavs: P = True OR False = True. So‘ngra X = P AND C = True AND False = False chiqadi.',
+    },
+  },
+  {
+    id: 'c195',
+    topic: '10. Design, AI and industry',
+    difficulty: 'hard',
+    q: {
+      en: 'In modern Industry 4.0 car manufacturing, robots use sensors and CAD/CAM software. What is one key advantage and one drawback?',
+      uz: 'Industry 4.0 avtozavodlarida sensorli robotlar va CAD/CAM dasturlaridan foydalanishning asosiy afzalligi va kamchiligi nima?',
+    },
+    opts: {
+      uz: [
+        "Yuqori sifat va bashoratli texnik xizmat; kamchiligi — katta xarajat va ish o‘rni qisqarishi",
+        "Bepul dasturiy ta’minot o‘rnatilishi; kamchiligi — robotlar bir kunda bitta detal yasaydi",
+        "Hamma ishchi masofadan bepul ishlaydi; kamchiligi — internet kerak bo‘lmay qoladi",
+        "An’anaviy qo‘l mehnati ko‘payadi; kamchiligi — mahsulotlar tez-tez buzilib chiqadi",
+      ],
+      en: [
+        "Consistent quality & predictive maintenance; drawback: high setup cost & job losses",
+        "Zero upfront technology investment; drawback: robots only weld one part per day",
+        "Removes need for engineering design software; drawback: cars lose safety sensors",
+        "Increases manual human assembly speed; drawback: eliminates factory power usage",
+      ],
+    },
+    answer: 0,
+    explain: {
+      en: 'Computerised Industry 4.0 lines offer customizable CAD designs, consistent quality, and predictive maintenance, while costing more upfront and reducing manual staff roles.',
+      uz: 'Industry 4.0 yuqori barqaror sifat va nosozliklarni oldindan aniqlash imkonini beradi, ammo texnologiya qimmat va ba’zi ish o‘rinlarini qisqartiradi.',
+    },
   },
 ];

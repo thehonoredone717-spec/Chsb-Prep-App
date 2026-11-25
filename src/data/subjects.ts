@@ -68,8 +68,8 @@ export const SUBJECTS: SubjectConfig[] = [
     title: { uz: 'Informatika (Computing)', en: 'Computing (G7)' },
     shortLabel: { uz: 'Informatika', en: 'Computing' },
     subtitle: {
-      uz: "Tarmoqlar, paketlar, saqlash, xavfsizlik, CPU registrlari va dasturlash (2 tilda)",
-      en: 'Networks, packets, storage, security, CPU registers & programming (Bilingual)',
+      uz: "Tarmoqlar, masshtablanuvchanlik (9DC.03), paketlar, saqlash, xavfsizlik, CPU registrlari va dasturlash (11 mavzu)",
+      en: 'Networks, scalability (9DC.03), packets, storage, security, CPU registers & programming (11 topics)',
     },
     questionLangNote: { uz: "Savollar tili: O'zbekcha / Inglizcha", en: 'Question language: Bilingual (EN / UZ)' },
     topics: computingTopics,
@@ -110,6 +110,11 @@ export const SUBJECT_MAP: Record<SubjectId, SubjectConfig> = SUBJECTS.reduce(
     return acc;
   },
   {} as Record<SubjectId, SubjectConfig>
+);
+
+export const TOTAL_QUESTION_COUNT = SUBJECTS.reduce(
+  (sum, item) => sum + item.questions.length,
+  0
 );
 
 export const UI_COPY: Record<
@@ -201,7 +206,7 @@ export const UI_COPY: Record<
       "6 ta asosiy fan, har bir fanda Oson, O'rta va Qiyin darajalari bo'yicha 5 tadan (jami 15 ta) 25 talik variant hamda qayta boshlanganda savollar almashadigan ChSB imtihon muhiti.",
     questionsPerTest: '25 ta savol / test',
     variantsCount: '3 daraja × 5 variant + Tasodifiy 25',
-    totalBank: '900 ta savol bazasi',
+    totalBank: `${TOTAL_QUESTION_COUNT} ta savol bazasi`,
     startTest: 'Testni boshlash',
     openGuide: "Mavzular va qo'llanma",
     bestScore: 'Eng yaxshi natija',
@@ -276,7 +281,7 @@ export const UI_COPY: Record<
       'Dedicated sections for 6 core subjects, 3 difficulty levels (Easy, Medium, Hard) with 5 distinct 25-question variants each plus Random Mix and guaranteed shuffle on Start over.',
     questionsPerTest: '25 questions / test',
     variantsCount: '3 tiers × 5 variants + Random Mix',
-    totalBank: '900 total questions',
+    totalBank: `${TOTAL_QUESTION_COUNT} total questions`,
     startTest: 'Start Test',
     openGuide: 'Topics & Study Guide',
     bestScore: 'Best score',
