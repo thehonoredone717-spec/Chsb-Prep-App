@@ -19,6 +19,7 @@ export interface QuestionItem {
   id: string;
   topic: string;
   difficulty: DifficultyLevel;
+  context?: string | BilingualText;
   q: string | BilingualText;
   opts: string[] | { uz: string[]; en: string[] };
   answer: number;

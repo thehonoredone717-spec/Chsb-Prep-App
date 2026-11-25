@@ -465,12 +465,27 @@ export function downloadStandaloneHtml(): void {
     padding: 24px;
   }
   @media (min-width: 640px) { .q-card { padding: 32px; } }
+  .q-passage {
+    margin-top: 14px;
+    max-height: 280px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--teal);
+    border-radius: 10px;
+    background: #f8fafc;
+    padding: 14px 16px;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text-2);
+  }
   .q-title {
     margin-top: 12px;
     font-size: 20px;
     font-weight: 700;
     line-height: 1.35;
     color: var(--text);
+    white-space: pre-line;
   }
   @media (min-width: 640px) { .q-title { font-size: 24px; } }
   .opt-list { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; }
@@ -1506,7 +1521,10 @@ function renderQuizView(sub) {
       html += '<span style="font-weight:500;color:#64748b">' + (i + 1) + '. ' + esc(aq.source.topic) + '</span>';
       html += '<span style="display:inline-flex;align-items:center;gap:4px;font-weight:600;color:' + (isOk ? 'var(--ok)' : 'var(--bad)') + '">' + (isOk ? ICONS.check + '<span>' + esc(copy.correctBadge) + '</span>' : ICONS.cross + '<span>' + esc(sel === undefined ? copy.unansweredBadge : copy.incorrectBadge) + '</span>') + '</span>';
       html += '</div>';
-      html += '<p class="font-display" style="margin:8px 0 0;font-size:16px;font-weight:600">' + esc(loc(aq.source.q)) + '</p>';
+      if (aq.source.context) {
+        html += '<div class="q-passage" style="max-height:180px;margin-top:10px;font-size:12px">' + esc(loc(aq.source.context)) + '</div>';
+      }
+      html += '<p class="font-display" style="margin:8px 0 0;font-size:16px;font-weight:600;white-space:pre-line">' + esc(loc(aq.source.q)) + '</p>';
       html += '<div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;font-size:14px">';
       html += '<div><strong>' + esc(copy.yourAnswer) + ': </strong><span style="color:' + (isOk ? 'var(--ok)' : 'var(--bad)') + '">' + esc(selText) + '</span></div>';
       html += '<div><strong>' + esc(copy.correctAnswer) + ': </strong><span style="color:var(--ok);font-weight:500">' + esc(corText) + '</span></div>';
@@ -1541,6 +1559,9 @@ function renderQuizView(sub) {
   html += '<span>' + esc(cur.source.topic) + ' · <strong style="color:' + diffColor(cur.source.difficulty || 'medium') + '">' + esc(diffLabel(cur.source.difficulty || 'medium')) + '</strong></span>';
   html += '<span class="font-mono-num">' + esc(copy.questionOf) + ' ' + (currentIdx + 1) + ' / 25</span>';
   html += '</div>';
+  if (cur.source.context) {
+    html += '<div class="q-passage">' + esc(loc(cur.source.context)) + '</div>';
+  }
   html += '<h2 class="q-title font-display">' + esc(loc(cur.source.q)) + '</h2>';
 
   html += '<div class="opt-list">';

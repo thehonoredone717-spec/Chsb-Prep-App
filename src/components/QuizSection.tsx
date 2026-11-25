@@ -1207,7 +1207,13 @@ export function QuizSection({
                       </span>
                     </div>
 
-                    <p className="mt-2 font-display text-base font-semibold text-slate-900">
+                    {q.source.context && (
+                      <div className="mt-2.5 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 border-l-4 border-l-teal-700 bg-white px-3.5 py-2.5 text-xs leading-relaxed text-slate-700">
+                        {getLocalizedField(q.source.context, lang)}
+                      </div>
+                    )}
+
+                    <p className="mt-2 whitespace-pre-line font-display text-base font-semibold text-slate-900">
                       {getLocalizedField(q.source.q, lang)}
                     </p>
 
@@ -1300,7 +1306,13 @@ export function QuizSection({
                 </span>
               </div>
 
-              <h2 className="mt-3 font-display text-xl font-bold leading-snug text-slate-900 sm:text-2xl">
+              {activeQuestion.source.context && (
+                <div className="mt-4 max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 border-l-4 border-l-teal-700 bg-slate-50 px-5 py-4 text-sm leading-relaxed text-slate-800 sm:text-[15px]">
+                  {getLocalizedField(activeQuestion.source.context, lang)}
+                </div>
+              )}
+
+              <h2 className="mt-3 whitespace-pre-line font-display text-xl font-bold leading-snug text-slate-900 sm:text-2xl">
                 {getLocalizedField(activeQuestion.source.q, lang)}
               </h2>
 
