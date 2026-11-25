@@ -174,8 +174,10 @@ export const UI_COPY: Record<
     htmlDownloaded: string;
     signOut: string;
     teacherBadge: string;
+    computingTeacherBadge: string;
     studentBadge: string;
     teacherResultsTitle: string;
+    computingResultsTitle: string;
     studentCol: string;
     allStudents: string;
     allSubjects: string;
@@ -248,8 +250,10 @@ export const UI_COPY: Record<
     htmlDownloaded: 'Offline HTML fayl yuklab olindi',
     signOut: 'Chiqish',
     teacherBadge: "O'qituvchi",
+    computingTeacherBadge: "Informatika O'qituvchisi",
     studentBadge: "O'quvchi",
     teacherResultsTitle: "Barcha o'quvchilarning ChSB natijalari",
+    computingResultsTitle: "O'quvchilarning Informatika (Computing) natijalari",
     studentCol: "O'quvchi",
     allStudents: "Barcha o'quvchilar",
     allSubjects: 'Barcha fanlar',
@@ -321,8 +325,10 @@ export const UI_COPY: Record<
     htmlDownloaded: 'Offline HTML file downloaded',
     signOut: 'Sign Out',
     teacherBadge: 'Teacher',
+    computingTeacherBadge: 'Computing Teacher',
     studentBadge: 'Student',
     teacherResultsTitle: 'All Students ChSB Results',
+    computingResultsTitle: "Students' Computing Results",
     studentCol: 'Student',
     allStudents: 'All students',
     allSubjects: 'All subjects',

@@ -123,4 +123,11 @@ export const DIRTY_DOZEN_CASES = [
     auth: { uid: 'spoof', email: 'thehonoredone.717@gmail.com', email_verified: false },
     expected: 'PERMISSION_DENIED',
   },
+  {
+    name: '13. Computing Teacher Reading Non-Computing Attempt',
+    target: 'attempts/math-10',
+    operation: 'get',
+    auth: { uid: 'comp_teacher', email: 'zarifa.xojiyeva2281@gmail.com', email_verified: true },
+    expected: 'PERMISSION_DENIED',
+  },
 ] as const;

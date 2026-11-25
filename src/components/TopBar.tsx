@@ -4,6 +4,7 @@ import { UserProfile } from '../firebase';
 import { UILanguage } from '../types/quiz';
 
 export type AppView = 'subjects' | 'quiz' | 'guide' | 'results';
+export type TeacherScope = 'none' | 'computing' | 'all';
 
 interface TopBarProps {
   lang: UILanguage;
@@ -12,7 +13,7 @@ interface TopBarProps {
   onDownloadHtml: () => void;
   downloadNotice: boolean;
   userProfile: UserProfile;
-  isTeacher: boolean;
+  teacherScope: TeacherScope;
   onSignOut: () => void;
 }
 
@@ -23,10 +24,12 @@ export function TopBar({
   onDownloadHtml,
   downloadNotice,
   userProfile,
-  isTeacher,
+  teacherScope,
   onSignOut,
 }: TopBarProps) {
   const copy = UI_COPY[lang];
+  const isAnyTeacher = teacherScope !== 'none';
+  const canDownloadHtml = teacherScope === 'all';
 
   const navItems: { id: AppView; label: string }[] = [
     { id: 'subjects', label: copy.navSubjects },
@@ -34,6 +37,13 @@ export function TopBar({
     { id: 'guide', label: copy.navGuide },
     { id: 'results', label: copy.navResults },
   ];
+
+  const badgeText =
+    teacherScope === 'all'
+      ? copy.teacherBadge
+      : teacherScope === 'computing'
+        ? copy.computingTeacherBadge
+        : `@${userProfile.username}`;
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
@@ -75,7 +85,7 @@ export function TopBar({
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 md:flex">
-            {isTeacher ? (
+            {isAnyTeacher ? (
               <ShieldCheck className="h-4 w-4 text-teal-700" aria-hidden="true" />
             ) : (
               <UserIcon className="h-4 w-4 text-slate-500" aria-hidden="true" />
@@ -83,9 +93,7 @@ export function TopBar({
             <span className="max-w-[130px] truncate text-xs font-semibold text-slate-800">
               {userProfile.displayName}
             </span>
-            <span className="text-[11px] font-medium text-teal-700">
-              {isTeacher ? copy.teacherBadge : `@${userProfile.username}`}
-            </span>
+            <span className="text-[11px] font-medium text-teal-700">{badgeText}</span>
           </div>
 
           <button
@@ -98,7 +106,7 @@ export function TopBar({
             <span className="hidden sm:inline">{copy.signOut}</span>
           </button>
 
-          {isTeacher && (
+          {canDownloadHtml && (
             <button
               type="button"
               onClick={onDownloadHtml}

@@ -20,7 +20,7 @@ import { QuizSection } from './components/QuizSection';
 import { ResultsHistoryView } from './components/ResultsHistoryView';
 import { StudyGuidePanel } from './components/StudyGuidePanel';
 import { SubjectBar } from './components/SubjectBar';
-import { AppView, TopBar } from './components/TopBar';
+import { AppView, TeacherScope, TopBar } from './components/TopBar';
 import { AttemptRecord, SUBJECT_MAP } from './data/subjects';
 import {
   OperationType,
@@ -30,6 +30,7 @@ import {
   db,
   deriveUsernameFromUser,
   handleFirestoreError,
+  isComputingTeacher,
   isTeacherAdmin,
   sanitizeDisplayName,
 } from './firebase';
@@ -92,7 +93,7 @@ export default function App() {
       void (async () => {
         try {
           const snap = await getDoc(userDocRef);
-          const teacher = isTeacherAdmin(user);
+          const teacher = isTeacherAdmin(user) || isComputingTeacher(user);
 
           if (!snap.exists()) {
             const pending = pendingSignupRef.current;
@@ -159,16 +160,24 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const isTeacher = isTeacherAdmin(authUser);
+  const isFullAdmin = isTeacherAdmin(authUser);
+  const isCompTeacher = isComputingTeacher(authUser);
+  const teacherScope: TeacherScope = isFullAdmin
+    ? 'all'
+    : isCompTeacher
+      ? 'computing'
+      : 'none';
 
   // Subscribe to attempts only when auth and userProfile are ready
   useEffect(() => {
     if (!authReady || !authUser || !userProfile) return;
 
     const attemptsCollection = collection(db, 'attempts');
-    const attemptsQuery = isTeacher
+    const attemptsQuery = isFullAdmin
       ? query(attemptsCollection, orderBy('createdAt', 'desc'))
-      : query(attemptsCollection, where('userId', '==', authUser.uid));
+      : isCompTeacher
+        ? query(attemptsCollection, where('subjectId', '==', 'computing'))
+        : query(attemptsCollection, where('userId', '==', authUser.uid));
 
     const unsubscribeAttempts = onSnapshot(
       attemptsQuery,
@@ -208,7 +217,7 @@ export default function App() {
     );
 
     let unsubscribeUsers = () => {};
-    if (isTeacher) {
+    if (isFullAdmin) {
       unsubscribeUsers = onSnapshot(
         collection(db, 'users'),
         (snapshot) => {
@@ -237,7 +246,7 @@ export default function App() {
       unsubscribeAttempts();
       unsubscribeUsers();
     };
-  }, [authReady, authUser, userProfile, isTeacher]);
+  }, [authReady, authUser, userProfile, isFullAdmin, isCompTeacher]);
 
   const activeSubject = SUBJECT_MAP[activeSubjectId];
 
@@ -297,7 +306,7 @@ export default function App() {
   };
 
   const handleDeleteAttempt = (attemptId: string) => {
-    if (!isTeacher) return;
+    if (!isFullAdmin) return;
     const attemptPath = `attempts/${attemptId}`;
     void (async () => {
       try {
@@ -313,7 +322,7 @@ export default function App() {
   };
 
   const handleClearAllAttempts = () => {
-    if (!isTeacher || history.length === 0) return;
+    if (!isFullAdmin || history.length === 0) return;
     void (async () => {
       try {
         for (let i = 0; i < history.length; i += 450) {
@@ -339,7 +348,7 @@ export default function App() {
   };
 
   const handleDownloadHtml = () => {
-    if (!isTeacher) return;
+    if (!isFullAdmin) return;
     downloadStandaloneHtml();
     setDownloadNotice(true);
     window.setTimeout(() => setDownloadNotice(false), 3000);
@@ -374,7 +383,7 @@ export default function App() {
         onDownloadHtml={handleDownloadHtml}
         downloadNotice={downloadNotice}
         userProfile={userProfile}
-        isTeacher={isTeacher}
+        teacherScope={teacherScope}
         onSignOut={handleSignOut}
       />
 
@@ -417,7 +426,7 @@ export default function App() {
           <ResultsHistoryView
             lang={lang}
             history={history}
-            isTeacher={isTeacher}
+            teacherScope={teacherScope}
             usersList={usersList}
             onDeleteAttempt={handleDeleteAttempt}
             onClearAllAttempts={handleClearAllAttempts}

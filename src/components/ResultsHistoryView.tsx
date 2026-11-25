@@ -4,11 +4,12 @@ import { AttemptRecord, SUBJECTS, SUBJECT_MAP, UI_COPY, pickText } from '../data
 import { UserProfile } from '../firebase';
 import { SubjectId, UILanguage } from '../types/quiz';
 import { formatTime, getDifficultyLabel } from '../utils/quizEngine';
+import { TeacherScope } from './TopBar';
 
 interface ResultsHistoryViewProps {
   lang: UILanguage;
   history: AttemptRecord[];
-  isTeacher: boolean;
+  teacherScope: TeacherScope;
   usersList: UserProfile[];
   onDeleteAttempt: (attemptId: string) => void;
   onClearAllAttempts: () => void;
@@ -18,13 +19,15 @@ interface ResultsHistoryViewProps {
 export function ResultsHistoryView({
   lang,
   history,
-  isTeacher,
+  teacherScope,
   usersList,
   onDeleteAttempt,
   onClearAllAttempts,
   onOpenSubjectQuiz,
 }: ResultsHistoryViewProps) {
   const copy = UI_COPY[lang];
+  const isAnyTeacher = teacherScope !== 'none';
+  const canManage = teacherScope === 'all';
   const [studentFilter, setStudentFilter] = useState<string>('all');
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
 
@@ -46,15 +49,18 @@ export function ResultsHistoryView({
 
   const filteredHistory = useMemo(() => {
     return history.filter((item) => {
-      if (isTeacher && studentFilter !== 'all' && item.userId !== studentFilter) {
+      if (teacherScope === 'computing' && item.subjectId !== 'computing') {
         return false;
       }
-      if (subjectFilter !== 'all' && item.subjectId !== subjectFilter) {
+      if (isAnyTeacher && studentFilter !== 'all' && item.userId !== studentFilter) {
+        return false;
+      }
+      if (teacherScope !== 'computing' && subjectFilter !== 'all' && item.subjectId !== subjectFilter) {
         return false;
       }
       return true;
     });
-  }, [history, isTeacher, studentFilter, subjectFilter]);
+  }, [history, teacherScope, isAnyTeacher, studentFilter, subjectFilter]);
 
   const teacherStats = useMemo(() => {
     const total = filteredHistory.length;
@@ -71,18 +77,25 @@ export function ResultsHistoryView({
     return { total, uniqueStudents, avgPct, gradeFives };
   }, [filteredHistory]);
 
+  const headingTitle =
+    teacherScope === 'all'
+      ? copy.teacherResultsTitle
+      : teacherScope === 'computing'
+        ? copy.computingResultsTitle
+        : copy.historyTitle;
+
   return (
     <section className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-            {isTeacher ? copy.teacherResultsTitle : copy.historyTitle}
+            {headingTitle}
           </h1>
           <p className="mt-1 text-sm text-slate-600">{copy.gradingScaleNote}</p>
           <p className="mt-0.5 text-xs text-slate-500">{copy.resultsSyncNote}</p>
         </div>
 
-        {isTeacher && history.length > 0 && (
+        {canManage && history.length > 0 && (
           <button
             type="button"
             onClick={onClearAllAttempts}
@@ -96,7 +109,7 @@ export function ResultsHistoryView({
 
       {/* Summary & Filters */}
       <div className="space-y-4">
-        {isTeacher && (
+        {isAnyTeacher && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-medium text-slate-500">{copy.totalAttempts}</p>
@@ -126,7 +139,7 @@ export function ResultsHistoryView({
         )}
 
         <div className="flex flex-wrap items-center gap-3">
-          {isTeacher && (
+          {isAnyTeacher && (
             <select
               aria-label={copy.studentCol}
               value={studentFilter}
@@ -142,19 +155,21 @@ export function ResultsHistoryView({
             </select>
           )}
 
-          <select
-            aria-label={copy.subjectCol}
-            value={subjectFilter}
-            onChange={(e) => setSubjectFilter(e.target.value)}
-            className="min-h-[40px] rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-700/20"
-          >
-            <option value="all">{copy.allSubjects}</option>
-            {SUBJECTS.map((subj) => (
-              <option key={subj.id} value={subj.id}>
-                {pickText(subj.shortLabel, lang)}
-              </option>
-            ))}
-          </select>
+          {teacherScope !== 'computing' && (
+            <select
+              aria-label={copy.subjectCol}
+              value={subjectFilter}
+              onChange={(e) => setSubjectFilter(e.target.value)}
+              className="min-h-[40px] rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-700/20"
+            >
+              <option value="all">{copy.allSubjects}</option>
+              {SUBJECTS.map((subj) => (
+                <option key={subj.id} value={subj.id}>
+                  {pickText(subj.shortLabel, lang)}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -168,7 +183,7 @@ export function ResultsHistoryView({
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <tr>
-                  {isTeacher && <th className="px-4 py-3">{copy.studentCol}</th>}
+                  {isAnyTeacher && <th className="px-4 py-3">{copy.studentCol}</th>}
                   <th className="px-4 py-3">{copy.subjectCol}</th>
                   <th className="px-4 py-3">{copy.variantCol}</th>
                   <th className="px-4 py-3">{copy.modeCol}</th>
@@ -176,7 +191,7 @@ export function ResultsHistoryView({
                   <th className="px-4 py-3">{copy.gradeLabel}</th>
                   <th className="px-4 py-3">{copy.timeLabel}</th>
                   <th className="px-4 py-3">{copy.dateCol}</th>
-                  {isTeacher && <th className="px-4 py-3 text-right" />}
+                  {canManage && <th className="px-4 py-3 text-right" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -194,7 +209,7 @@ export function ResultsHistoryView({
                     : '';
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/70">
-                      {isTeacher && (
+                      {isAnyTeacher && (
                         <td className="px-4 py-3">
                           <div className="font-semibold text-slate-900">
                             {item.studentName || item.username || 'Student'}
@@ -238,7 +253,7 @@ export function ResultsHistoryView({
                       <td className="font-mono-num px-4 py-3 text-slate-500">
                         {dateLabel}
                       </td>
-                      {isTeacher && (
+                      {canManage && (
                         <td className="px-4 py-3 text-right">
                           <button
                             type="button"
