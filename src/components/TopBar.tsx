@@ -1,4 +1,12 @@
-import { Download, GraduationCap, LogOut, ShieldCheck, User as UserIcon } from 'lucide-react';
+import {
+  Download,
+  GraduationCap,
+  LogOut,
+  Maximize2,
+  Minimize2,
+  ShieldCheck,
+  User as UserIcon,
+} from 'lucide-react';
 import { UI_COPY } from '../data/subjects';
 import { UserProfile } from '../firebase';
 import { UILanguage } from '../types/quiz';
@@ -15,6 +23,9 @@ interface TopBarProps {
   userProfile: UserProfile;
   teacherScope: TeacherScope;
   onSignOut: () => void;
+  isFullscreen: boolean;
+  isQuizRunning?: boolean;
+  onToggleFullscreen: () => void;
 }
 
 export function TopBar({
@@ -26,6 +37,9 @@ export function TopBar({
   userProfile,
   teacherScope,
   onSignOut,
+  isFullscreen,
+  isQuizRunning = false,
+  onToggleFullscreen,
 }: TopBarProps) {
   const copy = UI_COPY[lang];
   const isAnyTeacher = teacherScope !== 'none';
@@ -95,6 +109,41 @@ export function TopBar({
             </span>
             <span className="text-[11px] font-medium text-teal-700">{badgeText}</span>
           </div>
+
+          <button
+            type="button"
+            disabled={isQuizRunning && isFullscreen}
+            onClick={onToggleFullscreen}
+            title={
+              isQuizRunning && isFullscreen
+                ? lang === 'uz'
+                  ? "Test paytida to'liq ekrandan chiqish taqiqlanadi"
+                  : 'Cannot exit fullscreen during an active test'
+                : isFullscreen
+                  ? lang === 'uz'
+                    ? "To'liq ekrandan chiqish"
+                    : 'Exit fullscreen'
+                  : lang === 'uz'
+                    ? "To'liq ekran"
+                    : 'Fullscreen'
+            }
+            aria-label={
+              isFullscreen
+                ? lang === 'uz'
+                  ? "To'liq ekrandan chiqish"
+                  : 'Exit fullscreen'
+                : lang === 'uz'
+                  ? "To'liq ekran"
+                  : 'Fullscreen'
+            }
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Maximize2 className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
 
           <button
             type="button"

@@ -1,12 +1,16 @@
 import {
+  AlertTriangle,
   BookOpen,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Play,
   RotateCcw,
+  ShieldAlert,
+  ShieldCheck,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRecord, UI_COPY, pickText } from '../data/subjects';
 import { FormattedMathText } from './FormattedMathText';
 import {
@@ -31,22 +35,57 @@ import {
   gradeOf,
   isChoiceCorrect,
 } from '../utils/quizEngine';
+import {
+  isFullscreenActive,
+  requestAppFullscreen,
+  unlockSystemKeys,
+} from '../utils/fullscreen';
 
 interface QuizSectionProps {
   subject: SubjectConfig;
   lang: UILanguage;
   onOpenGuide: () => void;
   onRecordAttempt: (record: AttemptRecord) => void;
+  onRunningStateChange?: (running: boolean) => void;
+  registerFinishQuiz?: (fn: (() => void) | null) => void;
 }
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const;
 const VARIANT_CHOICES: VariantSelection[] = [1, 2, 3, 4, 5, 'random'];
+const MAX_WARNINGS = 3;
+const GRACE_SECONDS = 3;
+
+function playWarningBeep(isFinalZero: boolean) {
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = isFinalZero ? 'sawtooth' : 'triangle';
+    osc.frequency.value = isFinalZero ? 320 : 620;
+    gain.gain.value = 0.08;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + (isFinalZero ? 0.35 : 0.16));
+    osc.onended = () => {
+      void ctx.close();
+    };
+  } catch {
+    // Ignore Web Audio restriction errors
+  }
+}
 
 export function QuizSection({
   subject,
   lang,
   onOpenGuide,
   onRecordAttempt,
+  onRunningStateChange,
+  registerFinishQuiz,
 }: QuizSectionProps) {
   const copy = UI_COPY[lang];
 
@@ -58,10 +97,60 @@ export function QuizSection({
   );
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [started, setStarted] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong'>('all');
   const [rotationCount, setRotationCount] = useState<number>(0);
+  const [pendingSwitchAction, setPendingSwitchAction] = useState<(() => void) | null>(null);
+
+  // Per-test anti-cheat focus / tab / desktop guard state (3 warnings, 3s grace period)
+  const [warningsLeft, setWarningsLeft] = useState<number>(MAX_WARNINGS);
+  const [isAway, setIsAway] = useState<boolean>(false);
+  const [graceSecondsLeft, setGraceSecondsLeft] = useState<number>(GRACE_SECONDS);
+  const [warningModal, setWarningModal] = useState<{
+    remaining: number;
+    deductedCount: number;
+  } | null>(null);
+  const [forcedZero, setForcedZero] = useState<boolean>(false);
+  const [showForcedZeroOverlay, setShowForcedZeroOverlay] = useState<boolean>(false);
+  const [fullscreenLost, setFullscreenLost] = useState<boolean>(false);
+  const [securityViolationMsg, setSecurityViolationMsg] = useState<string | null>(null);
+
+  const awayStartedAtRef = useRef<number | null>(null);
+  const deductedThisAwayRef = useRef<number>(0);
+  const warningsLeftRef = useRef<number>(MAX_WARNINGS);
+  const submittedRef = useRef<boolean>(false);
+  const blurConfirmTimerRef = useRef<number | null>(null);
+  const wasFullscreenInTestRef = useRef<boolean>(false);
+  const lastScreenshotPenaltyRef = useRef<number>(0);
+  const originalTitleRef = useRef<string>(
+    typeof document !== 'undefined' ? document.title : 'Grade 7 ChSB'
+  );
+
+  const resetFocusGuard = useCallback(() => {
+    if (blurConfirmTimerRef.current !== null) {
+      window.clearTimeout(blurConfirmTimerRef.current);
+      blurConfirmTimerRef.current = null;
+    }
+    awayStartedAtRef.current = null;
+    deductedThisAwayRef.current = 0;
+    warningsLeftRef.current = MAX_WARNINGS;
+    submittedRef.current = false;
+    setWarningsLeft(MAX_WARNINGS);
+    setIsAway(false);
+    setGraceSecondsLeft(GRACE_SECONDS);
+    setWarningModal(null);
+    setForcedZero(false);
+    setShowForcedZeroOverlay(false);
+    setFullscreenLost(false);
+    setSecurityViolationMsg(null);
+    wasFullscreenInTestRef.current = isFullscreenActive();
+    setPendingSwitchAction(null);
+    if (typeof document !== 'undefined') {
+      document.title = originalTitleRef.current;
+    }
+  }, []);
 
   // Reset to Variant 1 of current difficulty whenever user switches to a different subject section
   useEffect(() => {
@@ -70,21 +159,23 @@ export function QuizSection({
     setQuestions(fresh);
     setAnswers({});
     setCurrentIndex(0);
+    setStarted(false);
     setSubmitted(false);
     setElapsedSeconds(0);
     setReviewFilter('all');
     setRotationCount(0);
+    resetFocusGuard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject]);
 
-  // Live exam timer
+  // Live exam timer (runs only after user clicks Start)
   useEffect(() => {
-    if (submitted) return;
+    if (!started || submitted) return;
     const interval = window.setInterval(() => {
       setElapsedSeconds((prev) => prev + 1);
     }, 1000);
     return () => window.clearInterval(interval);
-  }, [submitted, subject.id, difficulty, variant, rotationCount]);
+  }, [started, submitted, subject.id, difficulty, variant, rotationCount]);
 
   const startSession = (
     nextDiff: DifficultyLevel,
@@ -97,31 +188,61 @@ export function QuizSection({
     setQuestions(nextQuestions);
     setAnswers({});
     setCurrentIndex(0);
+    setStarted(false);
     setSubmitted(false);
     setElapsedSeconds(0);
     setReviewFilter('all');
     setRotationCount((c) => c + 1);
+    resetFocusGuard();
+  };
+
+  const guardSwitch = (action: () => void) => {
+    if (started && !submitted) {
+      setPendingSwitchAction(() => action);
+      return;
+    }
+    action();
   };
 
   // Mandatory requirement: Every time "Start over" is clicked, questions swap/shuffle
   const handleStartOver = () => {
-    const nextVar = getNextVariant(variant);
-    const prevIds = questions.map((q) => q.source.id);
-    startSession(difficulty, nextVar, prevIds);
+    guardSwitch(() => {
+      const nextVar = getNextVariant(variant);
+      const prevIds = questions.map((q) => q.source.id);
+      startSession(difficulty, nextVar, prevIds);
+    });
   };
 
   const handleSelectDifficulty = (chosenDifficulty: DifficultyLevel) => {
-    const prevIds = questions.map((q) => q.source.id);
-    startSession(chosenDifficulty, 1, prevIds);
+    if (chosenDifficulty === difficulty && !submitted) return;
+    guardSwitch(() => {
+      const prevIds = questions.map((q) => q.source.id);
+      startSession(chosenDifficulty, 1, prevIds);
+    });
   };
 
   const handleSelectVariant = (chosenVariant: VariantSelection) => {
-    const prevIds = questions.map((q) => q.source.id);
-    startSession(difficulty, chosenVariant, prevIds);
+    if (chosenVariant === variant && !submitted) return;
+    guardSwitch(() => {
+      const prevIds = questions.map((q) => q.source.id);
+      startSession(difficulty, chosenVariant, prevIds);
+    });
+  };
+
+  const handleBeginTest = () => {
+    resetFocusGuard();
+    setElapsedSeconds(0);
+    setStarted(true);
+    void requestAppFullscreen(true).then((entered) => {
+      if (entered) {
+        wasFullscreenInTestRef.current = true;
+        setFullscreenLost(false);
+      }
+    });
   };
 
   const handleSelectOption = (displayIdx: number) => {
-    if (submitted) return;
+    if (!started || submitted) return;
     if (mode === 'practice' && answers[currentIndex] !== undefined) return;
     setAnswers((prev) => ({
       ...prev,
@@ -130,7 +251,19 @@ export function QuizSection({
   };
 
   const handleSubmit = () => {
-    if (submitted) return;
+    if (submitted || submittedRef.current) return;
+    submittedRef.current = true;
+    awayStartedAtRef.current = null;
+    if (blurConfirmTimerRef.current !== null) {
+      window.clearTimeout(blurConfirmTimerRef.current);
+      blurConfirmTimerRef.current = null;
+    }
+    setIsAway(false);
+    setWarningModal(null);
+    if (typeof document !== 'undefined') {
+      document.title = originalTitleRef.current;
+    }
+
     let correct = 0;
     questions.forEach((q, idx) => {
       if (isChoiceCorrect(q, answers[idx])) {
@@ -156,6 +289,278 @@ export function QuizSection({
     setSubmitted(true);
   };
 
+  // Keep latest callback for immediate zero-score termination when 3rd warning runs out
+  const forceZeroSubmitRef = useRef<() => void>(() => {});
+  forceZeroSubmitRef.current = () => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    awayStartedAtRef.current = null;
+    if (blurConfirmTimerRef.current !== null) {
+      window.clearTimeout(blurConfirmTimerRef.current);
+      blurConfirmTimerRef.current = null;
+    }
+    warningsLeftRef.current = 0;
+    setWarningsLeft(0);
+    setIsAway(false);
+    setWarningModal(null);
+    setForcedZero(true);
+    setShowForcedZeroOverlay(true);
+    if (typeof document !== 'undefined') {
+      document.title = originalTitleRef.current;
+    }
+    playWarningBeep(true);
+
+    const { grade } = gradeOf(0);
+    onRecordAttempt({
+      id: `${subject.id}-${Date.now()}`,
+      subjectId: subject.id,
+      difficulty,
+      variant: getVariantLabel(variant, lang),
+      mode,
+      score: 0,
+      total: QUESTIONS_PER_TEST,
+      percentage: 0,
+      grade,
+      elapsedSeconds,
+      completedAt: new Date().toISOString(),
+    });
+    setSubmitted(true);
+  };
+
+  // Sync running state and submit callback with App navigation guard
+  const finishHandlerRef = useRef<() => void>(() => {});
+  finishHandlerRef.current = handleSubmit;
+
+  useEffect(() => {
+    const active = started && !submitted;
+    onRunningStateChange?.(active);
+    registerFinishQuiz?.(active ? () => finishHandlerRef.current() : null);
+    if (typeof document !== 'undefined') {
+      document.body.classList.toggle('quiz-locked', active);
+    }
+    if (!active) {
+      unlockSystemKeys();
+    }
+    return () => {
+      onRunningStateChange?.(false);
+      registerFinishQuiz?.(null);
+      if (typeof document !== 'undefined') {
+        document.body.classList.remove('quiz-locked');
+      }
+      unlockSystemKeys();
+    };
+  }, [started, submitted, onRunningStateChange, registerFinishQuiz]);
+
+  // Monitor tab switching, window blur, virtual desktop, fullscreen exit, screenshots & system keys
+  useEffect(() => {
+    if (!started || submitted) return;
+
+    if (isFullscreenActive()) {
+      wasFullscreenInTestRef.current = true;
+    }
+
+    const tickAwayProgress = () => {
+      if (awayStartedAtRef.current === null || submittedRef.current) return;
+      const elapsedMs = Date.now() - awayStartedAtRef.current;
+      const stepsPassed = Math.floor(elapsedMs / (GRACE_SECONDS * 1000));
+
+      if (stepsPassed > deductedThisAwayRef.current) {
+        const delta = stepsPassed - deductedThisAwayRef.current;
+        deductedThisAwayRef.current = stepsPassed;
+        const nextWarnings = Math.max(0, warningsLeftRef.current - delta);
+        warningsLeftRef.current = nextWarnings;
+        setWarningsLeft(nextWarnings);
+
+        if (nextWarnings <= 0) {
+          forceZeroSubmitRef.current();
+          return;
+        }
+        playWarningBeep(false);
+      }
+
+      const nextBoundaryMs = (stepsPassed + 1) * GRACE_SECONDS * 1000;
+      const secLeft = Math.max(1, Math.ceil((nextBoundaryMs - elapsedMs) / 1000));
+      setGraceSecondsLeft(secLeft);
+      document.title =
+        lang === 'uz'
+          ? `⚠️ (${secLeft}s) Testga qayting! — ${warningsLeftRef.current}/${MAX_WARNINGS}`
+          : `⚠️ (${secLeft}s) Return to quiz! — ${warningsLeftRef.current}/${MAX_WARNINGS}`;
+    };
+
+    const startAwayTracking = () => {
+      if (submittedRef.current) return;
+      if (awayStartedAtRef.current !== null) return;
+      awayStartedAtRef.current = Date.now();
+      deductedThisAwayRef.current = 0;
+      setIsAway(true);
+      setGraceSecondsLeft(GRACE_SECONDS);
+      tickAwayProgress();
+    };
+
+    const stopAwayTracking = () => {
+      if (blurConfirmTimerRef.current !== null) {
+        window.clearTimeout(blurConfirmTimerRef.current);
+        blurConfirmTimerRef.current = null;
+      }
+      if (awayStartedAtRef.current === null) return;
+
+      tickAwayProgress();
+      if (submittedRef.current) return;
+
+      const lostCount = deductedThisAwayRef.current;
+      awayStartedAtRef.current = null;
+      deductedThisAwayRef.current = 0;
+      setIsAway(false);
+      setGraceSecondsLeft(GRACE_SECONDS);
+      document.title = originalTitleRef.current;
+
+      if (lostCount > 0) {
+        setWarningModal({
+          remaining: warningsLeftRef.current,
+          deductedCount: lostCount,
+        });
+      }
+    };
+
+    const triggerInstantPenalty = (reasonUz: string, reasonEn: string) => {
+      if (submittedRef.current) return;
+      const now = Date.now();
+      if (now - lastScreenshotPenaltyRef.current < 1500) return;
+      lastScreenshotPenaltyRef.current = now;
+
+      try {
+        void navigator.clipboard?.writeText?.('').catch(() => {});
+      } catch {
+        // Ignore clipboard errors
+      }
+
+      const nextWarnings = Math.max(0, warningsLeftRef.current - 1);
+      warningsLeftRef.current = nextWarnings;
+      setWarningsLeft(nextWarnings);
+      if (nextWarnings <= 0) {
+        forceZeroSubmitRef.current();
+        return;
+      }
+      playWarningBeep(false);
+      setSecurityViolationMsg(lang === 'uz' ? reasonUz : reasonEn);
+    };
+
+    const handleVisibilityChange = () => {
+      if (submittedRef.current) return;
+      if (document.hidden || document.visibilityState !== 'visible') {
+        startAwayTracking();
+      } else if (document.hasFocus()) {
+        stopAwayTracking();
+      }
+    };
+
+    const handleWindowBlur = () => {
+      if (submittedRef.current) return;
+      if (blurConfirmTimerRef.current !== null) {
+        window.clearTimeout(blurConfirmTimerRef.current);
+      }
+      // Immediate cover when losing focus (blocks Ask Gemini / Google Lens / Snipping Tool / Win+G captures)
+      startAwayTracking();
+    };
+
+    const handleWindowFocus = () => {
+      if (submittedRef.current) return;
+      if (!document.hidden && document.hasFocus()) {
+        stopAwayTracking();
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      if (submittedRef.current) return;
+      if (isFullscreenActive()) {
+        wasFullscreenInTestRef.current = true;
+        setFullscreenLost(false);
+        if (!document.hidden && document.hasFocus()) {
+          stopAwayTracking();
+        }
+      } else if (wasFullscreenInTestRef.current) {
+        setFullscreenLost(true);
+        startAwayTracking();
+      }
+    };
+
+    const handleKeyGuard = (e: KeyboardEvent) => {
+      if (submittedRef.current) return;
+      const keyLower = (e.key || '').toLowerCase();
+      const isPrintScreen =
+        e.key === 'PrintScreen' || e.code === 'PrintScreen' || e.keyCode === 44;
+      const isMetaOrWin =
+        e.key === 'Meta' ||
+        e.key === 'OS' ||
+        e.code === 'MetaLeft' ||
+        e.code === 'MetaRight' ||
+        e.metaKey;
+      const isBlockedCtrlCombo =
+        e.ctrlKey &&
+        (['p', 's', 'u', 'c', 'x', 'a', 'g'].includes(keyLower) ||
+          (e.shiftKey && ['i', 'j', 'c', 's'].includes(keyLower)));
+      const isSystemNavKey = e.key === 'Escape' || e.key === 'F11' || e.key === 'F12';
+
+      if (isPrintScreen || isMetaOrWin || isBlockedCtrlCombo || isSystemNavKey) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      const isScreenshotOrSystemCombo =
+        isPrintScreen ||
+        isMetaOrWin ||
+        (e.ctrlKey && e.shiftKey && keyLower === 's') ||
+        (e.ctrlKey && keyLower === 'p') ||
+        (isMetaOrWin && e.shiftKey && ['3', '4', '5', 's'].includes(keyLower));
+
+      if (isScreenshotOrSystemCombo) {
+        triggerInstantPenalty(
+          'Skrinshot olish, Pusk (Win) yoki Win+G tugmalarini bosish taqiqlanadi! 1 ta ogohlantirish olib tashlandi.',
+          'Screenshots, Start (Win), and Win+G are prohibited! 1 warning was deducted.'
+        );
+      }
+    };
+
+    const preventAction = (e: Event) => {
+      e.preventDefault();
+    };
+
+    const intervalId = window.setInterval(tickAwayProgress, 250);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('keydown', handleKeyGuard, { capture: true });
+    window.addEventListener('keyup', handleKeyGuard, { capture: true });
+    document.addEventListener('contextmenu', preventAction, { capture: true });
+    document.addEventListener('copy', preventAction, { capture: true });
+    document.addEventListener('cut', preventAction, { capture: true });
+    document.addEventListener('selectstart', preventAction, { capture: true });
+    document.addEventListener('dragstart', preventAction, { capture: true });
+
+    return () => {
+      window.clearInterval(intervalId);
+      if (blurConfirmTimerRef.current !== null) {
+        window.clearTimeout(blurConfirmTimerRef.current);
+        blurConfirmTimerRef.current = null;
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('keydown', handleKeyGuard, { capture: true });
+      window.removeEventListener('keyup', handleKeyGuard, { capture: true });
+      document.removeEventListener('contextmenu', preventAction, { capture: true });
+      document.removeEventListener('copy', preventAction, { capture: true });
+      document.removeEventListener('cut', preventAction, { capture: true });
+      document.removeEventListener('selectstart', preventAction, { capture: true });
+      document.removeEventListener('dragstart', preventAction, { capture: true });
+      document.title = originalTitleRef.current;
+    };
+  }, [started, submitted, lang, subject.id, difficulty, variant, rotationCount]);
+
   const answeredCount = Object.keys(answers).length;
   const activeQuestion = questions[currentIndex];
 
@@ -174,7 +579,8 @@ export function QuizSection({
       topicMap.set(q.source.topic, entry);
     });
 
-    const percentage = Math.round((correct / QUESTIONS_PER_TEST) * 100);
+    const finalCorrect = forcedZero ? 0 : correct;
+    const percentage = Math.round((finalCorrect / QUESTIONS_PER_TEST) * 100);
     const gradeInfo = gradeOf(percentage);
     const topicRows = Array.from(topicMap.entries()).map(([topic, stat]) => ({
       topic,
@@ -183,8 +589,8 @@ export function QuizSection({
       pct: Math.round((stat.ok / stat.total) * 100),
     }));
 
-    return { correct, percentage, gradeInfo, topicRows };
-  }, [submitted, questions, answers]);
+    return { correct: finalCorrect, percentage, gradeInfo, topicRows };
+  }, [submitted, questions, answers, forcedZero]);
 
   return (
     <section className="space-y-5">
@@ -320,15 +726,323 @@ export function QuizSection({
             {QUESTIONS_PER_TEST} {lang === 'uz' ? 'savol' : 'questions'} · {copy.answeredCount}:{' '}
             {answeredCount}/{QUESTIONS_PER_TEST}
           </span>
-          <span>
-            {copy.timeLabel}: {formatTime(elapsedSeconds)}
-          </span>
+          <div className="flex flex-wrap items-center gap-4">
+            <span
+              className={`inline-flex items-center gap-1.5 font-semibold ${
+                warningsLeft === 3
+                  ? 'text-emerald-700'
+                  : warningsLeft === 2
+                    ? 'text-amber-700'
+                    : 'text-rose-700'
+              }`}
+              title={
+                lang === 'uz'
+                  ? 'Boshqa oyna, sayt yoki desktopga 3 soniyadan ortiq o‘tsangiz 1 ta ogohlantirish kamayadi'
+                  : 'Leaving the test window, tab, or desktop for over 3 seconds removes 1 warning'
+              }
+            >
+              {warningsLeft === MAX_WARNINGS ? (
+                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+              )}
+              <span>
+                {lang === 'uz' ? 'Ogohlantirish' : 'Warnings'}: {warningsLeft}/{MAX_WARNINGS}
+              </span>
+            </span>
+            <span>
+              {copy.timeLabel}: {formatTime(elapsedSeconds)}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Results View */}
-      {submitted && resultsSummary ? (
+      {/* Full-Screen Red Away Countdown Overlay */}
+      {started && !submitted && isAway && (
+        <div
+          role="alert"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-rose-700 p-6 text-center text-white"
+        >
+          <div className="mx-auto flex w-full max-w-2xl flex-col items-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/15 text-white">
+              <AlertTriangle className="h-11 w-11" aria-hidden="true" />
+            </div>
+
+            <h2 className="mt-6 font-display text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
+              {lang === 'uz'
+                ? 'DIQQAT! TEST OYNASIDAN CHIQIB KETDINGIZ!'
+                : 'ATTENTION! YOU LEFT THE QUIZ WINDOW!'}
+            </h2>
+
+            <div className="font-mono-num mt-8 flex h-32 w-32 items-center justify-center rounded-3xl border-4 border-white/80 bg-rose-800 text-6xl font-extrabold text-white shadow-2xl sm:h-40 sm:w-40 sm:text-7xl">
+              {graceSecondsLeft}s
+            </div>
+
+            <p className="mt-8 max-w-xl text-lg font-semibold leading-relaxed text-rose-50 sm:text-xl">
+              {lang === 'uz'
+                ? `${graceSecondsLeft} soniya ichida testga qaytmasangiz 1 ta ogohlantirish olib tashlanadi!`
+                : `Return to the quiz within ${graceSecondsLeft} seconds or 1 warning will be deducted!`}
+            </p>
+
+            <div className="font-mono-num mt-5 rounded-xl border border-white/30 bg-rose-900/60 px-5 py-2.5 text-base font-bold text-white">
+              {lang === 'uz' ? 'Qolgan ogohlantirishlar' : 'Warnings remaining'}: {warningsLeft} /{' '}
+              {MAX_WARNINGS}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Red Warning Deducted Overlay */}
+      {started && !submitted && warningModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-rose-800/95 p-6 text-center text-white"
+        >
+          <div className="w-full max-w-xl rounded-2xl border-2 border-rose-300/60 bg-rose-950/90 p-8 shadow-2xl sm:p-10">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-600 text-white">
+              <ShieldAlert className="h-9 w-9" aria-hidden="true" />
+            </div>
+
+            <h2 className="mt-5 font-display text-2xl font-extrabold text-white sm:text-4xl">
+              {lang === 'uz' ? 'TEST QOIDASI OGOHLANTIRISHI' : 'QUIZ FOCUS WARNING'}
+            </h2>
+
+            <p className="mt-4 text-base font-medium leading-relaxed text-rose-100 sm:text-lg">
+              {lang === 'uz'
+                ? `Boshqa sayt, oyna yoki desktopga 3 soniyadan ortiq chiqqaningiz uchun ${warningModal.deductedCount} ta ogohlantirish olib tashlandi.`
+                : `You left the test tab, window, or desktop for over 3 seconds, so ${warningModal.deductedCount} warning was deducted.`}
+            </p>
+
+            <div className="mt-6 rounded-xl border border-rose-400/50 bg-rose-900/70 p-4">
+              <p className="font-mono-num text-lg font-extrabold text-white sm:text-xl">
+                {lang === 'uz'
+                  ? `Qolgan ogohlantirishlar: ${warningModal.remaining} / ${MAX_WARNINGS}`
+                  : `Remaining warnings: ${warningModal.remaining} / ${MAX_WARNINGS}`}
+              </p>
+              <p className="mt-1.5 text-sm text-rose-100">
+                {lang === 'uz'
+                  ? 'Agar barcha 3 ta ogohlantirish tugasa, test shu zahoti yakunlanadi va natijangiz 0 bo‘ladi.'
+                  : 'If all 3 warnings run out, the test ends immediately with a score of 0.'}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setWarningModal(null);
+                void requestAppFullscreen(true).then((entered) => {
+                  if (entered) {
+                    wasFullscreenInTestRef.current = true;
+                    setFullscreenLost(false);
+                  }
+                });
+              }}
+              className="mt-7 inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-white px-6 text-base font-extrabold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              {lang === 'uz' ? 'Tushunarli, testga qaytish' : 'Understood, continue quiz'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Red Security Shield (Screenshot / Win+G / Blocked Shortcut) */}
+      {started && !submitted && securityViolationMsg && !isAway && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[105] flex flex-col items-center justify-center bg-rose-700 p-6 text-center text-white"
+        >
+          <div className="w-full max-w-xl rounded-2xl border-2 border-white/40 bg-rose-900/90 p-8 shadow-2xl sm:p-10">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-white">
+              <ShieldAlert className="h-9 w-9" aria-hidden="true" />
+            </div>
+            <h2 className="mt-5 font-display text-2xl font-extrabold text-white sm:text-4xl">
+              {lang === 'uz' ? 'TAQIQLANGAN HARAKAT!' : 'PROHIBITED ACTION DETECTED!'}
+            </h2>
+            <p className="mt-4 text-base font-medium leading-relaxed text-rose-100 sm:text-lg">
+              {securityViolationMsg}
+            </p>
+            <div className="mt-5 rounded-xl border border-rose-300/40 bg-rose-950/60 p-3.5 font-mono-num text-lg font-extrabold text-white">
+              {lang === 'uz' ? 'Qolgan ogohlantirishlar' : 'Remaining warnings'}: {warningsLeft} /{' '}
+              {MAX_WARNINGS}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSecurityViolationMsg(null);
+                void requestAppFullscreen(true);
+              }}
+              className="mt-7 inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-white px-6 text-base font-extrabold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              {lang === 'uz' ? 'Tushunarli, testga qaytish' : 'Understood, continue quiz'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Red Lock when user exits Fullscreen mid-test */}
+      {started && !submitted && fullscreenLost && !isAway && !securityViolationMsg && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[105] flex flex-col items-center justify-center bg-rose-700 p-6 text-center text-white"
+        >
+          <div className="w-full max-w-xl rounded-2xl border-2 border-white/40 bg-rose-900/90 p-8 shadow-2xl sm:p-10">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-white">
+              <ShieldAlert className="h-9 w-9" aria-hidden="true" />
+            </div>
+            <h2 className="mt-5 font-display text-2xl font-extrabold text-white sm:text-4xl">
+              {lang === 'uz'
+                ? 'FULLSCREENDAN CHIQISH TAQIQLANADI!'
+                : 'EXITING FULLSCREEN IS NOT ALLOWED!'}
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-rose-100 sm:text-lg">
+              {lang === 'uz'
+                ? 'Testni davom ettirish uchun to‘liq ekran rejimiga qayting.'
+                : 'Return to fullscreen mode to continue your test.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                void requestAppFullscreen(true).then((entered) => {
+                  if (entered) {
+                    setFullscreenLost(false);
+                  }
+                });
+              }}
+              className="mt-7 inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-white px-6 text-base font-extrabold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              {lang === 'uz' ? 'To‘liq ekranga qaytish' : 'Return to Fullscreen'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Red Forced-Zero Termination Overlay */}
+      {submitted && forcedZero && showForcedZeroOverlay && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-rose-700 p-6 text-center text-white"
+        >
+          <div className="w-full max-w-xl rounded-2xl border-2 border-white/40 bg-rose-900/80 p-8 shadow-2xl sm:p-10">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-white">
+              <ShieldAlert className="h-9 w-9" aria-hidden="true" />
+            </div>
+            <p className="font-mono-num mt-5 text-5xl font-extrabold text-white sm:text-6xl">
+              0 / {QUESTIONS_PER_TEST}
+            </p>
+            <h2 className="mt-4 font-display text-2xl font-extrabold text-white sm:text-3xl">
+              {lang === 'uz'
+                ? 'TEST QOIDABUZARLIK SABABLI DARHOL TO‘XTATILDI!'
+                : 'TEST IMMEDIATELY TERMINATED (SCORE: 0)'}
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-rose-100">
+              {lang === 'uz'
+                ? '3 ta ogohlantirish ham sarflandi (3 soniyadan ortiq boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
+                : 'All 3 warnings were used (you stayed outside the test tab, window, or desktop for over 3 seconds). Your score was recorded as 0 / 25 (0%).'}
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowForcedZeroOverlay(false)}
+              className="mt-7 inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-white px-6 text-base font-extrabold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              {lang === 'uz' ? 'Natijalarni ko‘rish' : 'View Results'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm switching difficulty/variant mid-test: Cancel or Finish the test */}
+      {started && !submitted && pendingSwitchAction && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+        >
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+            <h2 className="font-display text-lg font-extrabold text-slate-900">
+              {lang === 'uz' ? 'Test hali yakunlanmadi' : 'Test still in progress'}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              {lang === 'uz'
+                ? 'Hozir boshqa variant yoki darajaga o‘tsangiz, joriy test yakunlanadi va natijasi saqlanadi.'
+                : 'Switching variants or difficulty now will finish and submit your current test.'}
+            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setPendingSwitchAction(null)}
+                className="inline-flex min-h-[40px] items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const act = pendingSwitchAction;
+                  setPendingSwitchAction(null);
+                  handleSubmit();
+                  act();
+                }}
+                className="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+              >
+                Finish the test
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ready-to-Start Screen OR Results View OR Active Workspace */}
+      {!started ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center sm:p-10">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+            <ShieldCheck className="h-6 w-6" aria-hidden="true" />
+          </div>
+          <h2 className="mt-4 font-display text-xl font-extrabold text-slate-900 sm:text-2xl">
+            {pickText(subject.shortLabel, lang)} · {getDifficultyLabel(difficulty, lang)} ·{' '}
+            {getVariantLabel(variant, lang)}
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
+            {lang === 'uz'
+              ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Boshlagandan keyin boshqa sayt, oyna yoki desktopga 3 soniyadan ortiq o‘tsangiz 1 ta ogohlantirish kamayadi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
+              : `This variant contains ${QUESTIONS_PER_TEST} questions (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Once started, leaving to another tab, window, or desktop for over 3 seconds removes 1 warning (3 warnings max; exhausting all 3 gives 0).`}
+          </p>
+
+          <button
+            type="button"
+            onClick={handleBeginTest}
+            className="mt-6 inline-flex min-h-[46px] items-center justify-center gap-2 rounded-lg bg-teal-700 px-8 text-base font-bold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
+          >
+            <Play className="h-4 w-4 fill-current" aria-hidden="true" />
+            <span>Start</span>
+          </button>
+        </div>
+      ) : submitted && resultsSummary ? (
         <div className="space-y-6">
+          {forcedZero && (
+            <div
+              role="alert"
+              className="flex items-start gap-3 rounded-xl border border-rose-300 bg-rose-50 p-5 text-rose-900"
+            >
+              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-rose-700" aria-hidden="true" />
+              <div>
+                <h2 className="font-display text-base font-extrabold text-rose-900">
+                  {lang === 'uz'
+                    ? 'Test qoidabuzarlik sababli darhol to‘xtatildi (Natija: 0)'
+                    : 'Test immediately terminated due to focus violations (Score: 0)'}
+                </h2>
+                <p className="mt-1 text-sm text-rose-800">
+                  {lang === 'uz'
+                    ? '3 ta ogohlantirish ham sarflandi (3 soniyadan ortiq boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
+                    : 'All 3 warnings were used (you stayed outside the test tab, window, or desktop for over 3 seconds). Your score for this test was recorded as 0 / 25 (0%).'}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border border-slate-200 bg-white p-6">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
               <div>

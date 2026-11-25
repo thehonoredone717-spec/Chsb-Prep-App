@@ -582,9 +582,25 @@ export function downloadStandaloneHtml(): void {
     flex-shrink: 0;
   }
 
+  body.quiz-locked {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
   @media print {
     .topbar, .subject-bar, .no-print { display: none !important; }
     body { background: #fff; }
+    body.quiz-locked * { display: none !important; }
+    body.quiz-locked::after {
+      content: "Test paytida chop etish taqiqlanadi / Printing is disabled during an active quiz";
+      display: block;
+      padding: 48px 24px;
+      font-size: 20px;
+      font-weight: 700;
+      color: #be123c;
+      text-align: center;
+    }
   }
 </style>
 </head>
@@ -598,10 +614,15 @@ export function downloadStandaloneHtml(): void {
 
     <nav class="nav-links" aria-label="Primary" id="topNav"></nav>
 
-    <button type="button" class="cta-dark" id="printBtn">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
-      <span id="printBtnText">Chop etish</span>
-    </button>
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <button type="button" class="btn-outline" id="fsBtn" title="Fullscreen" style="padding:8px 10px" aria-label="Fullscreen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+      </button>
+      <button type="button" class="cta-dark" id="printBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+        <span id="printBtnText">Chop etish</span>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -661,11 +682,86 @@ let mode = 'practice';
 let activeQuestions = [];
 let answers = {};
 let currentIdx = 0;
+let started = false;
 let submitted = false;
 let reviewFilter = 'all';
 let prevIds = [];
 let seconds = 0;
 let timerId = null;
+const MAX_WARNINGS = 3;
+const GRACE_MS = 3000;
+const BASE_TITLE = document.title;
+let warningsLeft = MAX_WARNINGS;
+let isAway = false;
+let graceSecondsLeft = 3;
+let awayStartedAt = null;
+let deductedThisAway = 0;
+let warningModalInfo = null;
+let forcedZero = false;
+let showForcedZeroOverlay = false;
+let fullscreenLost = false;
+let wasFsInTest = false;
+let securityViolationMsg = null;
+let lastShotPenaltyAt = 0;
+let pendingNavAction = null;
+let blurConfirmId = null;
+let awayIntervalId = null;
+let hasAttemptedFirstFs = false;
+
+function isFsActive() {
+  return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+}
+function lockSystemKeys() {
+  try {
+    if (navigator.keyboard && navigator.keyboard.lock) {
+      Promise.resolve(navigator.keyboard.lock(['Escape', 'F11', 'MetaLeft', 'MetaRight'])).catch(() => {});
+    }
+  } catch (e) {}
+}
+function unlockSystemKeys() {
+  try {
+    if (navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock();
+  } catch (e) {}
+}
+function enterFullScreen(withKeyLock) {
+  if (isFsActive()) {
+    if (withKeyLock) lockSystemKeys();
+    return;
+  }
+  try {
+    const el = document.documentElement;
+    if (el.requestFullscreen) {
+      Promise.resolve(el.requestFullscreen()).then(() => {
+        if (withKeyLock) lockSystemKeys();
+        if (activeView === 'quiz' && started && !submitted) {
+          wasFsInTest = true;
+          fullscreenLost = false;
+          render();
+        }
+      }).catch(() => {});
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+      if (withKeyLock) lockSystemKeys();
+    }
+  } catch (e) {}
+}
+function toggleFullScreen() {
+  const running = activeView === 'quiz' && started && !submitted;
+  if (isFsActive()) {
+    if (running) {
+      enterFullScreen(true);
+      return;
+    }
+    try {
+      unlockSystemKeys();
+      if (document.exitFullscreen) Promise.resolve(document.exitFullscreen()).catch(() => {});
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    } catch (e) {}
+  } else {
+    hasAttemptedFirstFs = true;
+    enterFullScreen(running);
+  }
+}
 
 function esc(str) {
   return String(str == null ? '' : str)
@@ -830,24 +926,72 @@ function buildQuiz(sub, diffKey, varKey) {
   return picked.map(q => ({ source: q, order: shuffle([0, 1, 2, 3]) }));
 }
 
+function resetFocusGuard() {
+  if (blurConfirmId) { clearTimeout(blurConfirmId); blurConfirmId = null; }
+  awayStartedAt = null;
+  deductedThisAway = 0;
+  warningsLeft = MAX_WARNINGS;
+  isAway = false;
+  graceSecondsLeft = 3;
+  warningModalInfo = null;
+  forcedZero = false;
+  showForcedZeroOverlay = false;
+  fullscreenLost = false;
+  wasFsInTest = isFsActive();
+  securityViolationMsg = null;
+  pendingNavAction = null;
+  document.title = BASE_TITLE;
+}
+
 function startSession(diffKey, varKey) {
   difficulty = diffKey || difficulty;
   variant = varKey;
   activeQuestions = buildQuiz(getSubject(), difficulty, variant);
   answers = {};
   currentIdx = 0;
+  started = false;
   submitted = false;
   reviewFilter = 'all';
   seconds = 0;
+  resetFocusGuard();
   if (timerId) clearInterval(timerId);
   timerId = setInterval(() => {
-    if (!submitted && activeView === 'quiz') {
+    if (started && !submitted && activeView === 'quiz') {
       seconds++;
       const el = document.getElementById('timerVal');
       if (el) el.textContent = UI_COPY[lang].timeLabel + ': ' + fmtTime(seconds);
     }
   }, 1000);
   render();
+}
+
+function beginQuiz() {
+  resetFocusGuard();
+  seconds = 0;
+  started = true;
+  enterFullScreen(true);
+  render();
+}
+
+function guardQuizLeave(action) {
+  if (activeView === 'quiz' && started && !submitted) {
+    pendingNavAction = action;
+    render();
+    return;
+  }
+  action();
+}
+
+function cancelLeaveModal() {
+  pendingNavAction = null;
+  render();
+}
+
+function confirmFinishAndLeave() {
+  const act = pendingNavAction;
+  pendingNavAction = null;
+  submitQuiz();
+  if (typeof act === 'function') act();
 }
 
 function saveHistory() {
@@ -879,16 +1023,22 @@ function renderChrome() {
 }
 
 function setView(v) {
-  activeView = v;
-  render();
+  if (v === activeView) return;
+  guardQuizLeave(() => {
+    activeView = v;
+    render();
+  });
 }
 
 function selectSubject(id) {
-  activeSubjectId = id;
-  if (activeView === 'subjects' || activeView === 'results') {
-    activeView = 'quiz';
-  }
-  startSession(difficulty, 1);
+  if (id === activeSubjectId && activeView === 'quiz') return;
+  guardQuizLeave(() => {
+    activeSubjectId = id;
+    if (activeView === 'subjects' || activeView === 'results') {
+      activeView = 'quiz';
+    }
+    startSession(difficulty, 1);
+  });
 }
 
 function startSubjectQuiz(id) {
@@ -906,29 +1056,76 @@ function openSubjectGuide(id) {
 }
 
 function selectDifficulty(d) {
-  activeView = 'quiz';
-  startSession(d, 1);
+  if (d === difficulty && !submitted) return;
+  guardQuizLeave(() => {
+    activeView = 'quiz';
+    startSession(d, 1);
+  });
 }
 
 function selectVariant(v) {
-  activeView = 'quiz';
-  startSession(difficulty, v === 'random' ? 'random' : Number(v));
+  const nextVar = v === 'random' ? 'random' : Number(v);
+  if (nextVar === variant && !submitted) return;
+  guardQuizLeave(() => {
+    activeView = 'quiz';
+    startSession(difficulty, nextVar);
+  });
 }
 
 function handleStartOver() {
-  activeView = 'quiz';
-  startSession(difficulty, nextVariant(variant));
+  guardQuizLeave(() => {
+    activeView = 'quiz';
+    startSession(difficulty, nextVariant(variant));
+  });
 }
 
 function pickOption(dispIdx) {
-  if (submitted) return;
+  if (!started || submitted) return;
   if (mode === 'practice' && answers[currentIdx] !== undefined) return;
   answers[currentIdx] = dispIdx;
   render();
 }
 
+function forceZeroSubmit() {
+  if (!started || submitted) return;
+  if (blurConfirmId) { clearTimeout(blurConfirmId); blurConfirmId = null; }
+  awayStartedAt = null;
+  deductedThisAway = 0;
+  warningsLeft = 0;
+  isAway = false;
+  warningModalInfo = null;
+  forcedZero = true;
+  showForcedZeroOverlay = true;
+  document.title = BASE_TITLE;
+
+  const gr = gradeOf(0).grade;
+  history.unshift({
+    id: activeSubjectId + '-' + Date.now(),
+    subjectId: activeSubjectId,
+    difficulty: difficulty,
+    variant: variantLabel(variant),
+    mode: mode,
+    score: 0,
+    total: 25,
+    percentage: 0,
+    grade: gr,
+    elapsedSeconds: seconds,
+    completedAt: new Date().toISOString(),
+  });
+  history = history.slice(0, 60);
+  saveHistory();
+  submitted = true;
+  render();
+}
+
 function submitQuiz() {
   if (submitted) return;
+  if (blurConfirmId) { clearTimeout(blurConfirmId); blurConfirmId = null; }
+  awayStartedAt = null;
+  isAway = false;
+  warningModalInfo = null;
+  document.title = BASE_TITLE;
+
   let correct = 0;
   activeQuestions.forEach((aq, i) => {
     const sel = answers[i];
@@ -1102,10 +1299,75 @@ function renderQuizView(sub) {
   ).join('') + '</div>';
   html += '</div>';
 
+  const warnColor = warningsLeft === 3 ? '#047857' : (warningsLeft === 2 ? '#b45309' : '#be123c');
   html += '<div class="meta-line font-mono-num">';
   html += '<span>' + esc(diffLabel(difficulty) + ' · ' + variantLabel(variant)) + ' · 25 ' + (lang === 'uz' ? 'savol' : 'questions') + ' · ' + esc(copy.answeredCount) + ': ' + answeredCount + '/25</span>';
-  html += '<span id="timerVal">' + esc(copy.timeLabel) + ': ' + fmtTime(seconds) + '</span>';
+  html += '<span style="display:inline-flex;align-items:center;gap:14px"><strong style="color:' + warnColor + '">' + (lang === 'uz' ? 'Ogohlantirish' : 'Warnings') + ': ' + warningsLeft + '/' + MAX_WARNINGS + '</strong><span id="timerVal">' + esc(copy.timeLabel) + ': ' + fmtTime(seconds) + '</span></span>';
   html += '</div></div>';
+
+  if (started && !submitted && isAway) {
+    html += '<div id="awayBanner" role="alert" style="position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#be123c;padding:24px;text-align:center;color:#fff">';
+    html += '<div style="max-width:640px;margin:0 auto">';
+    html += '<h2 class="font-display" style="font-size:clamp(28px,5vw,48px);font-weight:800;line-height:1.15;color:#fff">' + (lang === 'uz' ? 'DIQQAT! TEST OYNASIDAN CHIQIB KETDINGIZ!' : 'ATTENTION! YOU LEFT THE QUIZ WINDOW!') + '</h2>';
+    html += '<div id="awaySecBadge" class="font-mono-num" style="display:inline-flex;align-items:center;justify-content:center;width:136px;height:136px;margin-top:28px;border-radius:24px;border:4px solid rgba(255,255,255,0.85);background:#9f1239;font-size:56px;font-weight:800;color:#fff">' + graceSecondsLeft + 's</div>';
+    html += '<p style="margin:24px auto 0;font-size:18px;font-weight:600;line-height:1.5;color:#ffe4e6">' + (lang === 'uz' ? (graceSecondsLeft + ' soniya ichida testga qaytmasangiz 1 ta ogohlantirish olib tashlanadi!') : ('Return to the quiz within ' + graceSecondsLeft + 's or 1 warning will be deducted!')) + '</p>';
+    html += '<div class="font-mono-num" style="display:inline-block;margin-top:18px;padding:10px 20px;border-radius:10px;border:1px solid rgba(255,255,255,0.35);background:rgba(136,19,55,0.7);font-size:16px;font-weight:700">' + (lang === 'uz' ? 'Qolgan ogohlantirishlar: ' : 'Warnings remaining: ') + warningsLeft + ' / ' + MAX_WARNINGS + '</div>';
+    html += '</div></div>';
+  }
+
+  if (started && !submitted && warningModalInfo) {
+    html += '<div role="dialog" aria-modal="true" style="position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(159,18,57,0.96);padding:24px;text-align:center;color:#fff">';
+    html += '<div style="width:100%;max-width:560px;background:rgba(76,5,25,0.9);border:2px solid rgba(253,164,175,0.6);border-radius:16px;padding:32px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.45)">';
+    html += '<h2 class="font-display" style="font-size:28px;font-weight:800;color:#fff">' + (lang === 'uz' ? 'TEST QOIDASI OGOHLANTIRISHI' : 'QUIZ FOCUS WARNING') + '</h2>';
+    html += '<p style="margin:16px 0 0;font-size:16px;line-height:1.6;color:#ffe4e6">' + (lang === 'uz' ? ('Boshqa sayt, oyna yoki desktopga 3 soniyadan ortiq chiqqaningiz uchun ' + warningModalInfo.deductedCount + ' ta ogohlantirish olib tashlandi.') : ('You left the test window for over 3 seconds; ' + warningModalInfo.deductedCount + ' warning deducted.')) + '</p>';
+    html += '<div style="margin-top:20px;padding:16px;border-radius:12px;background:rgba(136,19,55,0.7);border:1px solid rgba(251,113,133,0.5)">';
+    html += '<div class="font-mono-num" style="font-size:20px;font-weight:800;color:#fff">' + (lang === 'uz' ? 'Qolgan ogohlantirishlar: ' : 'Remaining warnings: ') + warningModalInfo.remaining + ' / ' + MAX_WARNINGS + '</div>';
+    html += '<div style="margin-top:6px;font-size:13px;color:#ffe4e6">' + (lang === 'uz' ? 'Barcha 3 ta ogohlantirish tugasa, test darhol to‘xtaydi va natija 0 bo‘ladi.' : 'Using all 3 warnings terminates the test immediately with score 0.') + '</div></div>';
+    html += '<button type="button" style="width:100%;margin-top:24px;padding:14px 24px;border-radius:12px;border:none;background:#fff;color:#881337;font-size:16px;font-weight:800;cursor:pointer" onclick="warningModalInfo=null;enterFullScreen(true);render()">' + (lang === 'uz' ? 'Tushunarli, testga qaytish' : 'Understood, continue quiz') + '</button>';
+    html += '</div></div>';
+  }
+
+  if (started && !submitted && securityViolationMsg && !isAway) {
+    html += '<div role="alertdialog" aria-modal="true" style="position:fixed;inset:0;z-index:105;display:flex;align-items:center;justify-content:center;background:#be123c;padding:24px;text-align:center;color:#fff">';
+    html += '<div style="width:100%;max-width:560px;background:rgba(136,19,55,0.9);border:2px solid rgba(255,255,255,0.4);border-radius:16px;padding:32px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.45)">';
+    html += '<h2 class="font-display" style="font-size:28px;font-weight:800;color:#fff">' + (lang === 'uz' ? 'TAQIQLANGAN HARAKAT!' : 'PROHIBITED ACTION DETECTED!') + '</h2>';
+    html += '<p style="margin:16px 0 0;font-size:16px;line-height:1.6;color:#ffe4e6">' + esc(securityViolationMsg) + '</p>';
+    html += '<div class="font-mono-num" style="margin-top:20px;padding:14px;border-radius:12px;background:rgba(76,5,25,0.65);border:1px solid rgba(251,113,133,0.45);font-size:18px;font-weight:800">' + (lang === 'uz' ? 'Qolgan ogohlantirishlar: ' : 'Remaining warnings: ') + warningsLeft + ' / ' + MAX_WARNINGS + '</div>';
+    html += '<button type="button" style="width:100%;margin-top:24px;padding:14px 24px;border-radius:12px;border:none;background:#fff;color:#881337;font-size:16px;font-weight:800;cursor:pointer" onclick="securityViolationMsg=null;enterFullScreen(true);render()">' + (lang === 'uz' ? 'Tushunarli, testga qaytish' : 'Understood, continue quiz') + '</button>';
+    html += '</div></div>';
+  }
+
+  if (started && !submitted && fullscreenLost && !isAway && !securityViolationMsg) {
+    html += '<div role="alertdialog" aria-modal="true" style="position:fixed;inset:0;z-index:105;display:flex;align-items:center;justify-content:center;background:#be123c;padding:24px;text-align:center;color:#fff">';
+    html += '<div style="width:100%;max-width:560px;background:rgba(136,19,55,0.9);border:2px solid rgba(255,255,255,0.4);border-radius:16px;padding:32px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.45)">';
+    html += '<h2 class="font-display" style="font-size:28px;font-weight:800;color:#fff">' + (lang === 'uz' ? 'FULLSCREENDAN CHIQISH TAQIQLANADI!' : 'EXITING FULLSCREEN IS NOT ALLOWED!') + '</h2>';
+    html += '<p style="margin:14px 0 0;font-size:16px;line-height:1.6;color:#ffe4e6">' + (lang === 'uz' ? 'Testni davom ettirish uchun to‘liq ekran rejimiga qayting.' : 'Return to fullscreen mode to continue your test.') + '</p>';
+    html += '<button type="button" style="width:100%;margin-top:24px;padding:14px 24px;border-radius:12px;border:none;background:#fff;color:#881337;font-size:16px;font-weight:800;cursor:pointer" onclick="fullscreenLost=false;enterFullScreen(true);render()">' + (lang === 'uz' ? 'To‘liq ekranga qaytish' : 'Return to Fullscreen') + '</button>';
+    html += '</div></div>';
+  }
+
+  if (submitted && forcedZero && showForcedZeroOverlay) {
+    html += '<div role="alertdialog" aria-modal="true" style="position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#be123c;padding:24px;text-align:center;color:#fff">';
+    html += '<div style="width:100%;max-width:560px;background:rgba(136,19,55,0.85);border:2px solid rgba(255,255,255,0.4);border-radius:16px;padding:32px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.45)">';
+    html += '<div class="font-mono-num" style="font-size:52px;font-weight:800;color:#fff">0 / 25</div>';
+    html += '<h2 class="font-display" style="margin-top:12px;font-size:26px;font-weight:800;color:#fff">' + (lang === 'uz' ? 'TEST QOIDABUZARLIK SABABLI DARHOL TO‘XTATILDI!' : 'TEST IMMEDIATELY TERMINATED (SCORE: 0)') + '</h2>';
+    html += '<p style="margin:14px 0 0;font-size:16px;line-height:1.6;color:#ffe4e6">' + (lang === 'uz' ? '3 ta ogohlantirish ham sarflandi. Natija 0 / 25 (0%) qilib saqlandi.' : 'All 3 warnings exhausted. Score recorded as 0 / 25 (0%).') + '</p>';
+    html += '<button type="button" style="width:100%;margin-top:24px;padding:14px 24px;border-radius:12px;border:none;background:#fff;color:#881337;font-size:16px;font-weight:800;cursor:pointer" onclick="showForcedZeroOverlay=false;render()">' + (lang === 'uz' ? 'Natijalarni ko‘rish' : 'View Results') + '</button>';
+    html += '</div></div>';
+  }
+
+  if (!started) {
+    html += '<div class="card" style="text-align:center;padding:40px 24px">';
+    html += '<h2 class="font-display" style="font-size:22px;font-weight:800;color:#0f172a">' + esc(loc(sub.shortLabel) + ' · ' + diffLabel(difficulty) + ' · ' + variantLabel(variant)) + '</h2>';
+    html += '<p style="max-width:560px;margin:10px auto 0;font-size:14px;line-height:1.6;color:#475569">';
+    html += lang === 'uz'
+      ? ('Ushbu variantda 25 ta savol mavjud (' + (mode === 'practice' ? copy.modePractice : copy.modeExam) + '). Boshlagandan keyin boshqa sayt, oyna yoki desktopga 3 soniyadan ortiq o‘tsangiz 1 ta ogohlantirish kamayadi (jami 3 ta; 3 tasi tugasa natija 0 bo‘ladi).')
+      : ('This variant contains 25 questions (' + (mode === 'practice' ? copy.modePractice : copy.modeExam) + '). Once started, leaving to another tab, window, or desktop for over 3 seconds removes 1 warning (3 max; exhausting all 3 gives 0).');
+    html += '</p>';
+    html += '<button type="button" class="btn-teal" style="margin-top:24px;padding:12px 32px;font-size:16px;font-weight:700" onclick="beginQuiz()"><span>Start</span>' + ICONS.arrowRight + '</button>';
+    html += '</div></section>';
+    return html;
+  }
 
   if (submitted) {
     let correct = 0;
@@ -1120,8 +1382,15 @@ function renderQuizView(sub) {
         byTopic[t].ok++;
       }
     });
-    const pct = Math.round((correct / 25) * 100);
+    const finalCorrect = forcedZero ? 0 : correct;
+    const pct = Math.round((finalCorrect / 25) * 100);
     const gr = gradeOf(pct);
+
+    if (forcedZero) {
+      html += '<div role="alert" style="border-radius:12px;border:1px solid #fda4af;background:#fff1f2;padding:18px;color:#881337">';
+      html += '<strong class="font-display" style="font-size:16px">' + (lang === 'uz' ? 'Test qoidabuzarlik sababli darhol to‘xtatildi (Natija: 0)' : 'Test terminated due to focus violations (Score: 0)') + '</strong>';
+      html += '<p style="margin:6px 0 0;font-size:13px">' + (lang === 'uz' ? '3 ta ogohlantirish ham sarflandi. Natija 0 / 25 (0%) qilib saqlandi.' : 'All 3 warnings exhausted. Score recorded as 0 / 25 (0%).') + '</p></div>';
+    }
 
     html += '<div class="card">';
     html += '<div class="row-between" style="border-bottom:1px solid #f1f5f9;padding-bottom:16px">';
@@ -1130,7 +1399,7 @@ function renderQuizView(sub) {
     html += '</div>';
 
     html += '<div class="stats-grid">';
-    html += '<div class="stat-box"><div style="font-size:12px;color:#64748b">' + esc(copy.scoreLabel) + '</div><div class="stat-val font-mono-num">' + correct + ' / 25</div></div>';
+    html += '<div class="stat-box"><div style="font-size:12px;color:#64748b">' + esc(copy.scoreLabel) + '</div><div class="stat-val font-mono-num">' + finalCorrect + ' / 25</div></div>';
     html += '<div class="stat-box"><div style="font-size:12px;color:#64748b">' + esc(copy.accuracyCol) + '</div><div class="stat-val font-mono-num">' + pct + '%</div></div>';
     html += '<div class="stat-box"><div style="font-size:12px;color:#64748b">' + esc(copy.gradeLabel) + '</div><div class="stat-val font-mono-num" style="color:var(--teal)">' + gr.grade + ' <span style="font-family:var(--font-body);font-size:14px;font-weight:600;color:#475569">(' + esc(loc(gr.label)) + ')</span></div></div>';
     html += '<div class="stat-box"><div style="font-size:12px;color:#64748b">' + esc(copy.timeLabel) + '</div><div class="stat-val font-mono-num">' + fmtTime(seconds) + '</div></div>';
@@ -1249,20 +1518,185 @@ function renderQuizView(sub) {
   return html;
 }
 
-function render() {
-  renderChrome();
-  const sub = getSubject();
-  const app = document.getElementById('app');
-  if (activeView === 'subjects') app.innerHTML = renderSubjectsView();
-  else if (activeView === 'guide') app.innerHTML = renderGuideView(sub);
-  else if (activeView === 'results') app.innerHTML = renderResultsHistoryView();
-  else app.innerHTML = renderQuizView(sub);
+function renderLeaveConfirmModal() {
+  if (!pendingNavAction || activeView !== 'quiz' || !started || submitted) return '';
+  let modal = '<div role="dialog" aria-modal="true" style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.6);padding:16px">';
+  modal += '<div style="width:100%;max-width:420px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1)">';
+  modal += '<h2 class="font-display" style="font-size:18px;font-weight:800;color:#0f172a">' + (lang === 'uz' ? 'Test hali yakunlanmadi' : 'Test still in progress') + '</h2>';
+  modal += '<p style="margin:10px 0 0;font-size:14px;line-height:1.5;color:#475569">' + (lang === 'uz' ? 'Hozir boshqa bo‘lim yoki variantga o‘tsangiz, joriy test yakunlanadi va natijasi saqlanadi.' : 'Switching sections or variants now will finish and submit your current test.') + '</p>';
+  modal += '<div style="margin-top:20px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px">';
+  modal += '<button type="button" class="btn-outline" onclick="cancelLeaveModal()">Cancel</button>';
+  modal += '<button type="button" class="btn-dark" onclick="confirmFinishAndLeave()">Finish the test</button>';
+  modal += '</div></div></div>';
+  return modal;
 }
 
+function render() {
+  renderChrome();
+  const running = activeView === 'quiz' && started && !submitted;
+  document.body.classList.toggle('quiz-locked', running);
+  if (!running) unlockSystemKeys();
+  const fsBtn = document.getElementById('fsBtn');
+  if (fsBtn) {
+    fsBtn.disabled = running && isFsActive();
+    fsBtn.style.opacity = fsBtn.disabled ? '0.45' : '1';
+  }
+  const sub = getSubject();
+  const app = document.getElementById('app');
+  let body = '';
+  if (activeView === 'subjects') body = renderSubjectsView();
+  else if (activeView === 'guide') body = renderGuideView(sub);
+  else if (activeView === 'results') body = renderResultsHistoryView();
+  else body = renderQuizView(sub);
+  app.innerHTML = body + renderLeaveConfirmModal();
+}
+
+function tickOfflineAway() {
+  if (awayStartedAt === null || !started || submitted || activeView !== 'quiz') return;
+  const elapsedMs = Date.now() - awayStartedAt;
+  const steps = Math.floor(elapsedMs / GRACE_MS);
+  if (steps > deductedThisAway) {
+    const delta = steps - deductedThisAway;
+    deductedThisAway = steps;
+    warningsLeft = Math.max(0, warningsLeft - delta);
+    if (warningsLeft <= 0) {
+      forceZeroSubmit();
+      return;
+    }
+  }
+  const nextB = (steps + 1) * GRACE_MS;
+  graceSecondsLeft = Math.max(1, Math.ceil((nextB - elapsedMs) / 1000));
+  document.title = (lang === 'uz' ? '⚠️ (' + graceSecondsLeft + 's) Testga qayting! — ' : '⚠️ (' + graceSecondsLeft + 's) Return to quiz! — ') + warningsLeft + '/' + MAX_WARNINGS;
+  const badge = document.getElementById('awaySecBadge');
+  if (badge) badge.textContent = graceSecondsLeft + 's';
+}
+
+function startOfflineAway() {
+  if (!started || submitted || activeView !== 'quiz' || awayStartedAt !== null) return;
+  awayStartedAt = Date.now();
+  deductedThisAway = 0;
+  isAway = true;
+  graceSecondsLeft = 3;
+  tickOfflineAway();
+  render();
+}
+
+function stopOfflineAway() {
+  if (blurConfirmId) { clearTimeout(blurConfirmId); blurConfirmId = null; }
+  if (awayStartedAt === null) return;
+  tickOfflineAway();
+  if (submitted) return;
+  const lost = deductedThisAway;
+  awayStartedAt = null;
+  deductedThisAway = 0;
+  isAway = false;
+  graceSecondsLeft = 3;
+  document.title = BASE_TITLE;
+  if (lost > 0) warningModalInfo = { remaining: warningsLeft, deductedCount: lost };
+  render();
+}
+
+function triggerOfflineInstantPenalty(reasonUz, reasonEn) {
+  if (!started || submitted || activeView !== 'quiz') return;
+  const now = Date.now();
+  if (now - lastShotPenaltyAt < 1500) return;
+  lastShotPenaltyAt = now;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      Promise.resolve(navigator.clipboard.writeText('')).catch(() => {});
+    }
+  } catch (e) {}
+  warningsLeft = Math.max(0, warningsLeft - 1);
+  if (warningsLeft <= 0) {
+    forceZeroSubmit();
+    return;
+  }
+  securityViolationMsg = lang === 'uz' ? reasonUz : reasonEn;
+  render();
+}
+
+awayIntervalId = setInterval(tickOfflineAway, 250);
+document.addEventListener('visibilitychange', () => {
+  if (!started || submitted || activeView !== 'quiz') return;
+  if (document.hidden || document.visibilityState !== 'visible') startOfflineAway();
+  else if (document.hasFocus()) stopOfflineAway();
+});
+function onOfflineFullscreenChange() {
+  if (!started || submitted || activeView !== 'quiz') return;
+  if (isFsActive()) {
+    wasFsInTest = true;
+    fullscreenLost = false;
+    if (!document.hidden && document.hasFocus()) stopOfflineAway();
+    else render();
+  } else if (wasFsInTest) {
+    fullscreenLost = true;
+    startOfflineAway();
+  }
+}
+document.addEventListener('fullscreenchange', onOfflineFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onOfflineFullscreenChange);
+window.addEventListener('blur', () => {
+  if (!started || submitted || activeView !== 'quiz') return;
+  startOfflineAway();
+});
+window.addEventListener('focus', () => {
+  if (!started || submitted || activeView !== 'quiz') return;
+  if (!document.hidden && document.hasFocus()) stopOfflineAway();
+});
+
+function handleOfflineKeyGuard(e) {
+  if (!started || submitted || activeView !== 'quiz') return;
+  const keyLower = (e.key || '').toLowerCase();
+  const isShotKey = e.key === 'PrintScreen' || e.code === 'PrintScreen' || e.keyCode === 44;
+  const isMeta = e.key === 'Meta' || e.key === 'OS' || e.code === 'MetaLeft' || e.code === 'MetaRight' || e.metaKey;
+  const isCtrlBlock = e.ctrlKey && (['p', 's', 'u', 'c', 'x', 'a', 'g'].includes(keyLower) || (e.shiftKey && ['i', 'j', 'c', 's'].includes(keyLower)));
+  const isSysKey = e.key === 'Escape' || e.key === 'F11' || e.key === 'F12';
+  if (isShotKey || isMeta || isCtrlBlock || isSysKey) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  if (
+    isShotKey ||
+    isMeta ||
+    (e.ctrlKey && e.shiftKey && keyLower === 's') ||
+    (e.ctrlKey && keyLower === 'p') ||
+    (isMeta && e.shiftKey && ['3', '4', '5', 's'].includes(keyLower))
+  ) {
+    triggerOfflineInstantPenalty(
+      'Skrinshot olish, Pusk (Win) yoki Win+G tugmalarini bosish taqiqlanadi! 1 ta ogohlantirish olib tashlandi.',
+      'Screenshots, Start (Win), and Win+G are prohibited! 1 warning was deducted.'
+    );
+  }
+}
+window.addEventListener('keydown', handleOfflineKeyGuard, { capture: true });
+window.addEventListener('keyup', handleOfflineKeyGuard, { capture: true });
+document.addEventListener('contextmenu', e => { e.preventDefault(); }, { capture: true });
+['copy', 'cut', 'selectstart', 'dragstart'].forEach(ev => {
+  document.addEventListener(ev, e => {
+    if (started && !submitted && activeView === 'quiz') e.preventDefault();
+  }, { capture: true });
+});
+
 document.getElementById('brandHomeBtn').onclick = () => setView('subjects');
-document.getElementById('printBtn').onclick = () => { if (typeof window !== 'undefined' && window.print) window.print(); };
+document.getElementById('fsBtn').onclick = () => toggleFullScreen();
+document.getElementById('printBtn').onclick = () => {
+  if (started && !submitted && activeView === 'quiz') return;
+  if (typeof window !== 'undefined' && window.print) window.print();
+};
 document.getElementById('langUz').onclick = () => { lang = 'uz'; try { localStorage.setItem(LANG_KEY, 'uz'); } catch (e) {} render(); };
 document.getElementById('langEn').onclick = () => { lang = 'en'; try { localStorage.setItem(LANG_KEY, 'en'); } catch (e) {} render(); };
+
+enterFullScreen(false);
+function handleFirstFsGesture() {
+  if (hasAttemptedFirstFs || isFsActive()) {
+    hasAttemptedFirstFs = true;
+    return;
+  }
+  hasAttemptedFirstFs = true;
+  enterFullScreen(activeView === 'quiz' && started && !submitted);
+}
+window.addEventListener('click', handleFirstFsGesture, { capture: true });
+window.addEventListener('keydown', handleFirstFsGesture, { capture: true });
 
 startSession('easy', 1);
 </script>

@@ -36,6 +36,11 @@ import {
 } from './firebase';
 import { SubjectId, UILanguage } from './types/quiz';
 import { downloadStandaloneHtml } from './utils/exportHtml';
+import {
+  exitAppFullscreen,
+  isFullscreenActive,
+  requestAppFullscreen,
+} from './utils/fullscreen';
 
 const LANG_STORAGE_KEY = 'g7_chsb_lang_v1';
 
@@ -59,8 +64,13 @@ export default function App() {
   const [history, setHistory] = useState<AttemptRecord[]>([]);
   const [downloadNotice, setDownloadNotice] = useState<boolean>(false);
   const [fatalError, setFatalError] = useState<Error | null>(null);
+  const [isQuizRunning, setIsQuizRunning] = useState<boolean>(false);
+  const [pendingNavAction, setPendingNavAction] = useState<(() => void) | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => isFullscreenActive());
 
   const pendingSignupRef = useRef<{ username: string; displayName: string } | null>(null);
+  const finishQuizRef = useRef<(() => void) | null>(null);
+  const hasAttemptedFirstFullscreenRef = useRef<boolean>(false);
 
   if (fatalError) {
     throw fatalError;
@@ -73,6 +83,66 @@ export default function App() {
       // Ignore storage quota / privacy mode errors
     }
   }, [lang]);
+
+  // Enter fullscreen automatically on site visit (plus on first interaction if blocked before gesture)
+  useEffect(() => {
+    const syncFullscreen = () => {
+      const active = isFullscreenActive();
+      setIsFullscreen(active);
+      if (active) {
+        hasAttemptedFirstFullscreenRef.current = true;
+      }
+    };
+
+    void requestAppFullscreen().then((entered) => {
+      if (entered) {
+        hasAttemptedFirstFullscreenRef.current = true;
+        setIsFullscreen(true);
+      }
+    });
+
+    const handleFirstGesture = () => {
+      if (hasAttemptedFirstFullscreenRef.current || isFullscreenActive()) {
+        hasAttemptedFirstFullscreenRef.current = true;
+        return;
+      }
+      hasAttemptedFirstFullscreenRef.current = true;
+      void requestAppFullscreen().then((entered) => {
+        if (entered) setIsFullscreen(true);
+      });
+    };
+
+    const handleBlockContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    document.addEventListener('webkitfullscreenchange', syncFullscreen);
+    document.addEventListener('contextmenu', handleBlockContextMenu, { capture: true });
+    window.addEventListener('click', handleFirstGesture, { capture: true });
+    window.addEventListener('keydown', handleFirstGesture, { capture: true });
+
+    return () => {
+      document.removeEventListener('fullscreenchange', syncFullscreen);
+      document.removeEventListener('webkitfullscreenchange', syncFullscreen);
+      document.removeEventListener('contextmenu', handleBlockContextMenu, { capture: true });
+      window.removeEventListener('click', handleFirstGesture, { capture: true });
+      window.removeEventListener('keydown', handleFirstGesture, { capture: true });
+    };
+  }, []);
+
+  const handleToggleFullscreen = () => {
+    if (isFullscreenActive()) {
+      if (isQuizRunning) {
+        void requestAppFullscreen(true);
+        return;
+      }
+      void exitAppFullscreen();
+    } else {
+      hasAttemptedFirstFullscreenRef.current = true;
+      void requestAppFullscreen(isQuizRunning);
+    }
+  };
 
   // Monitor Firebase Auth and synchronize /users/{uid}
   useEffect(() => {
@@ -250,11 +320,27 @@ export default function App() {
 
   const activeSubject = SUBJECT_MAP[activeSubjectId];
 
-  const handleSelectSubjectFromBar = (id: SubjectId) => {
-    setActiveSubjectId(id);
-    if (activeView === 'subjects' || activeView === 'results') {
-      setActiveView('quiz');
+  const requestSectionLeave = (action: () => void) => {
+    if (activeView === 'quiz' && isQuizRunning) {
+      setPendingNavAction(() => action);
+      return;
     }
+    action();
+  };
+
+  const handleSelectView = (view: AppView) => {
+    if (view === activeView) return;
+    requestSectionLeave(() => setActiveView(view));
+  };
+
+  const handleSelectSubjectFromBar = (id: SubjectId) => {
+    if (id === activeSubjectId && activeView === 'quiz') return;
+    requestSectionLeave(() => {
+      setActiveSubjectId(id);
+      if (activeView === 'subjects' || activeView === 'results') {
+        setActiveView('quiz');
+      }
+    });
   };
 
   const handleStartSubjectQuiz = (id: SubjectId) => {
@@ -379,12 +465,15 @@ export default function App() {
       <TopBar
         lang={lang}
         activeView={activeView}
-        onSelectView={setActiveView}
+        onSelectView={handleSelectView}
         onDownloadHtml={handleDownloadHtml}
         downloadNotice={downloadNotice}
         userProfile={userProfile}
         teacherScope={teacherScope}
         onSignOut={handleSignOut}
+        isFullscreen={isFullscreen}
+        isQuizRunning={isQuizRunning}
+        onToggleFullscreen={handleToggleFullscreen}
       />
 
       <SubjectBar
@@ -393,6 +482,47 @@ export default function App() {
         activeSubjectId={activeSubjectId}
         onSelectSubject={handleSelectSubjectFromBar}
       />
+
+      {pendingNavAction && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+        >
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+            <h2 className="font-display text-lg font-extrabold text-slate-900">
+              {lang === 'uz' ? 'Test hali yakunlanmadi' : 'Test still in progress'}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              {lang === 'uz'
+                ? 'Hozir boshqa bo‘limga o‘tsangiz, joriy test yakunlanadi va natijasi saqlanadi.'
+                : 'Leaving to another section now will finish and submit your current test.'}
+            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setPendingNavAction(null)}
+                className="inline-flex min-h-[40px] items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const proceed = pendingNavAction;
+                  setPendingNavAction(null);
+                  finishQuizRef.current?.();
+                  setIsQuizRunning(false);
+                  proceed();
+                }}
+                className="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+              >
+                Finish the test
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         {activeView === 'subjects' && (
@@ -409,8 +539,12 @@ export default function App() {
           <QuizSection
             subject={activeSubject}
             lang={lang}
-            onOpenGuide={() => setActiveView('guide')}
+            onOpenGuide={() => requestSectionLeave(() => setActiveView('guide'))}
             onRecordAttempt={handleRecordAttempt}
+            onRunningStateChange={setIsQuizRunning}
+            registerFinishQuiz={(fn) => {
+              finishQuizRef.current = fn;
+            }}
           />
         )}
 
