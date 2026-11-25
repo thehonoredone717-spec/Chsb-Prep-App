@@ -130,6 +130,7 @@ export const UI_COPY: Record<
   UILanguage,
   {
     brand: string;
+    navHome: string;
     navSubjects: string;
     navTest: string;
     navGuide: string;
@@ -210,6 +211,7 @@ export const UI_COPY: Record<
 > = {
   uz: {
     brand: '7-Sinf ChSB',
+    navHome: 'Dashboard',
     navSubjects: 'Fanlar',
     navTest: 'Test',
     navGuide: "Qo'llanma",
@@ -290,6 +292,7 @@ export const UI_COPY: Record<
   },
   en: {
     brand: 'Grade 7 ChSB',
+    navHome: 'Dashboard',
     navSubjects: 'Subjects',
     navTest: 'Quiz',
     navGuide: 'Study Guide',

@@ -109,36 +109,54 @@ export function downloadStandaloneHtml(): void {
     white-space: nowrap;
     flex-shrink: 0;
   }
+  .app-shell {
+    display: flex;
+    min-height: calc(100vh - 104px);
+  }
+  .side-menu {
+    width: 230px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 16px;
+  }
+  .side-menu.closed { display: none; }
+  @media (max-width: 900px) {
+    .app-shell { flex-direction: column; }
+    .side-menu {
+      width: 100%;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+  }
+  .content-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
   .nav-links {
     display: flex;
-    align-items: center;
-    gap: 24px;
-    overflow-x: auto;
+    flex-direction: column;
+    gap: 4px;
   }
   .nav-link {
-    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    text-align: left;
     background: none;
     border: none;
-    padding: 4px 0;
+    border-radius: 8px;
+    padding: 10px 12px;
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
     color: var(--muted);
-    white-space: nowrap;
-    flex-shrink: 0;
-    transition: color 0.15s;
+    transition: background-color 0.15s, color 0.15s;
   }
-  .nav-link:hover { color: var(--text); }
-  .nav-link.active { color: var(--teal); }
-  .nav-link.active::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -19px;
-    height: 2px;
-    background: var(--teal);
-  }
+  .nav-link:hover { background: #f1f5f9; color: var(--text); }
+  .nav-link.active { background: #f0fdfa; color: #115e59; font-weight: 700; }
   .cta-dark {
     display: inline-flex;
     align-items: center;
@@ -613,13 +631,16 @@ export function downloadStandaloneHtml(): void {
   </div>
 </div>
 <header class="topbar">
-  <div class="container topbar-inner">
-    <button type="button" class="brand-btn" id="brandHomeBtn">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f766e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
-      <span id="brandText">7-Sinf ChSB</span>
-    </button>
-
-    <nav class="nav-links" aria-label="Primary" id="topNav"></nav>
+  <div class="topbar-inner" style="padding:0 24px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button type="button" class="btn-outline" id="menuToggleBtn" style="padding:8px 10px" aria-label="Toggle menu">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>
+      </button>
+      <button type="button" class="brand-btn" id="brandHomeBtn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f766e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
+        <span id="brandText">7-Sinf ChSB</span>
+      </button>
+    </div>
 
     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
       <button type="button" class="btn-outline" id="fsBtn" title="Fullscreen" style="padding:8px 10px" aria-label="Fullscreen">
@@ -633,20 +654,27 @@ export function downloadStandaloneHtml(): void {
   </div>
 </header>
 
-<div class="subject-bar">
-  <div class="container subject-bar-inner">
-    <div class="subject-tabs" id="subjectTabs" role="tablist"></div>
-    <div class="seg-group" role="group">
-      <button type="button" class="seg-btn" id="langUz">O'zbekcha</button>
-      <button type="button" class="seg-btn" id="langEn">English</button>
+<div class="app-shell">
+  <aside class="side-menu" id="sideMenu">
+    <nav class="nav-links" aria-label="Primary" id="topNav"></nav>
+  </aside>
+  <div class="content-col">
+    <div class="subject-bar">
+      <div class="container subject-bar-inner">
+        <div class="subject-tabs" id="subjectTabs" role="tablist"></div>
+        <div class="seg-group" role="group">
+          <button type="button" class="seg-btn" id="langUz">O'zbekcha</button>
+          <button type="button" class="seg-btn" id="langEn">English</button>
+        </div>
+      </div>
     </div>
+
+    <main class="container" id="app" style="width:100%;flex:1"></main>
+    <footer style="border-top:1px solid var(--border);background:rgba(255,255,255,0.65);padding:16px;text-align:center;font-size:12px;font-weight:500;color:#64748b">
+      Developer: <strong style="color:#334155">Ibrohimbek Xujanazarov</strong>
+    </footer>
   </div>
 </div>
-
-<main class="container" id="app"></main>
-<footer style="border-top:1px solid var(--border);background:rgba(255,255,255,0.65);padding:16px;text-align:center;font-size:12px;font-weight:500;color:#64748b">
-  Developer: <strong style="color:#334155">Ibrohimbek Xujanazarov</strong>
-</footer>
 
 <script>
 const SUBJECTS = ${safeSubjectsJson};
@@ -684,7 +712,7 @@ try {
   if (Array.isArray(parsed)) history = parsed;
 } catch (e) {}
 
-let activeView = 'quiz';
+let activeView = 'dashboard';
 let activeSubjectId = SUBJECTS[0].id;
 let difficulty = 'easy';
 let variant = 1;
@@ -1022,6 +1050,7 @@ function renderChrome() {
   document.getElementById('langEn').className = 'seg-btn' + (lang === 'en' ? ' active' : '');
 
   const navItems = [
+    { id: 'dashboard', label: copy.navHome || 'Dashboard' },
     { id: 'subjects', label: copy.navSubjects },
     { id: 'quiz', label: copy.navTest },
     { id: 'guide', label: copy.navGuide },
@@ -1048,7 +1077,7 @@ function selectSubject(id) {
   if (id === activeSubjectId && activeView === 'quiz') return;
   guardQuizLeave(() => {
     activeSubjectId = id;
-    if (activeView === 'subjects' || activeView === 'results') {
+    if (activeView === 'dashboard' || activeView === 'subjects' || activeView === 'results') {
       activeView = 'quiz';
     }
     startSession(difficulty, 1);
@@ -1171,6 +1200,29 @@ function clearHistory() {
   history = [];
   saveHistory();
   render();
+}
+
+function renderDashboardView() {
+  const copy = UI_COPY[lang];
+  const avg = history.length ? Math.round(history.reduce((s, h) => s + h.percentage, 0) / history.length) : null;
+  let html = '<section style="display:flex;flex-direction:column;gap:20px">';
+  html += '<div class="card" style="padding:28px">';
+  html += '<p class="eyebrow">' + (lang === 'uz' ? '7-Sinf ChSB · Asosiy Dashboard' : 'Grade 7 ChSB · Home Dashboard') + '</p>';
+  html += '<h1 class="hero-title">' + esc(copy.heroTitle) + '</h1>';
+  html += '<p class="hero-sub">' + esc(copy.heroSubtitle) + '</p>';
+  html += '<div style="margin-top:20px;display:flex;flex-wrap:wrap;gap:10px">';
+  html += '<button type="button" class="btn-teal" onclick="setView(\\'subjects\\')"><span>' + (lang === 'uz' ? 'Fanlar bo‘limi' : 'Browse Subjects') + '</span>' + ICONS.arrowRight + '</button>';
+  html += '<button type="button" class="btn-outline" onclick="setView(\\'guide\\')"><span>' + esc(copy.navGuide) + '</span></button>';
+  html += '<button type="button" class="btn-outline" onclick="setView(\\'results\\')"><span>' + esc(copy.navResults) + '</span></button>';
+  html += '</div></div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">';
+  html += '<div class="card" style="padding:18px"><div style="font-size:12px;color:#64748b;font-weight:600">' + (lang === 'uz' ? 'Fanlar soni' : 'Subjects') + '</div><div class="font-mono-num" style="font-size:24px;font-weight:800;margin-top:6px">' + SUBJECTS.length + '</div></div>';
+  html += '<div class="card" style="padding:18px"><div style="font-size:12px;color:#64748b;font-weight:600">' + (lang === 'uz' ? 'Topshirilgan testlar' : 'Completed Tests') + '</div><div class="font-mono-num" style="font-size:24px;font-weight:800;margin-top:6px">' + history.length + '</div></div>';
+  html += '<div class="card" style="padding:18px"><div style="font-size:12px;color:#64748b;font-weight:600">' + (lang === 'uz' ? "O'rtacha natija" : 'Average Score') + '</div><div class="font-mono-num" style="font-size:24px;font-weight:800;margin-top:6px">' + (avg !== null ? avg + '%' : '—') + '</div></div>';
+  html += '</div>';
+  html += renderSubjectsView();
+  html += '</section>';
+  return html;
 }
 
 function renderSubjectsView() {
@@ -1561,7 +1613,8 @@ function render() {
   const sub = getSubject();
   const app = document.getElementById('app');
   let body = '';
-  if (activeView === 'subjects') body = renderSubjectsView();
+  if (activeView === 'dashboard') body = renderDashboardView();
+  else if (activeView === 'subjects') body = renderSubjectsView();
   else if (activeView === 'guide') body = renderGuideView(sub);
   else if (activeView === 'results') body = renderResultsHistoryView();
   else body = renderQuizView(sub);
@@ -1694,7 +1747,11 @@ document.addEventListener('contextmenu', e => { e.preventDefault(); }, { capture
   }, { capture: true });
 });
 
-document.getElementById('brandHomeBtn').onclick = () => setView('subjects');
+document.getElementById('menuToggleBtn').onclick = () => {
+  const side = document.getElementById('sideMenu');
+  if (side) side.classList.toggle('closed');
+};
+document.getElementById('brandHomeBtn').onclick = () => setView('dashboard');
 document.getElementById('fsBtn').onclick = () => toggleFullScreen();
 document.getElementById('printBtn').onclick = () => {
   if (started && !submitted && activeView === 'quiz') return;

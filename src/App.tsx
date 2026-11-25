@@ -16,10 +16,12 @@ import {
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AuthGate } from './components/AuthGate';
+import { DashboardSection } from './components/DashboardSection';
 import { OverviewSection } from './components/OverviewSection';
 import { PermissionView } from './components/PermissionView';
 import { QuizSection } from './components/QuizSection';
 import { ResultsHistoryView } from './components/ResultsHistoryView';
+import { SideMenu } from './components/SideMenu';
 import { StudyGuidePanel } from './components/StudyGuidePanel';
 import { SubjectBar } from './components/SubjectBar';
 import { AppView, TeacherScope, TopBar } from './components/TopBar';
@@ -65,7 +67,7 @@ function loadLang(): UILanguage {
 
 export default function App() {
   const [lang, setLang] = useState<UILanguage>(() => loadLang());
-  const [activeView, setActiveView] = useState<AppView>('quiz');
+  const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [activeSubjectId, setActiveSubjectId] = useState<SubjectId>('math');
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState<boolean>(false);
@@ -81,6 +83,8 @@ export default function App() {
     Partial<Record<SubjectId, SubjectPermission>>
   >({});
   const [savingPermissionId, setSavingPermissionId] = useState<SubjectId | null>(null);
+  const [desktopMenuOpen, setDesktopMenuOpen] = useState<boolean>(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   const pendingSignupRef = useRef<{ username: string; displayName: string } | null>(null);
   const finishQuizRef = useRef<(() => void) | null>(null);
@@ -140,6 +144,7 @@ export default function App() {
         setUsersList([]);
         setHistory([]);
         setSubjectPermissions({});
+        setActiveView('dashboard');
         setAuthReady(true);
         return;
       }
@@ -380,7 +385,7 @@ export default function App() {
   const activeSubject = SUBJECT_MAP[activeSubjectId];
   const isCurrentSubjectProhibited =
     prohibitedSubjects.has(activeSubjectId) &&
-    (activeView === 'quiz' || activeView === 'guide');
+    activeView === 'quiz';
 
   const requestSectionLeave = (action: () => void) => {
     if (activeView === 'quiz' && isQuizRunning && !prohibitedSubjects.has(activeSubjectId)) {
@@ -401,7 +406,12 @@ export default function App() {
     requestSectionLeave(() => {
       hasManualSubjectSelectionRef.current = true;
       setActiveSubjectId(id);
-      if (activeView === 'subjects' || activeView === 'results' || activeView === 'permission') {
+      if (
+        activeView === 'dashboard' ||
+        activeView === 'subjects' ||
+        activeView === 'results' ||
+        activeView === 'permission'
+      ) {
         setActiveView('quiz');
       }
     });
@@ -555,7 +565,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
+    <div className="flex min-h-screen flex-col bg-[#F8FAFC] text-slate-900">
       <div
         role="alert"
         className="border-b border-rose-800 bg-rose-700 px-4 py-2 text-white sm:px-6"
@@ -572,7 +582,6 @@ export default function App() {
 
       <TopBar
         lang={lang}
-        activeView={activeView}
         onSelectView={handleSelectView}
         onDownloadHtml={handleDownloadHtml}
         downloadNotice={downloadNotice}
@@ -582,15 +591,32 @@ export default function App() {
         isFullscreen={isFullscreen}
         isQuizRunning={isQuizRunning}
         onToggleFullscreen={handleToggleFullscreen}
+        desktopMenuOpen={desktopMenuOpen}
+        onToggleDesktopMenu={() => setDesktopMenuOpen((prev) => !prev)}
+        onOpenMobileMenu={() => setMobileMenuOpen(true)}
       />
 
-      <SubjectBar
-        lang={lang}
-        onChangeLang={setLang}
-        activeSubjectId={activeSubjectId}
-        onSelectSubject={handleSelectSubjectFromBar}
-        prohibitedSubjects={prohibitedSubjects}
-      />
+      <div className="flex flex-1">
+        <SideMenu
+          lang={lang}
+          activeView={activeView}
+          teacherScope={teacherScope}
+          userProfile={userProfile}
+          desktopOpen={desktopMenuOpen}
+          mobileOpen={mobileMenuOpen}
+          onCloseDesktop={() => setDesktopMenuOpen(false)}
+          onCloseMobile={() => setMobileMenuOpen(false)}
+          onSelectView={handleSelectView}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <SubjectBar
+            lang={lang}
+            onChangeLang={setLang}
+            activeSubjectId={activeSubjectId}
+            onSelectSubject={handleSelectSubjectFromBar}
+            prohibitedSubjects={prohibitedSubjects}
+          />
 
       {isCurrentSubjectProhibited && (
         <div
@@ -605,17 +631,24 @@ export default function App() {
 
             <h2 className="mt-6 font-display text-2xl font-extrabold tracking-tight text-white sm:text-4xl">
               {lang === 'uz'
-                ? `${pickText(activeSubject.shortLabel, lang).toUpperCase()} BO‘LIMI HOZIRCHA TAQIQLANGAN!`
-                : `${pickText(activeSubject.shortLabel, lang).toUpperCase()} SECTION IS PROHIBITED!`}
+                ? `${pickText(activeSubject.shortLabel, lang).toUpperCase()} TESTLARI HOZIRCHA TAQIQLANGAN!`
+                : `${pickText(activeSubject.shortLabel, lang).toUpperCase()} QUIZZES ARE PROHIBITED!`}
             </h2>
 
             <p className="mx-auto mt-4 max-w-lg text-base font-medium leading-relaxed text-rose-100 sm:text-lg">
               {lang === 'uz'
-                ? `Hozircha ${pickText(activeSubject.shortLabel, lang)} fani bo‘yicha testlar va qo‘llanma o‘qituvchi/admin tomonidan yopilgan. Iltimos, boshqa ochiq fanlarni tanlang.`
-                : `Quizzes and study materials for ${pickText(activeSubject.shortLabel, lang)} are currently prohibited by the teacher/admin. Please choose another available subject.`}
+                ? `Hozircha ${pickText(activeSubject.shortLabel, lang)} fani bo‘yicha testlar o‘qituvchi/admin tomonidan yopilgan. Qo‘llanmani o‘qishda davom etishingiz yoki boshqa ochiq fanlarni tanlashingiz mumkin.`
+                : `Quizzes for ${pickText(activeSubject.shortLabel, lang)} are currently prohibited by the teacher/admin. You can still open the study guide or choose another available subject.`}
             </p>
 
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setActiveView('guide')}
+                className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-white px-6 text-base font-extrabold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                {lang === 'uz' ? 'Qo‘llanmani ochish' : 'Open Study Guide'}
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -625,7 +658,7 @@ export default function App() {
                   }
                   setActiveView('subjects');
                 }}
-                className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-white px-6 text-base font-extrabold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className="inline-flex min-h-[48px] items-center justify-center rounded-xl border-2 border-white/50 bg-rose-800/70 px-6 text-base font-bold text-white transition-colors hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
               >
                 {lang === 'uz' ? 'Fanlar bo‘limiga qaytish' : 'Back to Subjects'}
               </button>
@@ -714,7 +747,20 @@ export default function App() {
         </div>
       )}
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+        {activeView === 'dashboard' && (
+          <DashboardSection
+            lang={lang}
+            userProfile={userProfile}
+            teacherScope={teacherScope}
+            history={history}
+            prohibitedSubjects={prohibitedSubjects}
+            onNavigate={handleSelectView}
+            onStartSubjectQuiz={handleStartSubjectQuiz}
+            onOpenSubjectGuide={handleOpenSubjectGuide}
+          />
+        )}
+
         {activeView === 'subjects' && (
           <OverviewSection
             lang={lang}
@@ -739,10 +785,11 @@ export default function App() {
           />
         )}
 
-        {activeView === 'guide' && !prohibitedSubjects.has(activeSubjectId) && (
+        {activeView === 'guide' && (
           <StudyGuidePanel
             subject={activeSubject}
             lang={lang}
+            isProhibited={prohibitedSubjects.has(activeSubjectId)}
             onStartQuiz={() => setActiveView('quiz')}
           />
         )}
@@ -773,6 +820,8 @@ export default function App() {
       <footer className="border-t border-slate-200/80 bg-white/60 py-4 text-center text-xs font-medium text-slate-500">
         Developer: <span className="font-semibold text-slate-700">Ibrohimbek Xujanazarov</span>
       </footer>
+        </div>
+      </div>
     </div>
   );
 }

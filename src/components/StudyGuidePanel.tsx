@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpenCheck } from 'lucide-react';
+import { ArrowRight, Ban, BookOpenCheck } from 'lucide-react';
 import { UI_COPY, pickText } from '../data/subjects';
 import { SubjectConfig, UILanguage } from '../types/quiz';
 import { FormattedMathText } from './FormattedMathText';
@@ -6,10 +6,16 @@ import { FormattedMathText } from './FormattedMathText';
 interface StudyGuidePanelProps {
   subject: SubjectConfig;
   lang: UILanguage;
+  isProhibited?: boolean;
   onStartQuiz: () => void;
 }
 
-export function StudyGuidePanel({ subject, lang, onStartQuiz }: StudyGuidePanelProps) {
+export function StudyGuidePanel({
+  subject,
+  lang,
+  isProhibited = false,
+  onStartQuiz,
+}: StudyGuidePanelProps) {
   const copy = UI_COPY[lang];
 
   return (
@@ -31,11 +37,25 @@ export function StudyGuidePanel({ subject, lang, onStartQuiz }: StudyGuidePanelP
 
         <button
           type="button"
+          disabled={isProhibited}
           onClick={onStartQuiz}
-          className="inline-flex min-h-[42px] shrink-0 items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
+          className={`inline-flex min-h-[42px] shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+            isProhibited
+              ? 'cursor-not-allowed bg-rose-700/90 opacity-90 focus-visible:ring-rose-700'
+              : 'bg-teal-700 hover:bg-teal-800 focus-visible:ring-teal-700'
+          }`}
         >
-          <span>{copy.startTest} (25)</span>
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          {isProhibited ? (
+            <>
+              <Ban className="h-4 w-4" aria-hidden="true" />
+              <span>{lang === 'uz' ? 'Test yopiq (Prohibited)' : 'Test Prohibited'}</span>
+            </>
+          ) : (
+            <>
+              <span>{copy.startTest} (25)</span>
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </>
+          )}
         </button>
       </div>
 
