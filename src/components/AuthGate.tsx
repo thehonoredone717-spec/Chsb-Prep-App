@@ -1,4 +1,4 @@
-import { Eye, EyeOff, GraduationCap, Lock, LogIn, User, UserPlus } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, GraduationCap, Lock, LogIn, User, UserPlus } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
@@ -151,6 +151,20 @@ export function AuthGate({ lang, onChangeLang, onPrepareSignup }: AuthGateProps)
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
+      <div
+        role="alert"
+        className="border-b border-rose-800 bg-rose-700 px-4 py-2 text-white sm:px-6"
+      >
+        <div className="mx-auto flex max-w-6xl items-center justify-center gap-2 text-center text-xs font-semibold leading-snug sm:text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-100" aria-hidden="true" />
+          <span>
+            {uz
+              ? 'OGOHLANTIRISH: Test paytida boshqa sayt, oyna yoki desktopga 3 soniyadan ortiq o‘tish, to‘liq ekrandan chiqish, skrinshot olish va Pusk / Win+G bosish taqiqlanadi (3 ta ogohlantirish tugasa, natija darhol 0 bo‘ladi).'
+              : 'WARNING: During a test, leaving to another tab, window, or desktop for over 3 seconds, exiting fullscreen, taking screenshots, or pressing Win / Win+G is prohibited (3 warnings used = immediate 0 score).'}
+          </span>
+        </div>
+      </div>
+
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-2.5 font-display text-lg font-bold tracking-tight text-slate-900">

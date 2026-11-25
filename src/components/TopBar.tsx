@@ -12,7 +12,7 @@ import { UserProfile } from '../firebase';
 import { UILanguage } from '../types/quiz';
 
 export type AppView = 'subjects' | 'quiz' | 'guide' | 'results';
-export type TeacherScope = 'none' | 'computing' | 'math' | 'all';
+export type TeacherScope = 'none' | 'computing' | 'math' | 'science' | 'all';
 
 interface TopBarProps {
   lang: UILanguage;
@@ -59,7 +59,9 @@ export function TopBar({
         ? copy.computingTeacherBadge
         : teacherScope === 'math'
           ? copy.mathTeacherBadge
-          : `@${userProfile.username}`;
+          : teacherScope === 'science'
+            ? copy.scienceTeacherBadge
+            : `@${userProfile.username}`;
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">

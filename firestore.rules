@@ -39,6 +39,14 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
+    function isScienceTeacher() {
+      return isSignedIn()
+        && 'email' in request.auth.token
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'mohinurteshayeva19@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
     function isValidId(id) {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -81,7 +89,7 @@ service cloud.firestore {
         && data.keys().hasOnly([
           'id', 'userId', 'username', 'studentName', 'subjectId', 'difficulty',
           'variant', 'mode', 'score', 'total', 'percentage', 'grade',
-          'elapsedSeconds', 'completedAt', 'createdAt'
+          'elapsedSeconds', 'completedAt', 'cheated', 'createdAt'
         ])
         && data.id is string
         && data.id.size() >= 1
@@ -123,6 +131,7 @@ service cloud.firestore {
         && data.completedAt is string
         && data.completedAt.size() >= 10
         && data.completedAt.size() <= 40
+        && (!('cheated' in data) || data.cheated is bool)
         && data.createdAt is timestamp
         && data.createdAt == request.time;
     }
@@ -138,7 +147,7 @@ service cloud.firestore {
         && isValidUserProfile(incoming(), userId)
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time
-        && (incoming().role == 'student' || isAdmin() || ((isComputingTeacher() || isMathTeacher()) && incoming().role == 'teacher'));
+        && (incoming().role == 'student' || isAdmin() || ((isComputingTeacher() || isMathTeacher() || isScienceTeacher()) && incoming().role == 'teacher'));
 
       allow update: if isSignedIn()
         && isValidId(userId)
@@ -151,7 +160,7 @@ service cloud.firestore {
             && incoming().role == existing().role
             && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']))
           || (isOwner(userId)
-            && (isComputingTeacher() || isMathTeacher())
+            && (isComputingTeacher() || isMathTeacher() || isScienceTeacher())
             && incoming().role == 'teacher'
             && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'updatedAt']))
           || (isAdmin()
@@ -166,11 +175,13 @@ service cloud.firestore {
         isAdmin()
         || (isComputingTeacher() && existing().subjectId == 'computing')
         || (isMathTeacher() && existing().subjectId == 'math')
+        || (isScienceTeacher() && existing().subjectId == 'science')
         || (isSignedIn() && existing().userId == request.auth.uid)
       );
       allow list: if isAdmin()
         || (isComputingTeacher() && resource.data.subjectId == 'computing')
         || (isMathTeacher() && resource.data.subjectId == 'math')
+        || (isScienceTeacher() && resource.data.subjectId == 'science')
         || (isSignedIn() && resource.data.userId == request.auth.uid);
 
       allow create: if isSignedIn()

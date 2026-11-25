@@ -606,6 +606,12 @@ export function downloadStandaloneHtml(): void {
 </style>
 </head>
 <body>
+<div role="alert" style="border-bottom:1px solid #9f1239;background:#be123c;padding:8px 16px;color:#fff">
+  <div class="container" style="display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;font-size:13px;font-weight:600;line-height:1.35">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffe4e6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <span id="topWarnText">OGOHLANTIRISH: Test paytida boshqa sayt, oyna yoki desktopga 3 soniyadan ortiq o‘tish, to‘liq ekrandan chiqish, skrinshot olish va Pusk / Win+G bosish taqiqlanadi (3 ta ogohlantirish tugasa, natija darhol 0 bo‘ladi).</span>
+  </div>
+</div>
 <header class="topbar">
   <div class="container topbar-inner">
     <button type="button" class="brand-btn" id="brandHomeBtn">
@@ -1006,6 +1012,12 @@ function saveHistory() {
 
 function renderChrome() {
   const copy = UI_COPY[lang];
+  const topWarnEl = document.getElementById('topWarnText');
+  if (topWarnEl) {
+    topWarnEl.textContent = lang === 'uz'
+      ? 'OGOHLANTIRISH: Test paytida boshqa sayt, oyna yoki desktopga 3 soniyadan ortiq o‘tish, to‘liq ekrandan chiqish, skrinshot olish va Pusk / Win+G bosish taqiqlanadi (3 ta ogohlantirish tugasa, natija darhol 0 bo‘ladi).'
+      : 'WARNING: During a test, leaving to another tab, window, or desktop for over 3 seconds, exiting fullscreen, taking screenshots, or pressing Win / Win+G is prohibited (3 warnings used = immediate 0 score).';
+  }
   document.getElementById('brandText').textContent = copy.brand;
   document.getElementById('printBtnText').textContent = lang === 'uz' ? 'Chop etish' : 'Print / PDF';
   document.getElementById('langUz').className = 'seg-btn' + (lang === 'uz' ? ' active' : '');
@@ -1115,6 +1127,7 @@ function forceZeroSubmit() {
     grade: gr,
     elapsedSeconds: seconds,
     completedAt: new Date().toISOString(),
+    cheated: true,
   });
   history = history.slice(0, 60);
   saveHistory();
@@ -1261,7 +1274,8 @@ function renderResultsHistoryView() {
       const dText = item.difficulty ? (diffLabel(item.difficulty) + ' · ') : '';
       html += '<td style="color:#334155">' + esc(dText + item.variant) + '</td>';
       html += '<td style="color:#475569">' + esc(modeText) + '</td>';
-      html += '<td class="font-mono-num" style="font-weight:600">' + item.score + '/' + item.total + ' (' + item.percentage + '%)</td>';
+      const cheatedBadge = (item.cheated && item.score === 0) ? '<span style="margin-left:8px;font-family:var(--font-body);font-weight:800;color:#dc2626">Cheated</span>' : '';
+      html += '<td class="font-mono-num" style="font-weight:600">' + item.score + '/' + item.total + ' (' + item.percentage + '%)' + cheatedBadge + '</td>';
       html += '<td class="font-mono-num" style="font-weight:700;color:var(--teal)">' + item.grade + '</td>';
       html += '<td class="font-mono-num" style="color:#475569">' + fmtTime(item.elapsedSeconds) + '</td>';
       html += '<td class="font-mono-num" style="color:#64748b">' + esc(timeStr) + '</td>';
@@ -1403,7 +1417,8 @@ function renderQuizView(sub) {
     html += '</div>';
 
     html += '<div class="stats-grid">';
-    html += '<div class="stat-box"><div style="font-size:12px;color:#64748b">' + esc(copy.scoreLabel) + '</div><div class="stat-val font-mono-num">' + finalCorrect + ' / 25</div></div>';
+    const forcedCheatedTag = forcedZero ? '<span style="margin-left:8px;font-family:var(--font-body);font-size:16px;font-weight:800;color:#dc2626">Cheated</span>' : '';
+    html += '<div class="stat-box"><div style="font-size:12px;color:#64748b">' + esc(copy.scoreLabel) + '</div><div class="stat-val font-mono-num">' + finalCorrect + ' / 25' + forcedCheatedTag + '</div></div>';
     html += '<div class="stat-box"><div style="font-size:12px;color:#64748b">' + esc(copy.accuracyCol) + '</div><div class="stat-val font-mono-num">' + pct + '%</div></div>';
     html += '<div class="stat-box"><div style="font-size:12px;color:#64748b">' + esc(copy.gradeLabel) + '</div><div class="stat-val font-mono-num" style="color:var(--teal)">' + gr.grade + ' <span style="font-family:var(--font-body);font-size:14px;font-weight:600;color:#475569">(' + esc(loc(gr.label)) + ')</span></div></div>';
     html += '<div class="stat-box"><div style="font-size:12px;color:#64748b">' + esc(copy.timeLabel) + '</div><div class="stat-val font-mono-num">' + fmtTime(seconds) + '</div></div>';

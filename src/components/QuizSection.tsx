@@ -323,6 +323,7 @@ export function QuizSection({
       grade,
       elapsedSeconds,
       completedAt: new Date().toISOString(),
+      cheated: true,
     });
     setSubmitted(true);
   };
@@ -1066,6 +1067,11 @@ export function QuizSection({
                 <p className="text-xs font-medium text-slate-500">{copy.scoreLabel}</p>
                 <p className="font-mono-num mt-1 text-3xl font-bold text-slate-900">
                   {resultsSummary.correct} / {QUESTIONS_PER_TEST}
+                  {forcedZero && (
+                    <span className="ml-2 font-sans text-lg font-extrabold text-rose-600">
+                      Cheated
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">

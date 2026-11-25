@@ -21,6 +21,7 @@ export interface AttemptRecord {
   grade: 2 | 3 | 4 | 5;
   elapsedSeconds: number;
   completedAt: string;
+  cheated?: boolean;
 }
 
 export const SUBJECTS: SubjectConfig[] = [
@@ -181,10 +182,12 @@ export const UI_COPY: Record<
     teacherBadge: string;
     computingTeacherBadge: string;
     mathTeacherBadge: string;
+    scienceTeacherBadge: string;
     studentBadge: string;
     teacherResultsTitle: string;
     computingResultsTitle: string;
     mathResultsTitle: string;
+    scienceResultsTitle: string;
     studentCol: string;
     allStudents: string;
     allSubjects: string;
@@ -259,10 +262,12 @@ export const UI_COPY: Record<
     teacherBadge: "O'qituvchi",
     computingTeacherBadge: "Informatika O'qituvchisi",
     mathTeacherBadge: "Matematika O'qituvchisi",
+    scienceTeacherBadge: "Science O'qituvchisi",
     studentBadge: "O'quvchi",
     teacherResultsTitle: "Barcha o'quvchilarning ChSB natijalari",
     computingResultsTitle: "O'quvchilarning Informatika (Computing) natijalari",
     mathResultsTitle: "O'quvchilarning Matematika natijalari",
+    scienceResultsTitle: "O'quvchilarning Science (Tabiiy fanlar) natijalari",
     studentCol: "O'quvchi",
     allStudents: "Barcha o'quvchilar",
     allSubjects: 'Barcha fanlar',
@@ -336,10 +341,12 @@ export const UI_COPY: Record<
     teacherBadge: 'Teacher',
     computingTeacherBadge: 'Computing Teacher',
     mathTeacherBadge: 'Math Teacher',
+    scienceTeacherBadge: 'Science Teacher',
     studentBadge: 'Student',
     teacherResultsTitle: 'All Students ChSB Results',
     computingResultsTitle: "Students' Computing Results",
     mathResultsTitle: "Students' Math Results",
+    scienceResultsTitle: "Students' Science Results",
     studentCol: 'Student',
     allStudents: 'All students',
     allSubjects: 'All subjects',

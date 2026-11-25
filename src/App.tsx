@@ -13,6 +13,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
+import { AlertTriangle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AuthGate } from './components/AuthGate';
 import { OverviewSection } from './components/OverviewSection';
@@ -32,6 +33,7 @@ import {
   handleFirestoreError,
   isComputingTeacher,
   isMathTeacher,
+  isScienceTeacher,
   isTeacherAdmin,
   sanitizeDisplayName,
 } from './firebase';
@@ -165,7 +167,10 @@ export default function App() {
         try {
           const snap = await getDoc(userDocRef);
           const teacher =
-            isTeacherAdmin(user) || isComputingTeacher(user) || isMathTeacher(user);
+            isTeacherAdmin(user) ||
+            isComputingTeacher(user) ||
+            isMathTeacher(user) ||
+            isScienceTeacher(user);
 
           if (!snap.exists()) {
             const pending = pendingSignupRef.current;
@@ -235,13 +240,16 @@ export default function App() {
   const isFullAdmin = isTeacherAdmin(authUser);
   const isCompTeacher = isComputingTeacher(authUser);
   const isMathTch = isMathTeacher(authUser);
+  const isScienceTch = isScienceTeacher(authUser);
   const teacherScope: TeacherScope = isFullAdmin
     ? 'all'
     : isCompTeacher
       ? 'computing'
       : isMathTch
         ? 'math'
-        : 'none';
+        : isScienceTch
+          ? 'science'
+          : 'none';
 
   // Subscribe to attempts only when auth and userProfile are ready
   useEffect(() => {
@@ -254,7 +262,9 @@ export default function App() {
         ? query(attemptsCollection, where('subjectId', '==', 'computing'))
         : isMathTch
           ? query(attemptsCollection, where('subjectId', '==', 'math'))
-          : query(attemptsCollection, where('userId', '==', authUser.uid));
+          : isScienceTch
+            ? query(attemptsCollection, where('subjectId', '==', 'science'))
+            : query(attemptsCollection, where('userId', '==', authUser.uid));
 
     const unsubscribeAttempts = onSnapshot(
       attemptsQuery,
@@ -276,6 +286,7 @@ export default function App() {
             grade: (raw.grade as 2 | 3 | 4 | 5) || 3,
             elapsedSeconds: typeof raw.elapsedSeconds === 'number' ? raw.elapsedSeconds : 0,
             completedAt: raw.completedAt || new Date().toISOString(),
+            cheated: raw.cheated === true,
           };
         });
 
@@ -323,7 +334,7 @@ export default function App() {
       unsubscribeAttempts();
       unsubscribeUsers();
     };
-  }, [authReady, authUser, userProfile, isFullAdmin, isCompTeacher, isMathTch]);
+  }, [authReady, authUser, userProfile, isFullAdmin, isCompTeacher, isMathTch, isScienceTch]);
 
   const activeSubject = SUBJECT_MAP[activeSubjectId];
 
@@ -382,6 +393,7 @@ export default function App() {
       grade: record.grade,
       elapsedSeconds: Math.max(0, Math.min(86400, Math.round(record.elapsedSeconds))),
       completedAt: record.completedAt.slice(0, 40),
+      cheated: Boolean(record.cheated),
       createdAt: serverTimestamp(),
     };
 
@@ -469,6 +481,20 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
+      <div
+        role="alert"
+        className="border-b border-rose-800 bg-rose-700 px-4 py-2 text-white sm:px-6"
+      >
+        <div className="mx-auto flex max-w-6xl items-center justify-center gap-2 text-center text-xs font-semibold leading-snug sm:text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-100" aria-hidden="true" />
+          <span>
+            {lang === 'uz'
+              ? 'OGOHLANTIRISH: Test paytida boshqa sayt, oyna yoki desktopga 3 soniyadan ortiq o‘tish, to‘liq ekrandan chiqish, skrinshot olish va Pusk / Win+G bosish taqiqlanadi (3 ta ogohlantirish tugasa, natija darhol 0 bo‘ladi).'
+              : 'WARNING: During a test, leaving to another tab, window, or desktop for over 3 seconds, exiting fullscreen, taking screenshots, or pressing Win / Win+G is prohibited (3 warnings used = immediate 0 score).'}
+          </span>
+        </div>
+      </div>
+
       <TopBar
         lang={lang}
         activeView={activeView}

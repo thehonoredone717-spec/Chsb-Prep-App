@@ -105,6 +105,10 @@
           "minLength": 10,
           "maxLength": 40
         },
+        "cheated": {
+          "type": "boolean",
+          "description": "True when test ended with 0 warnings left and a forced 0 score"
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"

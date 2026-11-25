@@ -55,12 +55,16 @@ export function ResultsHistoryView({
       if (teacherScope === 'math' && item.subjectId !== 'math') {
         return false;
       }
+      if (teacherScope === 'science' && item.subjectId !== 'science') {
+        return false;
+      }
       if (isAnyTeacher && studentFilter !== 'all' && item.userId !== studentFilter) {
         return false;
       }
       if (
         teacherScope !== 'computing' &&
         teacherScope !== 'math' &&
+        teacherScope !== 'science' &&
         subjectFilter !== 'all' &&
         item.subjectId !== subjectFilter
       ) {
@@ -92,7 +96,9 @@ export function ResultsHistoryView({
         ? copy.computingResultsTitle
         : teacherScope === 'math'
           ? copy.mathResultsTitle
-          : copy.historyTitle;
+          : teacherScope === 'science'
+            ? copy.scienceResultsTitle
+            : copy.historyTitle;
 
   return (
     <section className="space-y-6">
@@ -165,7 +171,9 @@ export function ResultsHistoryView({
             </select>
           )}
 
-          {teacherScope !== 'computing' && teacherScope !== 'math' && (
+          {teacherScope !== 'computing' &&
+            teacherScope !== 'math' &&
+            teacherScope !== 'science' && (
             <select
               aria-label={copy.subjectCol}
               value={subjectFilter}
@@ -252,7 +260,14 @@ export function ResultsHistoryView({
                             : 'Exam'}
                       </td>
                       <td className="font-mono-num px-4 py-3 font-semibold text-slate-900">
-                        {item.score}/{item.total} ({item.percentage}%)
+                        <span>
+                          {item.score}/{item.total} ({item.percentage}%)
+                        </span>
+                        {item.cheated && item.score === 0 && (
+                          <span className="ml-2 font-sans font-extrabold text-rose-600">
+                            Cheated
+                          </span>
+                        )}
                       </td>
                       <td className="font-mono-num px-4 py-3 font-bold text-teal-700">
                         {item.grade}
