@@ -1,5 +1,5 @@
-import { ArrowRight, BookOpen, Calculator, Code2, FlaskConical, Globe2, Landmark, Languages } from 'lucide-react';
-import { AttemptRecord, SUBJECTS, UI_COPY, pickText } from '../data/subjects';
+import { ArrowRight, Ban, BookOpen, Calculator, Code2, FlaskConical, Globe2, Landmark, Languages } from 'lucide-react';
+import { AttemptRecord, PROHIBITED_SUBJECTS, SUBJECTS, UI_COPY, pickText } from '../data/subjects';
 import { SubjectId, UILanguage } from '../types/quiz';
 
 interface OverviewSectionProps {
@@ -51,21 +51,42 @@ export function OverviewSection({
             null
           );
           const isCurrent = subject.id === activeSubjectId;
+          const isProhibited = PROHIBITED_SUBJECTS.has(subject.id);
 
           return (
             <article
               key={subject.id}
               className={`flex flex-col justify-between rounded-xl border bg-white p-6 transition-colors ${
-                isCurrent ? 'border-teal-700/60' : 'border-slate-200 hover:border-slate-300'
+                isProhibited
+                  ? 'border-rose-300 bg-rose-50/40'
+                  : isCurrent
+                    ? 'border-teal-700/60'
+                    : 'border-slate-200 hover:border-slate-300'
               }`}
             >
               <div>
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-teal-700">
-                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                      isProhibited ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-teal-700'
+                    }`}
+                  >
+                    {isProhibited ? (
+                      <Ban className="h-5 w-5" aria-hidden="true" />
+                    ) : (
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    )}
                   </div>
-                  <span className="font-mono-num text-xs font-medium text-slate-500">
-                    {subject.questions.length} {lang === 'uz' ? 'savol' : 'questions'} · 3×5 {lang === 'uz' ? 'variant' : 'variants'}
+                  <span
+                    className={`font-mono-num text-xs font-semibold ${
+                      isProhibited ? 'text-rose-700' : 'text-slate-500 font-medium'
+                    }`}
+                  >
+                    {isProhibited
+                      ? lang === 'uz'
+                        ? 'Vaqtincha taqiqlangan'
+                        : 'Temporarily prohibited'
+                      : `${subject.questions.length} ${lang === 'uz' ? 'savol' : 'questions'} · 3×5 ${lang === 'uz' ? 'variant' : 'variants'}`}
                   </span>
                 </div>
 
@@ -98,9 +119,19 @@ export function OverviewSection({
                   <button
                     type="button"
                     onClick={() => onStartSubjectQuiz(subject.id)}
-                    className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
+                    className={`inline-flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                      isProhibited
+                        ? 'bg-rose-700 hover:bg-rose-800 focus-visible:ring-rose-700'
+                        : 'bg-teal-700 hover:bg-teal-800 focus-visible:ring-teal-700'
+                    }`}
                   >
-                    <span>{copy.startTest}</span>
+                    <span>
+                      {isProhibited
+                        ? lang === 'uz'
+                          ? 'Yopiq (Taqiqlangan)'
+                          : 'Restricted'
+                        : copy.startTest}
+                    </span>
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </button>
                   <button

@@ -31,6 +31,14 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
+    function isMathTeacher() {
+      return isSignedIn()
+        && 'email' in request.auth.token
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'qoqonovtohir@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
     function isValidId(id) {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -130,7 +138,7 @@ service cloud.firestore {
         && isValidUserProfile(incoming(), userId)
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time
-        && (incoming().role == 'student' || isAdmin() || (isComputingTeacher() && incoming().role == 'teacher'));
+        && (incoming().role == 'student' || isAdmin() || ((isComputingTeacher() || isMathTeacher()) && incoming().role == 'teacher'));
 
       allow update: if isSignedIn()
         && isValidId(userId)
@@ -143,7 +151,7 @@ service cloud.firestore {
             && incoming().role == existing().role
             && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']))
           || (isOwner(userId)
-            && isComputingTeacher()
+            && (isComputingTeacher() || isMathTeacher())
             && incoming().role == 'teacher'
             && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'updatedAt']))
           || (isAdmin()
@@ -157,10 +165,12 @@ service cloud.firestore {
       allow get: if isValidId(attemptId) && (
         isAdmin()
         || (isComputingTeacher() && existing().subjectId == 'computing')
+        || (isMathTeacher() && existing().subjectId == 'math')
         || (isSignedIn() && existing().userId == request.auth.uid)
       );
       allow list: if isAdmin()
         || (isComputingTeacher() && resource.data.subjectId == 'computing')
+        || (isMathTeacher() && resource.data.subjectId == 'math')
         || (isSignedIn() && resource.data.userId == request.auth.uid);
 
       allow create: if isSignedIn()

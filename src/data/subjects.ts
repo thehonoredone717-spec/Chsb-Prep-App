@@ -112,6 +112,8 @@ export const SUBJECT_MAP: Record<SubjectId, SubjectConfig> = SUBJECTS.reduce(
   {} as Record<SubjectId, SubjectConfig>
 );
 
+export const PROHIBITED_SUBJECTS: ReadonlySet<SubjectId> = new Set<SubjectId>(['math']);
+
 export const TOTAL_QUESTION_COUNT = SUBJECTS.reduce(
   (sum, item) => sum + item.questions.length,
   0
@@ -180,9 +182,11 @@ export const UI_COPY: Record<
     signOut: string;
     teacherBadge: string;
     computingTeacherBadge: string;
+    mathTeacherBadge: string;
     studentBadge: string;
     teacherResultsTitle: string;
     computingResultsTitle: string;
+    mathResultsTitle: string;
     studentCol: string;
     allStudents: string;
     allSubjects: string;
@@ -256,9 +260,11 @@ export const UI_COPY: Record<
     signOut: 'Chiqish',
     teacherBadge: "O'qituvchi",
     computingTeacherBadge: "Informatika O'qituvchisi",
+    mathTeacherBadge: "Matematika O'qituvchisi",
     studentBadge: "O'quvchi",
     teacherResultsTitle: "Barcha o'quvchilarning ChSB natijalari",
     computingResultsTitle: "O'quvchilarning Informatika (Computing) natijalari",
+    mathResultsTitle: "O'quvchilarning Matematika natijalari",
     studentCol: "O'quvchi",
     allStudents: "Barcha o'quvchilar",
     allSubjects: 'Barcha fanlar',
@@ -331,9 +337,11 @@ export const UI_COPY: Record<
     signOut: 'Sign Out',
     teacherBadge: 'Teacher',
     computingTeacherBadge: 'Computing Teacher',
+    mathTeacherBadge: 'Math Teacher',
     studentBadge: 'Student',
     teacherResultsTitle: 'All Students ChSB Results',
     computingResultsTitle: "Students' Computing Results",
+    mathResultsTitle: "Students' Math Results",
     studentCol: 'Student',
     allStudents: 'All students',
     allSubjects: 'All subjects',

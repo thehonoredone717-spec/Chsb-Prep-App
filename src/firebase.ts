@@ -10,6 +10,7 @@ export const googleProvider = new GoogleAuthProvider();
 
 export const TEACHER_EMAIL = 'thehonoredone.717@gmail.com';
 export const COMPUTING_TEACHER_EMAIL = 'zarifa.xojiyeva2281@gmail.com';
+export const MATH_TEACHER_EMAIL = 'qoqonovtohir@gmail.com';
 export const USERNAME_REGEX = /^[a-z0-9_.]{3,32}$/;
 export const DISPLAY_NAME_MAX_LEN = 60;
 export const VARIANT_MAX_LEN = 24;
@@ -91,6 +92,12 @@ export function isTeacherAdmin(user: User | null): boolean {
 export function isComputingTeacher(user: User | null): boolean {
   return Boolean(
     user && user.email?.toLowerCase() === COMPUTING_TEACHER_EMAIL && user.emailVerified
+  );
+}
+
+export function isMathTeacher(user: User | null): boolean {
+  return Boolean(
+    user && user.email?.toLowerCase() === MATH_TEACHER_EMAIL && user.emailVerified
   );
 }
 

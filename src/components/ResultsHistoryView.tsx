@@ -52,10 +52,18 @@ export function ResultsHistoryView({
       if (teacherScope === 'computing' && item.subjectId !== 'computing') {
         return false;
       }
+      if (teacherScope === 'math' && item.subjectId !== 'math') {
+        return false;
+      }
       if (isAnyTeacher && studentFilter !== 'all' && item.userId !== studentFilter) {
         return false;
       }
-      if (teacherScope !== 'computing' && subjectFilter !== 'all' && item.subjectId !== subjectFilter) {
+      if (
+        teacherScope !== 'computing' &&
+        teacherScope !== 'math' &&
+        subjectFilter !== 'all' &&
+        item.subjectId !== subjectFilter
+      ) {
         return false;
       }
       return true;
@@ -82,7 +90,9 @@ export function ResultsHistoryView({
       ? copy.teacherResultsTitle
       : teacherScope === 'computing'
         ? copy.computingResultsTitle
-        : copy.historyTitle;
+        : teacherScope === 'math'
+          ? copy.mathResultsTitle
+          : copy.historyTitle;
 
   return (
     <section className="space-y-6">
@@ -155,7 +165,7 @@ export function ResultsHistoryView({
             </select>
           )}
 
-          {teacherScope !== 'computing' && (
+          {teacherScope !== 'computing' && teacherScope !== 'math' && (
             <select
               aria-label={copy.subjectCol}
               value={subjectFilter}

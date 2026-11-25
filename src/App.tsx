@@ -13,6 +13,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
+import { ShieldAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AuthGate } from './components/AuthGate';
 import { OverviewSection } from './components/OverviewSection';
@@ -21,7 +22,13 @@ import { ResultsHistoryView } from './components/ResultsHistoryView';
 import { StudyGuidePanel } from './components/StudyGuidePanel';
 import { SubjectBar } from './components/SubjectBar';
 import { AppView, TeacherScope, TopBar } from './components/TopBar';
-import { AttemptRecord, SUBJECT_MAP } from './data/subjects';
+import {
+  AttemptRecord,
+  PROHIBITED_SUBJECTS,
+  SUBJECTS,
+  SUBJECT_MAP,
+  pickText,
+} from './data/subjects';
 import {
   OperationType,
   UserProfile,
@@ -31,6 +38,7 @@ import {
   deriveUsernameFromUser,
   handleFirestoreError,
   isComputingTeacher,
+  isMathTeacher,
   isTeacherAdmin,
   sanitizeDisplayName,
 } from './firebase';
@@ -56,7 +64,7 @@ function loadLang(): UILanguage {
 export default function App() {
   const [lang, setLang] = useState<UILanguage>(() => loadLang());
   const [activeView, setActiveView] = useState<AppView>('quiz');
-  const [activeSubjectId, setActiveSubjectId] = useState<SubjectId>('math');
+  const [activeSubjectId, setActiveSubjectId] = useState<SubjectId>('history');
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -163,7 +171,8 @@ export default function App() {
       void (async () => {
         try {
           const snap = await getDoc(userDocRef);
-          const teacher = isTeacherAdmin(user) || isComputingTeacher(user);
+          const teacher =
+            isTeacherAdmin(user) || isComputingTeacher(user) || isMathTeacher(user);
 
           if (!snap.exists()) {
             const pending = pendingSignupRef.current;
@@ -232,11 +241,14 @@ export default function App() {
 
   const isFullAdmin = isTeacherAdmin(authUser);
   const isCompTeacher = isComputingTeacher(authUser);
+  const isMathTch = isMathTeacher(authUser);
   const teacherScope: TeacherScope = isFullAdmin
     ? 'all'
     : isCompTeacher
       ? 'computing'
-      : 'none';
+      : isMathTch
+        ? 'math'
+        : 'none';
 
   // Subscribe to attempts only when auth and userProfile are ready
   useEffect(() => {
@@ -247,7 +259,9 @@ export default function App() {
       ? query(attemptsCollection, orderBy('createdAt', 'desc'))
       : isCompTeacher
         ? query(attemptsCollection, where('subjectId', '==', 'computing'))
-        : query(attemptsCollection, where('userId', '==', authUser.uid));
+        : isMathTch
+          ? query(attemptsCollection, where('subjectId', '==', 'math'))
+          : query(attemptsCollection, where('userId', '==', authUser.uid));
 
     const unsubscribeAttempts = onSnapshot(
       attemptsQuery,
@@ -316,7 +330,7 @@ export default function App() {
       unsubscribeAttempts();
       unsubscribeUsers();
     };
-  }, [authReady, authUser, userProfile, isFullAdmin, isCompTeacher]);
+  }, [authReady, authUser, userProfile, isFullAdmin, isCompTeacher, isMathTch]);
 
   const activeSubject = SUBJECT_MAP[activeSubjectId];
 
@@ -357,6 +371,7 @@ export default function App() {
 
   const handleRecordAttempt = (record: AttemptRecord) => {
     if (!authUser || !userProfile) return;
+    if (PROHIBITED_SUBJECTS.has(record.subjectId)) return;
 
     const safeId = record.id.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 128);
     const attemptPath = `attempts/${safeId}`;
@@ -524,6 +539,71 @@ export default function App() {
         </div>
       )}
 
+      {PROHIBITED_SUBJECTS.has(activeSubjectId) &&
+        (activeView === 'quiz' || activeView === 'guide') && (
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            className="fixed inset-0 z-[110] flex flex-col items-center justify-center bg-rose-700 p-6 text-center text-white"
+          >
+            <div className="w-full max-w-2xl rounded-2xl border-2 border-white/40 bg-rose-900/90 p-8 shadow-2xl sm:p-10">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-white/15 text-white">
+                <ShieldAlert className="h-11 w-11" aria-hidden="true" />
+              </div>
+
+              <h2 className="mt-6 font-display text-2xl font-extrabold tracking-tight text-white sm:text-4xl">
+                {lang === 'uz'
+                  ? 'MATEMATIKA BO‘LIMI HOZIRCHA TAQIQLANGAN!'
+                  : 'MATH SECTION IS CURRENTLY PROHIBITED!'}
+              </h2>
+
+              <p className="mx-auto mt-4 max-w-lg text-base font-medium leading-relaxed text-rose-100 sm:text-lg">
+                {lang === 'uz'
+                  ? 'Hozircha Matematika bo‘limi, uning testlari va qo‘llanmasi vaqtincha yopiq. Iltimos, boshqa fanlarni tanlang.'
+                  : 'The Math section, its quizzes, and its study guide are temporarily prohibited for now. Please choose another subject.'}
+              </p>
+
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSubjectId('history');
+                    setActiveView('subjects');
+                  }}
+                  className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-white px-6 text-base font-extrabold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  {lang === 'uz' ? 'Fanlar bo‘limiga qaytish' : 'Back to Subjects'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveView('results')}
+                  className="inline-flex min-h-[48px] items-center justify-center rounded-xl border-2 border-white/50 bg-rose-800/70 px-6 text-base font-bold text-white transition-colors hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  {lang === 'uz' ? 'Natijalar' : 'Results'}
+                </button>
+              </div>
+
+              <div className="mt-6 border-t border-white/20 pt-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-rose-200">
+                  {lang === 'uz' ? 'Ochiq fanlardan birini tanlang:' : 'Choose an available subject:'}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                  {SUBJECTS.filter((s) => !PROHIBITED_SUBJECTS.has(s.id)).map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setActiveSubjectId(s.id)}
+                      className="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/30 bg-rose-950/60 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-rose-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                    >
+                      {pickText(s.shortLabel, lang)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         {activeView === 'subjects' && (
           <OverviewSection
@@ -535,7 +615,7 @@ export default function App() {
           />
         )}
 
-        {activeView === 'quiz' && (
+        {activeView === 'quiz' && !PROHIBITED_SUBJECTS.has(activeSubjectId) && (
           <QuizSection
             subject={activeSubject}
             lang={lang}
@@ -548,7 +628,7 @@ export default function App() {
           />
         )}
 
-        {activeView === 'guide' && (
+        {activeView === 'guide' && !PROHIBITED_SUBJECTS.has(activeSubjectId) && (
           <StudyGuidePanel
             subject={activeSubject}
             lang={lang}
