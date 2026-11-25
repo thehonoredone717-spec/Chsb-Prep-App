@@ -1,5 +1,4 @@
-import { Lock } from 'lucide-react';
-import { PROHIBITED_SUBJECTS, SUBJECTS, pickText } from '../data/subjects';
+import { SUBJECTS, pickText } from '../data/subjects';
 import { SubjectId, UILanguage } from '../types/quiz';
 
 interface SubjectBarProps {
@@ -25,7 +24,6 @@ export function SubjectBar({
         >
           {SUBJECTS.map((subject) => {
             const selected = subject.id === activeSubjectId;
-            const prohibited = PROHIBITED_SUBJECTS.has(subject.id);
             return (
               <button
                 key={subject.id}
@@ -33,18 +31,13 @@ export function SubjectBar({
                 type="button"
                 aria-selected={selected}
                 onClick={() => onSelectSubject(subject.id)}
-                className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-1 ${
-                  prohibited
-                    ? selected
-                      ? 'bg-rose-700 text-white shadow-xs'
-                      : 'bg-rose-50 text-rose-700 ring-1 ring-rose-200 hover:bg-rose-100 hover:text-rose-900'
-                    : selected
-                      ? 'bg-teal-700 text-white shadow-xs'
-                      : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                className={`min-h-[40px] rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-1 ${
+                  selected
+                    ? 'bg-teal-700 text-white shadow-xs'
+                    : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                {prohibited && <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
-                <span>{pickText(subject.shortLabel, lang)}</span>
+                {pickText(subject.shortLabel, lang)}
               </button>
             );
           })}

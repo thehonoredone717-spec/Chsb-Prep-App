@@ -675,8 +675,7 @@ try {
 } catch (e) {}
 
 let activeView = 'quiz';
-const PROHIBITED_SUBJECTS = ['math'];
-let activeSubjectId = (SUBJECTS.find(s => !PROHIBITED_SUBJECTS.includes(s.id)) || SUBJECTS[0]).id;
+let activeSubjectId = SUBJECTS[0].id;
 let difficulty = 'easy';
 let variant = 1;
 let mode = 'practice';
@@ -1018,13 +1017,9 @@ function renderChrome() {
     '<button type="button" class="nav-link' + (activeView === item.id ? ' active' : '') + '" onclick="setView(\\'' + item.id + '\\')">' + esc(item.label) + '</button>'
   ).join('');
 
-  document.getElementById('subjectTabs').innerHTML = SUBJECTS.map(s => {
-    const isProh = PROHIBITED_SUBJECTS.includes(s.id);
-    const style = isProh
-      ? (s.id === activeSubjectId ? 'background:#be123c;border-color:#be123c;color:#fff' : 'background:#fff1f2;border-color:#fecdd3;color:#be123c')
-      : '';
-    return '<button type="button" role="tab" aria-selected="' + (s.id === activeSubjectId) + '" class="sub-tab' + (s.id === activeSubjectId ? ' active' : '') + '" style="' + style + '" onclick="selectSubject(\\'' + esc(s.id) + '\\')">' + (isProh ? '🔒 ' : '') + esc(loc(s.shortLabel)) + '</button>';
-  }).join('');
+  document.getElementById('subjectTabs').innerHTML = SUBJECTS.map(s =>
+    '<button type="button" role="tab" aria-selected="' + (s.id === activeSubjectId) + '" class="sub-tab' + (s.id === activeSubjectId ? ' active' : '') + '" onclick="selectSubject(\\'' + esc(s.id) + '\\')">' + esc(loc(s.shortLabel)) + '</button>'
+  ).join('');
 }
 
 function setView(v) {
@@ -1174,18 +1169,13 @@ function renderSubjectsView() {
 
   html += '<div class="subjects-grid">';
   SUBJECTS.forEach(s => {
-    const isProh = PROHIBITED_SUBJECTS.includes(s.id);
     const attempts = history.filter(h => h.subjectId === s.id);
     const best = attempts.reduce((b, cur) => (!b || cur.percentage > b.percentage ? cur : b), null);
-    html += '<article class="subject-card' + (s.id === activeSubjectId ? ' current' : '') + '"' + (isProh ? ' style="border-color:#fda4af;background:#fff1f2"' : '') + '>';
+    html += '<article class="subject-card' + (s.id === activeSubjectId ? ' current' : '') + '">';
     html += '<div>';
     html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">';
-    html += '<div class="icon-box"' + (isProh ? ' style="background:#ffe4e6;color:#be123c"' : '') + '>' + (ICONS[s.id] || '') + '</div>';
-    if (isProh) {
-      html += '<span class="font-mono-num" style="font-size:12px;font-weight:700;color:#be123c">' + (lang === 'uz' ? 'Vaqtincha taqiqlangan' : 'Temporarily prohibited') + '</span>';
-    } else {
-      html += '<span class="font-mono-num" style="font-size:12px;font-weight:500;color:#64748b">' + s.questions.length + ' ' + (lang === 'uz' ? 'savol' : 'questions') + ' · 3×5 ' + (lang === 'uz' ? 'variant' : 'variants') + '</span>';
-    }
+    html += '<div class="icon-box">' + (ICONS[s.id] || '') + '</div>';
+    html += '<span class="font-mono-num" style="font-size:12px;font-weight:500;color:#64748b">' + s.questions.length + ' ' + (lang === 'uz' ? 'savol' : 'questions') + ' · 3×5 ' + (lang === 'uz' ? 'variant' : 'variants') + '</span>';
     html += '</div>';
     html += '<h2 class="font-display" style="margin-top:16px;font-size:20px;font-weight:700">' + esc(loc(s.title)) + '</h2>';
     html += '<p style="margin-top:6px;font-size:14px;color:#475569">' + esc(loc(s.subtitle)) + '</p>';
@@ -1201,7 +1191,7 @@ function renderSubjectsView() {
     }
     html += '</div>';
     html += '<div style="display:flex;gap:10px">';
-    html += '<button type="button" class="btn-teal" style="flex:1' + (isProh ? ';background:#be123c' : '') + '" onclick="startSubjectQuiz(\\'' + esc(s.id) + '\\')"><span>' + esc(isProh ? (lang === 'uz' ? 'Yopiq (Taqiqlangan)' : 'Restricted') : copy.startTest) + '</span>' + ICONS.arrowRight + '</button>';
+    html += '<button type="button" class="btn-teal" style="flex:1" onclick="startSubjectQuiz(\\'' + esc(s.id) + '\\')"><span>' + esc(copy.startTest) + '</span>' + ICONS.arrowRight + '</button>';
     html += '<button type="button" class="btn-outline" title="' + esc(copy.openGuide) + '" onclick="openSubjectGuide(\\'' + esc(s.id) + '\\')">' + ICONS.book + '</button>';
     html += '</div></div></article>';
   });
@@ -1554,22 +1544,7 @@ function render() {
   const sub = getSubject();
   const app = document.getElementById('app');
   let body = '';
-  if (PROHIBITED_SUBJECTS.includes(activeSubjectId) && (activeView === 'quiz' || activeView === 'guide')) {
-    const allowedBtns = SUBJECTS.filter(s => !PROHIBITED_SUBJECTS.includes(s.id)).map(s =>
-      '<button type="button" style="min-height:38px;padding:0 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:rgba(76,5,25,0.65);color:#fff;font-size:14px;font-weight:600;cursor:pointer" onclick="selectSubject(\\'' + esc(s.id) + '\\')">' + esc(loc(s.shortLabel)) + '</button>'
-    ).join('');
-    body = '<div role="alertdialog" aria-modal="true" style="position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;background:#be123c;padding:24px;text-align:center;color:#fff">'
-      + '<div style="width:100%;max-width:640px;background:rgba(136,19,55,0.9);border:2px solid rgba(255,255,255,0.4);border-radius:16px;padding:32px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.45)">'
-      + '<h2 class="font-display" style="font-size:clamp(24px,4vw,36px);font-weight:800;color:#fff">' + (lang === 'uz' ? 'MATEMATIKA BO‘LIMI HOZIRCHA TAQIQLANGAN!' : 'MATH SECTION IS CURRENTLY PROHIBITED!') + '</h2>'
-      + '<p style="margin:16px auto 0;max-width:520px;font-size:16px;line-height:1.6;color:#ffe4e6">' + (lang === 'uz' ? 'Hozircha Matematika bo‘limi, uning testlari va qo‘llanmasi vaqtincha yopiq. Iltimos, boshqa fanlarni tanlang.' : 'The Math section, its quizzes, and its study guide are temporarily prohibited for now. Please choose another subject.') + '</p>'
-      + '<div style="margin-top:24px;display:flex;flex-wrap:wrap;justify-content:center;gap:12px">'
-      + '<button type="button" style="min-height:46px;padding:0 24px;border-radius:12px;border:none;background:#fff;color:#881337;font-size:15px;font-weight:800;cursor:pointer" onclick="activeSubjectId=\\'history\\';setView(\\'subjects\\')">' + (lang === 'uz' ? 'Fanlar bo‘limiga qaytish' : 'Back to Subjects') + '</button>'
-      + '<button type="button" style="min-height:46px;padding:0 24px;border-radius:12px;border:2px solid rgba(255,255,255,0.5);background:rgba(159,18,57,0.7);color:#fff;font-size:15px;font-weight:700;cursor:pointer" onclick="setView(\\'results\\')">' + (lang === 'uz' ? 'Natijalar' : 'Results') + '</button>'
-      + '</div>'
-      + '<div style="margin-top:22px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.2)">'
-      + '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px">' + allowedBtns + '</div>'
-      + '</div></div></div>';
-  } else if (activeView === 'subjects') body = renderSubjectsView();
+  if (activeView === 'subjects') body = renderSubjectsView();
   else if (activeView === 'guide') body = renderGuideView(sub);
   else if (activeView === 'results') body = renderResultsHistoryView();
   else body = renderQuizView(sub);

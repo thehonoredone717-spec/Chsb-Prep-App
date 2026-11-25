@@ -112,8 +112,6 @@ export const SUBJECT_MAP: Record<SubjectId, SubjectConfig> = SUBJECTS.reduce(
   {} as Record<SubjectId, SubjectConfig>
 );
 
-export const PROHIBITED_SUBJECTS: ReadonlySet<SubjectId> = new Set<SubjectId>(['math']);
-
 export const TOTAL_QUESTION_COUNT = SUBJECTS.reduce(
   (sum, item) => sum + item.questions.length,
   0
