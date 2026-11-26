@@ -15,6 +15,31 @@ export interface BilingualText {
   en: string;
 }
 
+export type MathDiagramSpec =
+  | { kind: 'circle'; mode: 'r' | 'd'; valueLabel: string }
+  | { kind: 'semicircle'; mode: 'r' | 'd'; valueLabel: string }
+  | { kind: 'sector'; r: number; angle: number }
+  | { kind: 'rect'; w: number; h: number; unit?: string; diagonal?: string }
+  | { kind: 'lshape'; outerW: number; outerH: number; cutW: number; cutH: number }
+  | { kind: 'rect_tri'; w: number; hRect: number; hTri: number }
+  | { kind: 'rect_minus_semi'; w: number; h: number; d: number }
+  | { kind: 'stadium'; straight: number; d: number }
+  | { kind: 'square_minus_circle'; s: number }
+  | { kind: 'tri_plus_semi'; base: number; h: number }
+  | { kind: 'cube'; sLabel: string }
+  | { kind: 'cuboid'; l: number; w: number; h: number; diagonal?: boolean; sliced?: boolean }
+  | { kind: 'tri_prism'; b: number; h: number; len: number; slant?: number }
+  | { kind: 'cylinder'; r: number; h: number; openTop?: boolean; unknownH?: boolean }
+  | { kind: 'trap_prism'; a: number; b: number; h: number; len: number }
+  | { kind: 'pyramid'; base: number; slant: number }
+  | { kind: 'prism_sym'; sides: 5 | 6 | 8 }
+  | { kind: 'right_tri'; a: string; b: string; c: string; showCheck?: boolean }
+  | { kind: 'ladder'; wall: string; base: string; len: string }
+  | { kind: 'chord'; chordLen: number; dist: number }
+  | { kind: 'equilateral'; s: number }
+  | { kind: 'coords'; x1: number; y1: number; x2: number; y2: number }
+  | { kind: 'rhombus'; d1: number; d2: number };
+
 export interface QuestionItem {
   id: string;
   topic: string;
@@ -24,6 +49,7 @@ export interface QuestionItem {
   opts: string[] | { uz: string[]; en: string[] };
   answer: number;
   explain: string | BilingualText;
+  diagram?: MathDiagramSpec;
 }
 
 export interface StudyGuideItem {

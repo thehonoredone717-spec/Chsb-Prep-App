@@ -16,9 +16,11 @@ import {
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AuthGate } from './components/AuthGate';
+import { AssignView } from './components/AssignView';
 import { DashboardSection } from './components/DashboardSection';
 import { OverviewSection } from './components/OverviewSection';
 import { PermissionView } from './components/PermissionView';
+import { PreviewView } from './components/PreviewView';
 import { QuizSection } from './components/QuizSection';
 import { ResultsHistoryView } from './components/ResultsHistoryView';
 import { SideMenu } from './components/SideMenu';
@@ -301,31 +303,28 @@ export default function App() {
       }
     );
 
-    let unsubscribeUsers = () => {};
-    if (isFullAdmin) {
-      unsubscribeUsers = onSnapshot(
-        collection(db, 'users'),
-        (snapshot) => {
-          const profiles: UserProfile[] = snapshot.docs.map((d) => {
-            const raw = d.data() as Partial<UserProfile>;
-            return {
-              uid: raw.uid || d.id,
-              username: raw.username || d.id,
-              displayName: raw.displayName || raw.username || 'Student',
-              role: raw.role === 'teacher' ? 'teacher' : 'student',
-            };
-          });
-          setUsersList(profiles);
-        },
-        (err) => {
-          try {
-            handleFirestoreError(err, OperationType.LIST, 'users');
-          } catch (wrapped) {
-            setFatalError(wrapped as Error);
-          }
+    const unsubscribeUsers = onSnapshot(
+      collection(db, 'users'),
+      (snapshot) => {
+        const profiles: UserProfile[] = snapshot.docs.map((d) => {
+          const raw = d.data() as Partial<UserProfile>;
+          return {
+            uid: raw.uid || d.id,
+            username: raw.username || d.id,
+            displayName: raw.displayName || raw.username || 'Student',
+            role: raw.role === 'teacher' ? 'teacher' : 'student',
+          };
+        });
+        setUsersList(profiles);
+      },
+      (err) => {
+        try {
+          handleFirestoreError(err, OperationType.LIST, 'users');
+        } catch (wrapped) {
+          setFatalError(wrapped as Error);
         }
-      );
-    }
+      }
+    );
 
     const permissionUnsubs = SUBJECTS.map((subject) =>
       onSnapshot(
@@ -783,6 +782,7 @@ export default function App() {
           <QuizSection
             subject={activeSubject}
             lang={lang}
+            userProfile={userProfile}
             onOpenGuide={() => requestSectionLeave(() => setActiveView('guide'))}
             onRecordAttempt={handleRecordAttempt}
             onRunningStateChange={setIsQuizRunning}
@@ -790,6 +790,14 @@ export default function App() {
               finishQuizRef.current = fn;
             }}
           />
+        )}
+
+        {activeView === 'preview' && (
+          <PreviewView lang={lang} />
+        )}
+
+        {activeView === 'assign' && (
+          <AssignView lang={lang} userProfile={userProfile} />
         )}
 
         {activeView === 'guide' && (

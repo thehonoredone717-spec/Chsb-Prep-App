@@ -50,8 +50,12 @@ export function SideMenu({
     { id: 'quiz', label: copy.navTest, icon: ClipboardCheck },
     { id: 'guide', label: copy.navGuide, icon: BookOpen },
     { id: 'results', label: copy.navResults, icon: BarChart3 },
+    { id: 'preview', label: copy.navPreview, icon: BookOpen },
     ...(isAnyTeacher
-      ? [{ id: 'permission' as AppView, label: copy.navPermission, icon: ShieldCheck }]
+      ? [
+          { id: 'assign' as AppView, label: copy.navAssign, icon: Layers },
+          { id: 'permission' as AppView, label: copy.navPermission, icon: ShieldCheck },
+        ]
       : []),
   ];
 

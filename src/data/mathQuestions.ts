@@ -1,4 +1,5 @@
 import { QuestionItem, StudyGuideItem } from '../types/quiz';
+import { generateAdditionalMathQuestions } from './mathVariantGenerator';
 
 export const mathTopics: string[] = [
   'Unit 9.1 · Topic 1: Indices and standard form',
@@ -1603,4 +1604,5 @@ export const mathQuestions: QuestionItem[] = [
     answer: 0,
     explain: 'TWM.02: x² + (x + 1)² = (x + 2)² ⇒ x² − 2x − 3 = 0 ⇒ (x − 3)(x + 1) = 0, so x = 3 (sides 3, 4, 5).',
   },
+  ...generateAdditionalMathQuestions(),
 ];

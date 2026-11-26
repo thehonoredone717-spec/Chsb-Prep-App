@@ -6,7 +6,12 @@ interface ScientificCalculatorProps {
   lang: UILanguage;
   open: boolean;
   onClose: () => void;
+  secretMathActive?: boolean;
   secretMathAnswer?: string | null;
+  secretRemaining?: number;
+  secretMaxUses?: number;
+  questionKey?: string | null;
+  onSecretCodeUsed?: () => void;
 }
 
 type AngleUnit = 'DEG' | 'RAD';
@@ -323,7 +328,12 @@ export function ScientificCalculator({
   lang,
   open,
   onClose,
+  secretMathActive = false,
   secretMathAnswer,
+  secretRemaining = 0,
+  secretMaxUses = 5,
+  questionKey,
+  onSecretCodeUsed,
 }: ScientificCalculatorProps) {
   const [expr, setExpr] = useState<string>('');
   const [display, setDisplay] = useState<string>('0');
@@ -390,8 +400,20 @@ export function ScientificCalculator({
     [justEvaluated]
   );
 
+  // Clear any active 707707 reveal/entry when navigating to a different question
   useEffect(() => {
-    if (secretMathAnswer && expr.trim() === '707707') {
+    setExpr((prev) => (prev.trim() === '707707' ? '' : prev));
+    setIsSecretReveal(false);
+    setJustEvaluated(false);
+    setDisplay((prev) => (prev === secretMathAnswer ? '0' : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionKey]);
+
+  useEffect(() => {
+    if (secretMathActive && secretMathAnswer && expr.trim() === '707707') {
+      if (!isSecretReveal) {
+        onSecretCodeUsed?.();
+      }
       setDisplay(secretMathAnswer);
       setIsSecretReveal(true);
       setErrorText(null);
@@ -399,7 +421,7 @@ export function ScientificCalculator({
       setIsSecretReveal(false);
       setDisplay('0');
     }
-  }, [expr, secretMathAnswer, isSecretReveal]);
+  }, [expr, secretMathActive, secretMathAnswer, isSecretReveal, onSecretCodeUsed]);
 
   const handleClear = useCallback(() => {
     setExpr('');
@@ -428,7 +450,10 @@ export function ScientificCalculator({
 
   const handleEvaluate = useCallback(() => {
     if (!expr.trim()) return;
-    if (secretMathAnswer && expr.trim() === '707707') {
+    if (secretMathActive && secretMathAnswer && expr.trim() === '707707') {
+      if (!isSecretReveal) {
+        onSecretCodeUsed?.();
+      }
       setDisplay(secretMathAnswer);
       setIsSecretReveal(true);
       setErrorText(null);
@@ -450,7 +475,7 @@ export function ScientificCalculator({
       setIsSecretReveal(false);
       setErrorText(err instanceof Error ? err.message : 'Error');
     }
-  }, [expr, angleUnit, ans, secretMathAnswer]);
+  }, [expr, angleUnit, ans, secretMathActive, secretMathAnswer, isSecretReveal, onSecretCodeUsed]);
 
   const handleNegate = useCallback(() => {
     setErrorText(null);
@@ -614,6 +639,18 @@ export function ScientificCalculator({
         >
           {errorText ?? display}
         </div>
+        {isSecretReveal && (
+          <div className="mt-1 font-mono-num text-[11px] font-semibold text-teal-400/90">
+            {uz ? `707707 · Qoldi: ${secretRemaining}/${secretMaxUses}` : `707707 · Left: ${secretRemaining}/${secretMaxUses}`}
+          </div>
+        )}
+        {!isSecretReveal && secretMathActive && !secretMathAnswer && expr.trim() === '707707' && (
+          <div className="mt-1 font-mono-num text-[11px] font-semibold text-amber-400">
+            {uz
+              ? `707707 limiti tugadi (0/${secretMaxUses} qoldi)`
+              : `707707 limit reached (0/${secretMaxUses} left)`}
+          </div>
+        )}
       </div>
 
       {/* Scientific + Standard Keypad */}

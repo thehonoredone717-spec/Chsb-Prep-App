@@ -136,6 +136,8 @@ export const UI_COPY: Record<
     navGuide: string;
     navResults: string;
     navPermission: string;
+    navAssign: string;
+    navPreview: string;
     downloadHtml: string;
     heroTitle: string;
     heroSubtitle: string;
@@ -219,6 +221,8 @@ export const UI_COPY: Record<
     navGuide: "Qo'llanma",
     navResults: 'Natijalar',
     navPermission: 'Permission',
+    navAssign: 'Assign Variant',
+    navPreview: 'Preview Questions',
     downloadHtml: 'HTML Yuklash',
     heroTitle: '7-Sinf ChSB Tayyorlov Platformasi',
     heroSubtitle:
@@ -302,6 +306,8 @@ export const UI_COPY: Record<
     navGuide: 'Study Guide',
     navResults: 'Results',
     navPermission: 'Permission',
+    navAssign: 'Assign Variant',
+    navPreview: 'Preview Questions',
     downloadHtml: 'Download HTML',
     heroTitle: 'Grade 7 ChSB Exam Prep Platform',
     heroSubtitle:

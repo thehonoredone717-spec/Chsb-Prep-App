@@ -121,7 +121,21 @@ export function buildVariantQuestions(
   const pool = interleaveByTopic(basePool);
   let chosen: QuestionItem[] = [];
 
-  if (variant === 1) {
+  const variantCount = getVariantCountForSubject(subject.id);
+  const hasFullDisjointPool = basePool.length >= variantCount * QUESTIONS_PER_TEST;
+
+  if (typeof variant === 'number' && hasFullDisjointPool) {
+    if (variant <= 2) {
+      const firstFifty = interleaveByTopic(basePool.slice(0, QUESTIONS_PER_TEST * 2));
+      chosen =
+        variant === 1
+          ? firstFifty.slice(0, QUESTIONS_PER_TEST)
+          : firstFifty.slice(QUESTIONS_PER_TEST, QUESTIONS_PER_TEST * 2);
+    } else {
+      const start = (variant - 1) * QUESTIONS_PER_TEST;
+      chosen = basePool.slice(start, start + QUESTIONS_PER_TEST);
+    }
+  } else if (variant === 1) {
     chosen = pool.slice(0, QUESTIONS_PER_TEST);
   } else if (variant === 2) {
     const slice = pool.slice(QUESTIONS_PER_TEST, QUESTIONS_PER_TEST * 2);

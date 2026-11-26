@@ -10,7 +10,7 @@ import {
 import { PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { UILanguage } from '../types/quiz';
 
-export type ProctorStatus = 'facing' | 'looking_away' | 'no_face' | 'camera_off';
+export type ProctorStatus = 'facing' | 'looking_away' | 'no_face' | 'multiple_faces' | 'camera_off';
 export type ProctorCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 const CORNER_STORAGE_KEY = 'g7_chsb_proctor_corner_v1';
@@ -59,6 +59,17 @@ interface FaceLandmark {
 interface DetectedFaceNative {
   boundingBox?: BoundingBox;
   landmarks?: FaceLandmark[];
+}
+
+interface FaceCandidate {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  skinCount: number;
+  score: number;
+  sumX?: number;
+  sumY?: number;
 }
 
 export function CameraProctor({
@@ -297,17 +308,8 @@ export function CameraProctor({
     const visited = new Uint8Array(cols * rows);
     const queue = new Int32Array(cols * rows);
 
-    interface FaceCandidate {
-      minX: number;
-      maxX: number;
-      minY: number;
-      maxY: number;
-      skinCount: number;
-      sumX: number;
-      score: number;
-    }
-
-    let bestCandidate: FaceCandidate | null = null;
+    // Collect all valid face candidates to detect if another person is present
+    const validCandidates: FaceCandidate[] = [];
 
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
@@ -420,24 +422,42 @@ export function CameraProctor({
         }
 
         const score = Math.sqrt(cSkin) * upperBias * aspectScore * continuityBonus;
-        if (!bestCandidate || score > bestCandidate.score) {
-          bestCandidate = {
-            minX: cMinX,
-            maxX: cMaxX,
-            minY: cMinY,
-            maxY: headMaxY,
-            skinCount: cSkin,
-            sumX: cSumX,
-            score,
-          };
-        }
+        validCandidates.push({
+          minX: cMinX,
+          maxX: cMaxX,
+          minY: cMinY,
+          maxY: headMaxY,
+          skinCount: cSkin,
+          sumX: cSumX,
+          score,
+        });
       }
     }
 
-    if (!bestCandidate) {
+    if (validCandidates.length === 0) {
       lastFaceCenterRef.current = null;
       return 'no_face';
     }
+
+    // Filter out overlapping/nested sub-clusters to count distinct people accurately
+    validCandidates.sort((a, b) => b.score - a.score);
+    const distinctFaces: FaceCandidate[] = [];
+    for (const cand of validCandidates) {
+      const cx = (cand.minX + cand.maxX) / 2;
+      const cy = (cand.minY + cand.maxY) / 2;
+      const isDuplicate = distinctFaces.some(
+        (f) => Math.hypot(cx - (f.minX + f.maxX) / 2, cy - (f.minY + f.maxY) / 2) < analysisW * 0.18
+      );
+      if (!isDuplicate && cand.skinCount >= 35) {
+        distinctFaces.push(cand);
+      }
+    }
+
+    if (distinctFaces.length > 1) {
+      return 'multiple_faces';
+    }
+
+    const bestCandidate = distinctFaces[0] || validCandidates[0];
 
     const { minX, maxX, minY, maxY } = bestCandidate;
     const faceWidth = Math.max(1, maxX - minX + 1);
@@ -588,9 +608,9 @@ export function CameraProctor({
       smoothedStatusRef.current = status;
       setProctorStatus(status);
 
-      // In active quiz mode, enforce looking-away / no-face grace countdown & violation penalties
+      // In active quiz mode, enforce looking-away / no-face / multiple-faces grace countdown & violation penalties
       if (isActive) {
-        if (status === 'looking_away' || status === 'no_face') {
+        if (status === 'looking_away' || status === 'no_face' || status === 'multiple_faces') {
           if (awayStartTimeRef.current === null) {
             awayStartTimeRef.current = Date.now();
           }
@@ -608,6 +628,11 @@ export function CameraProctor({
                 'Boshqa tarafga burilib qarash taqiqlanadi! Ekranga to‘g‘ri qarang. 1 ta ogohlantirish olib tashlandi.',
                 'Looking away from the screen is prohibited! Please face the screen. 1 warning was deducted.'
               );
+            } else if (status === 'multiple_faces') {
+              onViolation(
+                'Kamerada boshqa odam aniqlandi! Yolg‘iz o‘zingiz o‘tirishingiz shart. 1 ta ogohlantirish olib tashlandi.',
+                'Another person was detected in front of the camera! You must take the test alone. 1 warning was deducted.'
+              );
             } else {
               onViolation(
                 'Yuzingiz kamerada ko‘rinmay qoldi! Ekranga to‘g‘ri qarab o‘tiring. 1 ta ogohlantirish olib tashlandi.',
@@ -622,7 +647,7 @@ export function CameraProctor({
         }
       } else {
         // Not active (preview mode before quiz starts): show status indicator without penalties
-        if (status === 'looking_away' || status === 'no_face') {
+        if (status === 'looking_away' || status === 'no_face' || status === 'multiple_faces') {
           setSecondsRemaining(2);
         } else {
           setSecondsRemaining(null);
@@ -652,14 +677,14 @@ export function CameraProctor({
         text: lang === 'uz' ? '✓ Ekranga qaralyapti' : '✓ Facing screen',
       };
     }
-    if (proctorStatus === 'looking_away') {
+    if (proctorStatus === 'multiple_faces') {
       return {
-        bg: 'bg-amber-100 text-amber-900 border-amber-400 animate-pulse',
-        dot: 'bg-amber-500',
+        bg: 'bg-rose-100 text-rose-900 border-rose-400 animate-pulse',
+        dot: 'bg-rose-500',
         text:
           lang === 'uz'
-            ? `⚠️ Boshqa tarafga qaralyapti! (${secondsRemaining ?? 2}s)`
-            : `⚠️ Looking away! (${secondsRemaining ?? 2}s)`,
+            ? `⚠️ Boshqa odam bor! (${secondsRemaining ?? 2}s)`
+            : `⚠️ Another person! (${secondsRemaining ?? 2}s)`,
       };
     }
     return {

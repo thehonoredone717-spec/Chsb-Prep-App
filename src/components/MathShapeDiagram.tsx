@@ -1,8 +1,9 @@
 import { ReactNode } from 'react';
-import { UILanguage } from '../types/quiz';
+import { MathDiagramSpec, UILanguage } from '../types/quiz';
 
 interface MathShapeDiagramProps {
   questionId: string;
+  diagram?: MathDiagramSpec;
   lang: UILanguage;
   compact?: boolean;
 }
@@ -1054,9 +1055,557 @@ function renderDiagram(id: string): { labelUz: string; labelEn: string; svg: Rea
   }
 }
 
-export function MathShapeDiagram({ questionId, lang, compact = false }: MathShapeDiagramProps) {
-  const diagram = renderDiagram(questionId);
-  if (!diagram) return null;
+function renderSpecDiagram(spec: MathDiagramSpec): { labelUz: string; labelEn: string; svg: ReactNode } {
+  switch (spec.kind) {
+    case 'circle':
+      return {
+        labelUz: `Doira (${spec.mode} = ${spec.valueLabel})`,
+        labelEn: `Circle (${spec.mode} = ${spec.valueLabel})`,
+        svg: (
+          <svg viewBox="0 0 260 170" className="h-full w-full">
+            <circle cx="130" cy="85" r="56" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2.2" />
+            <circle cx="130" cy="85" r="3" fill={STROKE} />
+            {spec.mode === 'r' ? (
+              <>
+                <line x1="130" y1="85" x2="186" y2="85" stroke={TEAL} strokeWidth="2.2" />
+                <text x="158" y="77" textAnchor="middle" fontSize="12" fontWeight="700" fill={TEAL}>
+                  r = {spec.valueLabel}
+                </text>
+              </>
+            ) : (
+              <>
+                <line x1="74" y1="85" x2="186" y2="85" stroke={TEAL} strokeWidth="2.2" />
+                <text x="130" y="77" textAnchor="middle" fontSize="12" fontWeight="700" fill={TEAL}>
+                  d = {spec.valueLabel}
+                </text>
+              </>
+            )}
+          </svg>
+        ),
+      };
+
+    case 'semicircle':
+      return {
+        labelUz: `Yarim doira (${spec.mode} = ${spec.valueLabel})`,
+        labelEn: `Semicircle (${spec.mode} = ${spec.valueLabel})`,
+        svg: (
+          <svg viewBox="0 0 260 160" className="h-full w-full">
+            <path
+              d="M 55 115 A 75 75 0 0 1 205 115 Z"
+              fill={TEAL_FILL}
+              stroke={STROKE}
+              strokeWidth="2.2"
+            />
+            <circle cx="130" cy="115" r="3" fill={STROKE} />
+            {spec.mode === 'r' ? (
+              <line x1="130" y1="115" x2="205" y2="115" stroke={TEAL} strokeWidth="2.4" />
+            ) : (
+              <line x1="55" y1="115" x2="205" y2="115" stroke={TEAL} strokeWidth="2.4" />
+            )}
+            <text x="130" y="135" textAnchor="middle" fontSize="12" fontWeight="700" fill={TEAL}>
+              {spec.mode} = {spec.valueLabel}
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'sector': {
+      const rad = (spec.angle * Math.PI) / 180;
+      const rPx = 74;
+      const cx = 90;
+      const cy = 128;
+      const x2 = cx + rPx * Math.cos(-rad);
+      const y2 = cy + rPx * Math.sin(-rad);
+      const largeArc = spec.angle > 180 ? 1 : 0;
+      return {
+        labelUz: `Doira sektori (r = ${spec.r} sm, ${spec.angle}°)` ,
+        labelEn: `Circle sector (r = ${spec.r} cm, ${spec.angle}°)`,
+        svg: (
+          <svg viewBox="0 0 260 165" className="h-full w-full">
+            <path
+              d={`M ${cx} ${cy} L ${cx + rPx} ${cy} A ${rPx} ${rPx} 0 ${largeArc} 0 ${x2.toFixed(1)} ${y2.toFixed(1)} Z`}
+              fill={TEAL_FILL}
+              stroke={STROKE}
+              strokeWidth="2.2"
+            />
+            <text x={cx + rPx / 2} y={cy + 16} textAnchor="middle" fontSize="12" fontWeight="700" fill={STROKE}>
+              r = {spec.r} cm
+            </text>
+            <text x={cx + 26} y={cy - 12} fontSize="12" fontWeight="700" fill={TEAL}>
+              {spec.angle}°
+            </text>
+          </svg>
+        ),
+      };
+    }
+
+    case 'rect': {
+      const u = spec.unit ?? 'cm';
+      return {
+        labelUz: `To'g'ri to'rtburchak (${spec.w} ${u} × ${spec.h} ${u})`,
+        labelEn: `Rectangle (${spec.w} ${u} × ${spec.h} ${u})`,
+        svg: (
+          <svg viewBox="0 0 270 165" className="h-full w-full">
+            <rect x="65" y="34" width="140" height="86" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2.2" />
+            {spec.diagonal && (
+              <>
+                <line x1="65" y1="120" x2="205" y2="34" stroke={TEAL} strokeWidth="2.2" strokeDasharray="5 3" />
+                <RightAngleMarker x={205} y={120} dx={-12} dy={-12} />
+                <text x="132" y="72" textAnchor="middle" fontSize="12" fontWeight="700" fill={TEAL}>
+                  d = {spec.diagonal}
+                </text>
+              </>
+            )}
+            <text x="135" y="138" textAnchor="middle" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.w} {u}
+            </text>
+            <text x="213" y="81" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.h} {u}
+            </text>
+          </svg>
+        ),
+      };
+    }
+
+    case 'lshape':
+      return {
+        labelUz: 'L-shakl (murakkab 2D shakl)',
+        labelEn: 'Compound L-shape diagram',
+        svg: (
+          <svg viewBox="0 0 280 175" className="h-full w-full">
+            <path
+              d="M 55 28 L 215 28 L 215 80 L 140 80 L 140 138 L 55 138 Z"
+              fill={TEAL_FILL}
+              stroke={STROKE}
+              strokeWidth="2.2"
+            />
+            <line x1="140" y1="28" x2="140" y2="80" stroke={MUTED} strokeWidth="1.3" strokeDasharray="4 3" />
+            <text x="135" y="21" textAnchor="middle" fontSize="11.5" fontWeight="700" fill={STROKE}>
+              {spec.outerW} cm
+            </text>
+            <text x="45" y="88" textAnchor="end" fontSize="11.5" fontWeight="700" fill={STROKE}>
+              {spec.outerH} cm
+            </text>
+            <text x="180" y="96" textAnchor="middle" fontSize="11" fontWeight="700" fill={TEAL}>
+              cut {spec.cutW}×{spec.cutH}
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'rect_tri':
+      return {
+        labelUz: "To'g'ri to'rtburchak va uchburchakdan tuzilgan shakl",
+        labelEn: 'Compound shape: rectangle + triangle',
+        svg: (
+          <svg viewBox="0 0 280 175" className="h-full w-full">
+            <rect x="55" y="68" width="120" height="72" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2.2" />
+            <polygon points="175,68 235,140 175,140" fill="rgba(180, 83, 9, 0.14)" stroke={STROKE} strokeWidth="2.2" />
+            <text x="115" y="156" textAnchor="middle" fontSize="11.5" fontWeight="700" fill={STROKE}>
+              {spec.w} cm
+            </text>
+            <text x="45" y="108" textAnchor="end" fontSize="11.5" fontWeight="700" fill={STROKE}>
+              {spec.hRect} cm
+            </text>
+            <text x="212" y="96" fontSize="11.5" fontWeight="700" fill={ACCENT}>
+              b={spec.hTri}
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'rect_minus_semi':
+      return {
+        labelUz: `To'g'ri to'rtburchakdan yarim doira kesib olingan (${spec.w}×${spec.h} sm)`,
+        labelEn: `Rectangle minus semicircle (${spec.w}×${spec.h} cm, d=${spec.d} cm)`,
+        svg: (
+          <svg viewBox="0 0 280 165" className="h-full w-full">
+            <path
+              d="M 60 35 L 220 35 L 220 130 L 176 130 A 36 36 0 0 0 104 130 L 60 130 Z"
+              fill={TEAL_FILL}
+              stroke={STROKE}
+              strokeWidth="2.2"
+            />
+            <line x1="104" y1="130" x2="176" y2="130" stroke={TEAL} strokeWidth="1.6" strokeDasharray="4 3" />
+            <text x="140" y="25" textAnchor="middle" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.w} cm
+            </text>
+            <text x="50" y="85" textAnchor="end" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.h} cm
+            </text>
+            <text x="140" y="147" textAnchor="middle" fontSize="11.5" fontWeight="700" fill={TEAL}>
+              d = {spec.d} cm
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'stadium':
+      return {
+        labelUz: `Yugurish yo'lagi shakli (${spec.straight} m, d = ${spec.d} m)`,
+        labelEn: `Running track shape (${spec.straight} m, d = ${spec.d} m)`,
+        svg: (
+          <svg viewBox="0 0 280 160" className="h-full w-full">
+            <path
+              d="M 85 45 L 195 45 A 35 35 0 0 1 195 115 L 85 115 A 35 35 0 0 1 85 45 Z"
+              fill={TEAL_FILL}
+              stroke={STROKE}
+              strokeWidth="2.2"
+            />
+            <line x1="85" y1="45" x2="85" y2="115" stroke={MUTED} strokeWidth="1.3" strokeDasharray="4 3" />
+            <line x1="195" y1="45" x2="195" y2="115" stroke={MUTED} strokeWidth="1.3" strokeDasharray="4 3" />
+            <text x="140" y="34" textAnchor="middle" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.straight} m
+            </text>
+            <text x="140" y="84" textAnchor="middle" fontSize="11.5" fontWeight="700" fill={TEAL}>
+              d = {spec.d} m
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'square_minus_circle':
+      return {
+        labelUz: `Kvadrat (${spec.s}×${spec.s} sm) ichidagi doira`,
+        labelEn: `Circle inscribed in ${spec.s}×${spec.s} cm square`,
+        svg: (
+          <svg viewBox="0 0 260 175" className="h-full w-full">
+            <rect x="75" y="25" width="110" height="110" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2.2" />
+            <circle cx="130" cy="80" r="55" fill="#ffffff" stroke={TEAL} strokeWidth="2.2" />
+            <line x1="75" y1="80" x2="185" y2="80" stroke={TEAL} strokeWidth="1.5" strokeDasharray="4 3" />
+            <text x="130" y="153" textAnchor="middle" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.s} cm
+            </text>
+            <text x="130" y="73" textAnchor="middle" fontSize="11.5" fontWeight="700" fill={TEAL}>
+              d = {spec.s} cm
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'tri_plus_semi':
+      return {
+        labelUz: `Uchburchak (${spec.base}×${spec.h} sm) va yarim doira`,
+        labelEn: `Triangle (b=${spec.base}, h=${spec.h}) + semicircle`,
+        svg: (
+          <svg viewBox="0 0 260 175" className="h-full w-full">
+            <path d="M 80 95 A 50 50 0 0 0 180 95 Z" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2" />
+            <polygon points="80,95 180,95 130,28" fill="rgba(180, 83, 9, 0.14)" stroke={STROKE} strokeWidth="2.2" />
+            <line x1="130" y1="28" x2="130" y2="95" stroke={ACCENT} strokeWidth="1.5" strokeDasharray="4 3" />
+            <text x="142" y="68" fontSize="11.5" fontWeight="700" fill={ACCENT}>
+              h={spec.h}
+            </text>
+            <text x="130" y="112" textAnchor="middle" fontSize="11.5" fontWeight="700" fill={TEAL}>
+              d = {spec.base} cm
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'cube':
+      return {
+        labelUz: `Kub (${spec.sLabel})`,
+        labelEn: `Cube (${spec.sLabel})`,
+        svg: (
+          <svg viewBox="0 0 260 175" className="h-full w-full">
+            <polygon points="75,62 155,62 155,142 75,142" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2.1" />
+            <polygon points="75,62 108,36 188,36 155,62" fill={SLATE_FILL} stroke={STROKE} strokeWidth="2.1" />
+            <polygon points="155,62 188,36 188,116 155,142" fill="rgba(20, 184, 166, 0.24)" stroke={STROKE} strokeWidth="2.1" />
+            <text x="115" y="158" textAnchor="middle" fontSize="12" fontWeight="700" fill={TEAL}>
+              {spec.sLabel}
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'cuboid':
+      return {
+        labelUz: `Parallelepiped (${spec.l}×${spec.w}×${spec.h} sm)`,
+        labelEn: `Cuboid (${spec.l}×${spec.w}×${spec.h} cm)`,
+        svg: (
+          <svg viewBox="0 0 280 175" className="h-full w-full">
+            <polygon points="55,66 175,66 175,134 55,134" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2" />
+            <polygon points="55,66 95,38 215,38 175,66" fill={SLATE_FILL} stroke={STROKE} strokeWidth="2" />
+            <polygon points="175,66 215,38 215,106 175,134" fill="rgba(20, 184, 166, 0.24)" stroke={STROKE} strokeWidth="2" />
+            {spec.diagonal && (
+              <line x1="55" y1="134" x2="215" y2="38" stroke="#be123c" strokeWidth="2.2" />
+            )}
+            {spec.sliced && (
+              <polygon points="115,66 155,38 155,106 115,134" fill="rgba(190, 18, 60, 0.2)" stroke="#be123c" strokeWidth="1.8" strokeDasharray="4 3" />
+            )}
+            <text x="115" y="152" textAnchor="middle" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.l} cm
+            </text>
+            <text x="206" y="128" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.w} cm
+            </text>
+            <text x="45" y="104" textAnchor="end" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.h} cm
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'tri_prism':
+      return {
+        labelUz: `Uchburchakli prizma (${spec.b}×${spec.h}×${spec.len} sm)`,
+        labelEn: `Triangular prism (${spec.b}×${spec.h}×${spec.len} cm)`,
+        svg: (
+          <svg viewBox="0 0 280 175" className="h-full w-full">
+            <polygon points="58,130 132,130 58,64" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2.1" />
+            <polygon points="58,64 134,36 208,102 132,130" fill={SLATE_FILL} stroke={STROKE} strokeWidth="2" />
+            <line x1="132" y1="130" x2="208" y2="102" stroke={STROKE} strokeWidth="2" />
+            <RightAngleMarker x={58} y={130} dx={10} dy={-10} />
+            <text x="95" y="147" textAnchor="middle" fontSize="11.5" fontWeight="700" fill={STROKE}>
+              {spec.b} cm
+            </text>
+            <text x="48" y="100" textAnchor="end" fontSize="11.5" fontWeight="700" fill={STROKE}>
+              {spec.h} cm
+            </text>
+            <text x="184" y="126" fontSize="11.5" fontWeight="700" fill={TEAL}>
+              L={spec.len}
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'cylinder':
+      return {
+        labelUz: `Silindr (r = ${spec.r} sm, h = ${spec.unknownH ? '?' : `${spec.h} sm`})`,
+        labelEn: `Cylinder (r = ${spec.r} cm, h = ${spec.unknownH ? '?' : `${spec.h} cm`})`,
+        svg: (
+          <svg viewBox="0 0 260 175" className="h-full w-full">
+            <path d="M 85 45 L 85 130 A 45 14 0 0 0 175 130 L 175 45 Z" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2" />
+            <ellipse
+              cx="130"
+              cy="45"
+              rx="45"
+              ry="14"
+              fill={spec.openTop ? '#ffffff' : SLATE_FILL}
+              stroke={STROKE}
+              strokeWidth="2"
+              strokeDasharray={spec.openTop ? '4 3' : undefined}
+            />
+            <line x1="130" y1="45" x2="175" y2="45" stroke={TEAL} strokeWidth="2" />
+            <text x="152" y="39" textAnchor="middle" fontSize="11" fontWeight="700" fill={TEAL}>
+              r={spec.r}
+            </text>
+            <text x="184" y="92" fontSize="12" fontWeight="700" fill={STROKE}>
+              h = {spec.unknownH ? '?' : `${spec.h} cm`}
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'trap_prism':
+      return {
+        labelUz: `Trapetsiya prizma (${spec.a}, ${spec.b}, h=${spec.h}, L=${spec.len})`,
+        labelEn: `Trapezium prism (${spec.a}, ${spec.b}, h=${spec.h}, L=${spec.len})`,
+        svg: (
+          <svg viewBox="0 0 280 175" className="h-full w-full">
+            <polygon points="60,130 140,130 124,78 76,78" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2.1" />
+            <polygon points="76,78 124,78 190,46 142,46" fill={SLATE_FILL} stroke={STROKE} strokeWidth="2" />
+            <polygon points="124,78 190,46 206,98 140,130" fill="rgba(20, 184, 166, 0.22)" stroke={STROKE} strokeWidth="2" />
+            <text x="100" y="147" textAnchor="middle" fontSize="11" fontWeight="700" fill={STROKE}>
+              {spec.b} cm
+            </text>
+            <text x="100" y="72" textAnchor="middle" fontSize="11" fontWeight="700" fill={STROKE}>
+              {spec.a} cm
+            </text>
+            <text x="184" y="122" fontSize="11.5" fontWeight="700" fill={TEAL}>
+              L={spec.len} cm
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'pyramid':
+      return {
+        labelUz: `Kvadrat asosli piramida (${spec.base}×${spec.base} sm, balandlik ${spec.slant} sm)`,
+        labelEn: `Square pyramid (${spec.base}×${spec.base} cm, slant h=${spec.slant} cm)`,
+        svg: (
+          <svg viewBox="0 0 260 175" className="h-full w-full">
+            <polygon points="65,134 155,134 195,104 105,104" fill={SLATE_FILL} stroke={STROKE} strokeWidth="1.8" />
+            <polygon points="65,134 155,134 130,34" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2.1" />
+            <polygon points="155,134 195,104 130,34" fill="rgba(20, 184, 166, 0.22)" stroke={STROKE} strokeWidth="2.1" />
+            <line x1="130" y1="34" x2="110" y2="134" stroke={TEAL} strokeWidth="1.8" strokeDasharray="4 3" />
+            <text x="110" y="152" textAnchor="middle" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.base} cm
+            </text>
+            <text x="148" y="88" fontSize="11.5" fontWeight="700" fill={TEAL}>
+              h={spec.slant}
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'prism_sym':
+      return {
+        labelUz: `Muntazam ${spec.sides}-burchakli prizma simmetriyasi`,
+        labelEn: `Regular ${spec.sides}-sided prism symmetry`,
+        svg: (
+          <svg viewBox="0 0 260 170" className="h-full w-full">
+            {Array.from({ length: spec.sides }).map((_, idx) => {
+              const a1 = (2 * Math.PI * idx) / spec.sides - Math.PI / 2;
+              const a2 = (2 * Math.PI * (idx + 1)) / spec.sides - Math.PI / 2;
+              const r = 48;
+              const x1 = 130 + r * Math.cos(a1);
+              const y1 = 85 + r * Math.sin(a1);
+              const x2 = 130 + r * Math.cos(a2);
+              const y2 = 85 + r * Math.sin(a2);
+              return (
+                <g key={idx}>
+                  <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={STROKE} strokeWidth="2.2" />
+                  <line x1={130} y1={85} x2={x1} y2={y1} stroke={TEAL} strokeWidth="1.2" strokeDasharray="3 3" />
+                </g>
+              );
+            })}
+            <circle cx="130" cy="85" r="3" fill={TEAL} />
+            <text x="130" y="155" textAnchor="middle" fontSize="11.5" fontWeight="700" fill={TEAL}>
+              n = {spec.sides}
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'right_tri':
+      return {
+        labelUz: `To'g'ri burchakli uchburchak (${spec.a}, ${spec.b}, ${spec.c})`,
+        labelEn: `Right triangle (${spec.a}, ${spec.b}, ${spec.c})`,
+        svg: (
+          <svg viewBox="0 0 260 170" className="h-full w-full">
+            <polygon points="65,130 65,42 195,130" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2.2" />
+            {!spec.showCheck && <RightAngleMarker x={65} y={130} dx={12} dy={-12} />}
+            <text x="54" y="90" textAnchor="end" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.a}
+            </text>
+            <text x="130" y="148" textAnchor="middle" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.b}
+            </text>
+            <text x="142" y="78" fontSize="12" fontWeight="700" fill={TEAL}>
+              {spec.c}
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'ladder':
+      return {
+        labelUz: 'Devorga suyalgan narvon (Pifagor)',
+        labelEn: 'Ladder against wall (Pythagoras)',
+        svg: (
+          <svg viewBox="0 0 260 170" className="h-full w-full">
+            <line x1="72" y1="26" x2="72" y2="136" stroke={MUTED} strokeWidth="4" />
+            <line x1="60" y1="136" x2="215" y2="136" stroke={MUTED} strokeWidth="3" />
+            <line x1="72" y1="42" x2="184" y2="136" stroke={TEAL} strokeWidth="3.2" />
+            <RightAngleMarker x={72} y={136} dx={12} dy={-12} />
+            <text x="62" y="92" textAnchor="end" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.wall}
+            </text>
+            <text x="128" y="153" textAnchor="middle" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.base}
+            </text>
+            <text x="140" y="80" fontSize="12" fontWeight="700" fill={TEAL}>
+              {spec.len}
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'chord':
+      return {
+        labelUz: `Aylana vatari (${spec.chordLen} sm, masofa ${spec.dist} sm)`,
+        labelEn: `Circle chord (${spec.chordLen} cm, distance ${spec.dist} cm)`,
+        svg: (
+          <svg viewBox="0 0 260 170" className="h-full w-full">
+            <circle cx="130" cy="85" r="58" fill={SLATE_FILL} stroke={STROKE} strokeWidth="2.1" />
+            <line x1="84" y1="120" x2="176" y2="120" stroke={STROKE} strokeWidth="2.4" />
+            <line x1="130" y1="85" x2="130" y2="120" stroke={ACCENT} strokeWidth="2" />
+            <line x1="130" y1="85" x2="176" y2="120" stroke={TEAL} strokeWidth="2.2" />
+            <RightAngleMarker x={130} y={120} dx={9} dy={-9} />
+            <circle cx="130" cy="85" r="3" fill={STROKE} />
+            <text x="122" y="106" textAnchor="end" fontSize="11.5" fontWeight="700" fill={ACCENT}>
+              {spec.dist}
+            </text>
+            <text x="130" y="136" textAnchor="middle" fontSize="11.5" fontWeight="700" fill={STROKE}>
+              {spec.chordLen} cm
+            </text>
+            <text x="160" y="98" fontSize="11.5" fontWeight="700" fill={TEAL}>
+              r = ?
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'equilateral':
+      return {
+        labelUz: `Teng tomonli uchburchak (a = ${spec.s} sm)`,
+        labelEn: `Equilateral triangle (side = ${spec.s} cm)`,
+        svg: (
+          <svg viewBox="0 0 260 170" className="h-full w-full">
+            <polygon points="75,134 185,134 130,36" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2.2" />
+            <line x1="130" y1="36" x2="130" y2="134" stroke={TEAL} strokeWidth="1.8" strokeDasharray="4 3" />
+            <RightAngleMarker x={130} y={134} dx={10} dy={-10} />
+            <text x="130" y="150" textAnchor="middle" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.s} cm
+            </text>
+            <text x="92" y="80" textAnchor="end" fontSize="12" fontWeight="700" fill={STROKE}>
+              {spec.s} cm
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'coords':
+      return {
+        labelUz: `Koordinata masofasi (${spec.x1},${spec.y1}) → (${spec.x2},${spec.y2})`,
+        labelEn: `Coordinate distance (${spec.x1},${spec.y1}) to (${spec.x2},${spec.y2})`,
+        svg: (
+          <svg viewBox="0 0 260 170" className="h-full w-full">
+            <line x1="45" y1="135" x2="225" y2="135" stroke={MUTED} strokeWidth="1.6" />
+            <line x1="55" y1="20" x2="55" y2="145" stroke={MUTED} strokeWidth="1.6" />
+            <polygon points="85,120 185,120 185,48" fill={TEAL_FILL} stroke={TEAL} strokeWidth="1.8" strokeDasharray="4 3" />
+            <line x1="85" y1="120" x2="185" y2="48" stroke={STROKE} strokeWidth="2.4" />
+            <circle cx="85" cy="120" r="4" fill={TEAL} />
+            <circle cx="185" cy="48" r="4" fill={TEAL} />
+            <text x="85" y="133" textAnchor="middle" fontSize="11" fontWeight="700" fill={STROKE}>
+              ({spec.x1},{spec.y1})
+            </text>
+            <text x="190" y="42" textAnchor="middle" fontSize="11" fontWeight="700" fill={STROKE}>
+              ({spec.x2},{spec.y2})
+            </text>
+          </svg>
+        ),
+      };
+
+    case 'rhombus':
+      return {
+        labelUz: `Romb diagonallari (${spec.d1} sm va ${spec.d2} sm)`,
+        labelEn: `Rhombus with diagonals ${spec.d1} cm & ${spec.d2} cm`,
+        svg: (
+          <svg viewBox="0 0 260 170" className="h-full w-full">
+            <polygon points="130,26 205,85 130,144 55,85" fill={TEAL_FILL} stroke={STROKE} strokeWidth="2.2" />
+            <line x1="55" y1="85" x2="205" y2="85" stroke={ACCENT} strokeWidth="1.8" strokeDasharray="4 3" />
+            <line x1="130" y1="26" x2="130" y2="144" stroke={ACCENT} strokeWidth="1.8" strokeDasharray="4 3" />
+            <RightAngleMarker x={130} y={85} dx={9} dy={-9} />
+            <text x="172" y="79" fontSize="11" fontWeight="700" fill={ACCENT}>
+              {spec.d1} cm
+            </text>
+            <text x="138" y="122" fontSize="11" fontWeight="700" fill={ACCENT}>
+              {spec.d2} cm
+            </text>
+            <text x="176" y="48" fontSize="12" fontWeight="700" fill={TEAL}>
+              s = ?
+            </text>
+          </svg>
+        ),
+      };
+  }
+}
+
+export function MathShapeDiagram({ questionId, diagram, lang, compact = false }: MathShapeDiagramProps) {
+  const rendered = diagram ? renderSpecDiagram(diagram) : renderDiagram(questionId);
+  if (!rendered) return null;
 
   return (
     <figure
@@ -1064,9 +1613,9 @@ export function MathShapeDiagram({ questionId, lang, compact = false }: MathShap
         compact ? 'max-w-[260px]' : 'max-w-[320px]'
       }`}
     >
-      <div className={compact ? 'h-28 w-full' : 'h-36 w-full'}>{diagram.svg}</div>
+      <div className={compact ? 'h-28 w-full' : 'h-36 w-full'}>{rendered.svg}</div>
       <figcaption className="mt-1 text-center text-[11px] font-medium text-slate-500">
-        {lang === 'uz' ? diagram.labelUz : diagram.labelEn}
+        {lang === 'uz' ? rendered.labelUz : rendered.labelEn}
       </figcaption>
     </figure>
   );

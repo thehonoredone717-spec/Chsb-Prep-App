@@ -14,7 +14,7 @@ import { UI_COPY } from '../data/subjects';
 import { UserProfile } from '../firebase';
 import { UILanguage } from '../types/quiz';
 
-export type AppView = 'dashboard' | 'subjects' | 'quiz' | 'guide' | 'results' | 'permission';
+export type AppView = 'dashboard' | 'subjects' | 'quiz' | 'guide' | 'results' | 'permission' | 'assign' | 'preview';
 export type TeacherScope = 'none' | 'computing' | 'math' | 'science' | 'english' | 'all';
 
 interface TopBarProps {

@@ -168,6 +168,40 @@ service cloud.firestore {
         && data.updatedAt == request.time;
     }
 
+    function isValidStudentAssignment(data, assignmentId) {
+      return data.keys().hasAll([
+          'id', 'studentUid', 'subjectId', 'difficulty', 'variant',
+          'assignedByUid', 'assignedByName', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'studentUid', 'subjectId', 'difficulty', 'variant',
+          'assignedByUid', 'assignedByName', 'updatedAt'
+        ])
+        && data.id is string
+        && data.id.size() >= 1
+        && data.id.size() <= 128
+        && data.id == assignmentId
+        && data.studentUid is string
+        && data.studentUid.size() >= 1
+        && data.studentUid.size() <= 128
+        && data.subjectId is string
+        && isValidSubjectId(data.subjectId)
+        && data.difficulty is string
+        && data.difficulty in ['easy', 'medium', 'hard']
+        && data.variant is int
+        && data.variant >= 1
+        && data.variant <= 20
+        && data.assignedByUid is string
+        && data.assignedByUid.size() >= 1
+        && data.assignedByUid.size() <= 128
+        && data.assignedByUid == request.auth.uid
+        && data.assignedByName is string
+        && data.assignedByName.size() >= 1
+        && data.assignedByName.size() <= 60
+        && data.updatedAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
     // 4. Collection Match Blocks
     match /users/{userId} {
       allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
@@ -244,6 +278,34 @@ service cloud.firestore {
         ]);
 
       allow delete: if isAdmin() && isValidSubjectId(subjectId);
+    }
+
+    match /studentAssignments/{assignmentId} {
+      allow get: if isSignedIn() && isValidId(assignmentId);
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && isValidId(assignmentId)
+        && canManageSubjectPermission(incoming().subjectId)
+        && isValidStudentAssignment(incoming(), assignmentId);
+
+      allow update: if isSignedIn()
+        && isValidId(assignmentId)
+        && canManageSubjectPermission(existing().subjectId)
+        && isValidStudentAssignment(incoming(), assignmentId)
+        && incoming().subjectId == existing().subjectId
+        && incoming().studentUid == existing().studentUid
+        && incoming().difficulty == existing().difficulty
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'variant', 'assignedByUid', 'assignedByName', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && (
+        isAdmin()
+        || (isComputingTeacher() && resource.data.subjectId == 'computing')
+        || (isMathTeacher() && resource.data.subjectId == 'math')
+        || (isScienceTeacher() && resource.data.subjectId == 'science')
+      );
     }
   }
 }

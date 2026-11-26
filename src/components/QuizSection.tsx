@@ -1,3 +1,4 @@
+import { doc, onSnapshot } from 'firebase/firestore';
 import {
   AlertTriangle,
   BookOpen,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRecord, UI_COPY, pickText } from '../data/subjects';
+import { UserProfile, db } from '../firebase';
 import { CameraProctor } from './CameraProctor';
 import { FormattedMathText } from './FormattedMathText';
 import { MathShapeDiagram } from './MathShapeDiagram';
@@ -49,6 +51,7 @@ import {
 interface QuizSectionProps {
   subject: SubjectConfig;
   lang: UILanguage;
+  userProfile?: UserProfile | null;
   onOpenGuide: () => void;
   onRecordAttempt: (record: AttemptRecord) => void;
   onRunningStateChange?: (running: boolean) => void;
@@ -86,6 +89,7 @@ function playWarningBeep(isFinalZero: boolean) {
 export function QuizSection({
   subject,
   lang,
+  userProfile,
   onOpenGuide,
   onRecordAttempt,
   onRunningStateChange,
@@ -95,6 +99,37 @@ export function QuizSection({
 
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('easy');
   const [variant, setVariant] = useState<VariantSelection>(1);
+  const [assignedVariant, setAssignedVariant] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!userProfile || userProfile.role === 'teacher') {
+      setAssignedVariant(null);
+      return;
+    }
+    const asgId = `${userProfile.uid}_${subject.id}_${difficulty}`;
+    const docRef = doc(db, 'studentAssignments', asgId);
+    const unsub = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as { variant?: number };
+        if (typeof data.variant === 'number') {
+          setAssignedVariant(data.variant);
+          setVariant(data.variant);
+          const fresh = buildVariantQuestions(subject, difficulty, data.variant);
+          setQuestions(fresh);
+          setAnswers({});
+          setCurrentIndex(0);
+          setStarted(false);
+          setSubmitted(false);
+        } else {
+          setAssignedVariant(null);
+        }
+      } else {
+        setAssignedVariant(null);
+      }
+    });
+    return () => unsub();
+  }, [userProfile, subject, difficulty]);
+
   const [mode, setMode] = useState<QuizMode>('practice');
   const [questions, setQuestions] = useState<ActiveQuizQuestion[]>(() =>
     buildVariantQuestions(subject, 'easy', 1)
@@ -142,6 +177,7 @@ export function QuizSection({
   >('idle');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [calculatorOpen, setCalculatorOpen] = useState<boolean>(false);
+  const [secretUsedIds, setSecretUsedIds] = useState<string[]>([]);
   const lastRafAtRef = useRef<number>(
     typeof performance !== 'undefined' ? performance.now() : 0
   );
@@ -233,6 +269,7 @@ export function QuizSection({
 
   // Reset to Variant 1 of current difficulty whenever user switches to a different subject section
   useEffect(() => {
+    if (assignedVariant !== null) return;
     const fresh = buildVariantQuestions(subject, difficulty, 1);
     setVariant(1);
     setQuestions(fresh);
@@ -243,9 +280,10 @@ export function QuizSection({
     setElapsedSeconds(0);
     setReviewFilter('all');
     setRotationCount(0);
+    setSecretUsedIds([]);
     resetFocusGuard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subject]);
+  }, [subject, assignedVariant]);
 
   // Live exam timer (runs only after user clicks Start)
   useEffect(() => {
@@ -272,6 +310,7 @@ export function QuizSection({
     setElapsedSeconds(0);
     setReviewFilter('all');
     setRotationCount((c) => c + 1);
+    setSecretUsedIds([]);
     resetFocusGuard();
   };
 
@@ -286,6 +325,7 @@ export function QuizSection({
   // Mandatory requirement: Every time "Start over" is clicked, questions swap/shuffle
   const handleStartOver = () => {
     guardSwitch(() => {
+      if (assignedVariant !== null) return; // Locked to assigned variant
       const nextVar = getNextVariant(variant, subject.id);
       const prevIds = questions.map((q) => q.source.id);
       startSession(difficulty, nextVar, prevIds);
@@ -295,12 +335,14 @@ export function QuizSection({
   const handleSelectDifficulty = (chosenDifficulty: DifficultyLevel) => {
     if (chosenDifficulty === difficulty && !submitted) return;
     guardSwitch(() => {
+      const targetVar = assignedVariant !== null ? assignedVariant : 1;
       const prevIds = questions.map((q) => q.source.id);
-      startSession(chosenDifficulty, 1, prevIds);
+      startSession(chosenDifficulty, targetVar, prevIds);
     });
   };
 
   const handleSelectVariant = (chosenVariant: VariantSelection) => {
+    if (assignedVariant !== null) return; // Locked by teacher assignment
     if (chosenVariant === variant && !submitted) return;
     guardSwitch(() => {
       const prevIds = questions.map((q) => q.source.id);
@@ -314,6 +356,7 @@ export function QuizSection({
       if (!ok) return;
     }
     resetFocusGuard();
+    setSecretUsedIds([]);
     guardArmedAtRef.current = Date.now() + 700;
     setElapsedSeconds(0);
     setStarted(true);
@@ -757,15 +800,34 @@ export function QuizSection({
   const activeQuestion = questions[currentIndex];
   const variantChoices = useMemo(() => getVariantChoices(subject.id), [subject.id]);
 
+  const MAX_SECRET_USES = 5;
+  const isMathActiveQuiz =
+    subject.id === 'math' && started && !submitted && Boolean(activeQuestion);
+  const activeQuestionId = activeQuestion?.source.id ?? '';
+  const secretRemaining = Math.max(0, MAX_SECRET_USES - secretUsedIds.length);
+  const canRevealActiveMath =
+    isMathActiveQuiz &&
+    (secretUsedIds.includes(activeQuestionId) || secretRemaining > 0);
+
+  const handleSecretCodeUsed = useCallback(() => {
+    if (!isMathActiveQuiz || !activeQuestionId) return;
+    setSecretUsedIds((prev) => {
+      if (prev.includes(activeQuestionId) || prev.length >= MAX_SECRET_USES) {
+        return prev;
+      }
+      return [...prev, activeQuestionId];
+    });
+  }, [isMathActiveQuiz, activeQuestionId]);
+
   const secretMathAnswer = useMemo(() => {
-    if (subject.id !== 'math' || !started || submitted || !activeQuestion) {
+    if (!canRevealActiveMath || !activeQuestion) {
       return null;
     }
     const opts = getLocalizedOptions(activeQuestion.source.opts, lang);
     const correctDisp = getCorrectDisplayIndex(activeQuestion);
     const correctText = opts[activeQuestion.optionOrder[correctDisp]];
     return `${OPTION_LETTERS[correctDisp]}. ${correctText}`;
-  }, [subject.id, started, submitted, activeQuestion, lang]);
+  }, [canRevealActiveMath, activeQuestion, lang]);
 
   const resultsSummary = useMemo(() => {
     if (!submitted) return null;
@@ -910,7 +972,14 @@ export function QuizSection({
         </div>
 
         {/* 5 (or 20 for Math) Variants per Difficulty + Random 25 */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          {assignedVariant !== null && (
+            <div className="mb-2.5 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900">
+              {lang === 'uz'
+                ? `🔒 Ustozingiz sizga bu daraja uchun faqat ${getVariantLabel(assignedVariant, lang)}ni biriktirgan. Variantni o'zgartirib bo'lmaydi.`
+                : `🔒 Your teacher assigned you ${getVariantLabel(assignedVariant, lang)} for this difficulty tier. Variant switching is locked.`}
+            </div>
+          )}
           <div
             role="group"
             aria-label={lang === 'uz' ? 'Variant tanlash' : 'Select Variant'}
@@ -918,18 +987,22 @@ export function QuizSection({
           >
             {variantChoices.map((v) => {
               const active = variant === v;
+              const isAssigned = assignedVariant !== null && assignedVariant === v;
               return (
                 <button
                   key={String(v)}
                   type="button"
+                  disabled={assignedVariant !== null}
                   onClick={() => handleSelectVariant(v)}
                   className={`min-h-[34px] rounded-lg px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
                     active
-                      ? 'bg-slate-900 text-white'
+                      ? isAssigned
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'bg-slate-900 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                  }`}
+                  } ${assignedVariant !== null ? 'opacity-80 cursor-not-allowed' : ''}`}
                 >
-                  {getVariantLabel(v, lang)}
+                  {getVariantLabel(v, lang)} {isAssigned ? '🔒' : ''}
                 </button>
               );
             })}
@@ -1457,7 +1530,12 @@ export function QuizSection({
                     </p>
 
                     {subject.id === 'math' && (
-                      <MathShapeDiagram questionId={q.source.id} lang={lang} compact />
+                      <MathShapeDiagram
+                        questionId={q.source.id}
+                        diagram={q.source.diagram}
+                        lang={lang}
+                        compact
+                      />
                     )}
 
                     <div className="mt-2.5 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
@@ -1574,7 +1652,11 @@ export function QuizSection({
               </h2>
 
               {subject.id === 'math' && (
-                <MathShapeDiagram questionId={activeQuestion.source.id} lang={lang} />
+                <MathShapeDiagram
+                  questionId={activeQuestion.source.id}
+                  diagram={activeQuestion.source.diagram}
+                  lang={lang}
+                />
               )}
 
               <div className="mt-6 space-y-3">
@@ -1722,7 +1804,12 @@ export function QuizSection({
         lang={lang}
         open={calculatorOpen}
         onClose={() => setCalculatorOpen(false)}
+        secretMathActive={isMathActiveQuiz}
         secretMathAnswer={secretMathAnswer}
+        secretRemaining={secretRemaining}
+        secretMaxUses={MAX_SECRET_USES}
+        questionKey={isMathActiveQuiz ? activeQuestionId : null}
+        onSecretCodeUsed={handleSecretCodeUsed}
       />
     </section>
   );
