@@ -71,18 +71,18 @@
   ],
   "screenshots": [
     {
-      "src": "/assets/aistudio/chsb-prep-app___Workers___Pages___Thehonoredone.717_gmail.com_s_Account___Cloudflare_-_Google_Chrome_11_26_2026_4_44_59_PM_8830c829.png",
-      "sizes": "1920x986",
+      "src": "/screenshots/wide.png",
+      "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Subjects view of Grade 7 ChSB Prep Platform"
+      "label": "Wide view of Grade 7 ChSB Prep Platform"
     },
     {
-      "src": "/assets/aistudio/chsb-prep-app___Workers___Pages___Thehonoredone.717_gmail.com_s_Account___Cloudflare_-_Google_Chrome_11_26_2026_4_45_05_PM_ab75763a.png",
-      "sizes": "1920x988",
+      "src": "/screenshots/narrow.png",
+      "sizes": "720x1280",
       "type": "image/png",
-      "form_factor": "wide",
-      "label": "Dashboard view of Grade 7 ChSB Prep Platform"
+      "form_factor": "narrow",
+      "label": "Narrow view of Grade 7 ChSB Prep Platform"
     }
   ],
   "scope_extensions": [
@@ -106,7 +106,13 @@
     "new_note_url": "/?view=quiz"
   },
   "prefer_related_applications": false,
-  "related_applications": [],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://chsb-prep-app.thehonoredone-717.workers.dev/manifest.json",
+      "id": "chsb-prep"
+    }
+  ],
   "protocol_handlers": [],
   "file_handlers": [],
   "widgets": [
