@@ -1,20 +1,40 @@
+import { Lock } from 'lucide-react';
 import { useState } from 'react';
 import { SUBJECTS, pickText } from '../data/subjects';
-import { UserProfile } from '../firebase';
 import { DifficultyLevel, SubjectId, UILanguage } from '../types/quiz';
 import { buildVariantQuestions, getDifficultyLabel, getLocalizedOptions, getVariantLabel } from '../utils/quizEngine';
 import { FormattedMathText } from './FormattedMathText';
 import { MathShapeDiagram } from './MathShapeDiagram';
+import { TeacherScope } from './TopBar';
 
 interface PreviewViewProps {
   lang: UILanguage;
+  teacherScope: TeacherScope;
 }
 
-export function PreviewView({ lang }: PreviewViewProps) {
+export function PreviewView({ lang, teacherScope }: PreviewViewProps) {
   const uz = lang === 'uz';
   const [selectedSubjectId, setSelectedSubjectId] = useState<SubjectId>('math');
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('easy');
   const [variantNum, setVariantNum] = useState<number>(1);
+
+  if (teacherScope === 'none') {
+    return (
+      <section className="rounded-xl border border-rose-200 bg-white p-8 text-center shadow-xs sm:p-10">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-rose-50 text-rose-700">
+          <Lock className="h-6 w-6" aria-hidden="true" />
+        </div>
+        <h1 className="mt-4 font-display text-xl font-extrabold text-slate-900">
+          {uz ? 'Ruxsat berilmagan' : 'Access Restricted'}
+        </h1>
+        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+          {uz
+            ? 'Savollarni oldindan ko‘rish (Preview Questions) bo‘limidan faqat ustozlar foydalanishi mumkin.'
+            : 'Preview Questions is restricted to teachers only.'}
+        </p>
+      </section>
+    );
+  }
 
   const subject = SUBJECTS.find((s) => s.id === selectedSubjectId) || SUBJECTS[0];
   const maxVariants = subject.id === 'math' ? 20 : 5;
@@ -25,7 +45,7 @@ export function PreviewView({ lang }: PreviewViewProps) {
     <section className="space-y-6">
       <div className="border-b border-slate-200 pb-5">
         <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-          {uz ? 'Preview Questions — Savollarnioldindan ko‘rish' : 'Preview Questions'}
+          {uz ? 'Preview Questions — Savollarni oldindan ko‘rish' : 'Preview Questions'}
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           {uz

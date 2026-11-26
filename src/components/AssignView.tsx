@@ -1,6 +1,6 @@
 import { collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
-import { Award, CheckCircle2, ShieldCheck, UserCheck, UserX } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle2, ShieldCheck, UserX } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { SUBJECTS, pickText } from '../data/subjects';
 import {
   COMPUTING_TEACHER_EMAIL,
@@ -15,6 +15,7 @@ import {
 } from '../firebase';
 import { DifficultyLevel, SubjectId, UILanguage } from '../types/quiz';
 import { getDifficultyLabel, getVariantLabel } from '../utils/quizEngine';
+import { TeacherScope } from './TopBar';
 
 interface StudentAssignmentRecord {
   id: string;
@@ -29,107 +30,152 @@ interface StudentAssignmentRecord {
 interface AssignViewProps {
   lang: UILanguage;
   userProfile: UserProfile;
+  teacherScope?: TeacherScope;
 }
 
-export function AssignView({ lang, userProfile }: AssignViewProps) {
+export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignViewProps) {
   const uz = lang === 'uz';
+
+  const allowedSubjects = useMemo(() => {
+    if (teacherScope === 'all' || teacherScope === 'none') return SUBJECTS;
+    return SUBJECTS.filter((s) => s.id === teacherScope);
+  }, [teacherScope]);
+
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
   const [assignments, setAssignments] = useState<StudentAssignmentRecord[]>([]);
   const [selectedStudentUid, setSelectedStudentUid] = useState<string>('');
-  const [selectedSubjectId, setSelectedSubjectId] = useState<SubjectId>('math');
+  const [selectedSubjectId, setSelectedSubjectId] = useState<SubjectId>(
+    () => allowedSubjects[0]?.id ?? 'math'
+  );
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('easy');
   const [variantNum, setVariantNum] = useState<number>(1);
   const [saving, setSaving] = useState<boolean>(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null
+  );
 
   useEffect(() => {
-    const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
-      const list = snap.docs.map((d) => {
-        const raw = d.data() as Partial<UserProfile>;
-        const email = (raw.email || '').toLowerCase();
-        const username = (raw.username || d.id).toLowerCase();
-        const isUserOwner = email === OWNER_EMAIL || username === 'thehonoredone';
-        const isUserSubjectTeacher =
-          email === COMPUTING_TEACHER_EMAIL ||
-          email === MATH_TEACHER_EMAIL ||
-          email === SCIENCE_TEACHER_EMAIL ||
-          email === ENGLISH_TEACHER_EMAIL;
+    if (allowedSubjects.length > 0 && !allowedSubjects.some((s) => s.id === selectedSubjectId)) {
+      setSelectedSubjectId(allowedSubjects[0].id);
+    }
+  }, [allowedSubjects, selectedSubjectId]);
 
-        const isIbrohim =
-          email === STUDENT_EMAIL ||
-          username.includes('ibrohim') ||
-          (raw.displayName && raw.displayName.toLowerCase().includes('ibrohim'));
+  useEffect(() => {
+    const unsubUsers = onSnapshot(
+      collection(db, 'users'),
+      (snap) => {
+        const list = snap.docs.map((d) => {
+          const raw = d.data() as Partial<UserProfile>;
+          const email = (raw.email || '').toLowerCase();
+          const username = (raw.username || d.id).toLowerCase();
+          const isUserOwner = email === OWNER_EMAIL || username === 'thehonoredone';
+          const isUserSubjectTeacher =
+            email === COMPUTING_TEACHER_EMAIL ||
+            email === MATH_TEACHER_EMAIL ||
+            email === SCIENCE_TEACHER_EMAIL ||
+            email === ENGLISH_TEACHER_EMAIL;
 
-        let role: 'owner' | 'teacher' | 'student' = 'student';
-        if (isUserOwner) {
-          role = 'owner';
-        } else if (isUserSubjectTeacher) {
-          role = 'teacher';
-        } else {
-          role = 'student';
+          const isIbrohim =
+            email === STUDENT_EMAIL ||
+            username.includes('ibrohim') ||
+            Boolean(raw.displayName && raw.displayName.toLowerCase().includes('ibrohim'));
+
+          let role: 'owner' | 'teacher' | 'student' = 'student';
+          if (isUserOwner) {
+            role = 'owner';
+          } else if (isUserSubjectTeacher) {
+            role = 'teacher';
+          } else {
+            role = 'student';
+          }
+
+          const userEmail = raw.email || (isIbrohim ? STUDENT_EMAIL : undefined);
+
+          return {
+            uid: raw.uid || d.id,
+            username: raw.username || d.id,
+            displayName:
+              raw.displayName || (isIbrohim ? 'Ibrohimbek Xujanazarov' : raw.username || 'Student'),
+            email: userEmail,
+            role,
+          };
+        });
+
+        // Guarantee ibrohimbekxujanazarov@gmail.com is present in students list
+        const hasIbrohim = list.some(
+          (u) =>
+            u.email?.toLowerCase() === STUDENT_EMAIL ||
+            u.username.toLowerCase().includes('ibrohim')
+        );
+        if (!hasIbrohim) {
+          list.push({
+            uid: 'student_ibrohimbek_profile',
+            username: 'ibrohimbekxujanazarov',
+            displayName: 'Ibrohimbek Xujanazarov',
+            email: STUDENT_EMAIL,
+            role: 'student',
+          });
         }
 
-        const userEmail = raw.email || (isIbrohim ? STUDENT_EMAIL : undefined);
+        const students = list
+          .filter((u) => u.role === 'student')
+          .sort((a, b) => a.displayName.localeCompare(b.displayName));
 
-        return {
-          uid: raw.uid || d.id,
-          username: raw.username || d.id,
-          displayName: raw.displayName || (isIbrohim ? 'Ibrohimbek Xujanazarov' : raw.username || 'Student'),
-          email: userEmail,
-          role,
-        };
-      });
-
-      // Guarantee ibrohimbekxujanazarov@gmail.com is present in students list
-      const hasIbrohim = list.some(
-        (u) =>
-          u.email === STUDENT_EMAIL ||
-          u.username.toLowerCase().includes('ibrohim')
-      );
-      if (!hasIbrohim) {
-        list.push({
-          uid: 'student_ibrohimbek_profile',
-          username: 'ibrohimbekxujanazarov',
-          displayName: 'Ibrohimbek Xujanazarov',
-          email: STUDENT_EMAIL,
-          role: 'student',
+        setUsersList(students);
+        setSelectedStudentUid((prev) => {
+          if (prev && students.some((s) => s.uid === prev)) return prev;
+          return students[0]?.uid ?? '';
         });
+      },
+      (err) => {
+        console.error('Failed to load users list:', err);
       }
+    );
 
-      const students = list.filter((u) => u.role === 'student');
-      setUsersList(students);
-      if (students.length > 0 && !selectedStudentUid) {
-        setSelectedStudentUid(students[0].uid);
+    const unsubAssignments = onSnapshot(
+      collection(db, 'studentAssignments'),
+      (snap) => {
+        const list = snap.docs.map((d) => {
+          const raw = d.data() as Partial<StudentAssignmentRecord>;
+          return {
+            id: raw.id || d.id,
+            studentUid: raw.studentUid || '',
+            subjectId: (raw.subjectId as SubjectId) || 'math',
+            difficulty: raw.difficulty || 'easy',
+            variant: raw.variant || 1,
+            assignedByUid: raw.assignedByUid || '',
+            assignedByName: raw.assignedByName || '',
+          };
+        });
+        setAssignments(list);
+      },
+      (err) => {
+        console.error('Failed to load assignments:', err);
       }
-    });
-
-    const unsubAssignments = onSnapshot(collection(db, 'studentAssignments'), (snap) => {
-      const list = snap.docs.map((d) => {
-        const raw = d.data() as Partial<StudentAssignmentRecord>;
-        return {
-          id: raw.id || d.id,
-          studentUid: raw.studentUid || '',
-          subjectId: (raw.subjectId as SubjectId) || 'math',
-          difficulty: raw.difficulty || 'easy',
-          variant: raw.variant || 1,
-          assignedByUid: raw.assignedByUid || '',
-          assignedByName: raw.assignedByName || '',
-        };
-      });
-      setAssignments(list);
-    });
+    );
 
     return () => {
       unsubUsers();
       unsubAssignments();
     };
-  }, [selectedStudentUid]);
+  }, []);
 
   const maxVariants = selectedSubjectId === 'math' ? 20 : 5;
 
+  const handleSubjectChange = (nextSubjectId: SubjectId) => {
+    setSelectedSubjectId(nextSubjectId);
+    const nextMax = nextSubjectId === 'math' ? 20 : 5;
+    if (variantNum > nextMax) {
+      setVariantNum(nextMax);
+    }
+  };
+
   const handleAssign = () => {
     if (!selectedStudentUid) return;
+    const clampedVariant = Math.max(1, Math.min(maxVariants, Number(variantNum) || 1));
     const assignmentId = `${selectedStudentUid}_${selectedSubjectId}_${difficulty}`;
     setSaving(true);
+    setFeedback(null);
 
     void (async () => {
       try {
@@ -138,13 +184,26 @@ export function AssignView({ lang, userProfile }: AssignViewProps) {
           studentUid: selectedStudentUid,
           subjectId: selectedSubjectId,
           difficulty,
-          variant: Number(variantNum),
+          variant: clampedVariant,
           assignedByUid: userProfile.uid,
           assignedByName: sanitizeDisplayName(userProfile.displayName, userProfile.username),
           updatedAt: serverTimestamp(),
         });
+        const student = usersList.find((u) => u.uid === selectedStudentUid);
+        setFeedback({
+          type: 'success',
+          text: uz
+            ? `${student ? student.displayName : 'O‘quvchi'} uchun ${getVariantLabel(clampedVariant, lang)} muvaffaqiyatli biriktirildi.`
+            : `Assigned ${getVariantLabel(clampedVariant, lang)} to ${student ? student.displayName : 'student'}.`,
+        });
       } catch (err) {
         console.error('Failed to assign variant:', err);
+        setFeedback({
+          type: 'error',
+          text: uz
+            ? 'Variantni biriktirishda xatolik yuz berdi. Ruxsatlarni tekshiring.'
+            : 'Failed to assign variant. Please check permissions.',
+        });
       } finally {
         setSaving(false);
       }
@@ -152,14 +211,30 @@ export function AssignView({ lang, userProfile }: AssignViewProps) {
   };
 
   const handleRemoveAssignment = (assignmentId: string) => {
+    setFeedback(null);
     void (async () => {
       try {
         await deleteDoc(doc(db, 'studentAssignments', assignmentId));
+        setFeedback({
+          type: 'success',
+          text: uz ? 'Biriktirish o‘chirildi.' : 'Assignment removed.',
+        });
       } catch (err) {
         console.error('Failed to remove assignment:', err);
+        setFeedback({
+          type: 'error',
+          text: uz
+            ? 'Biriktirishni o‘chirishda xatolik yuz berdi.'
+            : 'Failed to remove assignment.',
+        });
       }
     })();
   };
+
+  const visibleAssignments = useMemo(() => {
+    if (teacherScope === 'all' || teacherScope === 'none') return assignments;
+    return assignments.filter((a) => a.subjectId === teacherScope);
+  }, [assignments, teacherScope]);
 
   return (
     <section className="space-y-6">
@@ -169,10 +244,28 @@ export function AssignView({ lang, userProfile }: AssignViewProps) {
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           {uz
-            ? 'Har bir o‘quvchiga har bir fan va daraja uchun aniq birvariant biriktiring. O‘quvchi faqat o‘ziga biriktirilgan variantga kira oladi.'
+            ? 'Har bir o‘quvchiga har bir fan va daraja uchun aniq bir variant biriktiring. O‘quvchi faqat o‘ziga biriktirilgan variantga kira oladi.'
             : 'Assign a specific test variant to each student per subject and difficulty tier. Students can only take their assigned variant.'}
         </p>
       </div>
+
+      {feedback && (
+        <div
+          role="status"
+          className={`flex items-center gap-2.5 rounded-xl border p-3.5 text-sm font-semibold ${
+            feedback.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+              : 'border-rose-200 bg-rose-50 text-rose-900'
+          }`}
+        >
+          {feedback.type === 'success' ? (
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden="true" />
+          ) : (
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-700" aria-hidden="true" />
+          )}
+          <span>{feedback.text}</span>
+        </div>
+      )}
 
       {/* Assignment Builder Form */}
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
@@ -195,7 +288,7 @@ export function AssignView({ lang, userProfile }: AssignViewProps) {
               ) : (
                 usersList.map((st) => (
                   <option key={st.uid} value={st.uid}>
-                    {st.displayName} (@{st.username})
+                    {st.displayName} ({st.email || `@${st.username}`})
                   </option>
                 ))
               )}
@@ -208,10 +301,10 @@ export function AssignView({ lang, userProfile }: AssignViewProps) {
             </label>
             <select
               value={selectedSubjectId}
-              onChange={(e) => setSelectedSubjectId(e.target.value as SubjectId)}
+              onChange={(e) => handleSubjectChange(e.target.value as SubjectId)}
               className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
             >
-              {SUBJECTS.map((s) => (
+              {allowedSubjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {pickText(s.title, lang)}
                 </option>
@@ -271,7 +364,7 @@ export function AssignView({ lang, userProfile }: AssignViewProps) {
           {uz ? 'Biriktirilgan variantlar ro‘yxati' : 'Current Active Assignments'}
         </h2>
 
-        {assignments.length === 0 ? (
+        {visibleAssignments.length === 0 ? (
           <p className="mt-4 text-sm text-slate-500">
             {uz ? 'Hali hech qanday variant biriktirilmagan.' : 'No active student assignments found.'}
           </p>
@@ -289,14 +382,18 @@ export function AssignView({ lang, userProfile }: AssignViewProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {assignments.map((asg) => {
+                {visibleAssignments.map((asg) => {
                   const st = usersList.find((u) => u.uid === asg.studentUid);
                   const sub = SUBJECTS.find((s) => s.id === asg.subjectId);
+                  const studentLabel = st
+                    ? `${st.displayName} (${st.email || `@${st.username}`})`
+                    : asg.studentUid === 'student_ibrohimbek_profile'
+                      ? `Ibrohimbek Xujanazarov (${STUDENT_EMAIL})`
+                      : asg.studentUid.slice(0, 10);
+
                   return (
                     <tr key={asg.id} className="hover:bg-slate-50/60">
-                      <td className="px-4 py-3 font-semibold text-slate-900">
-                        {st ? `${st.displayName} (@${st.username})` : asg.studentUid.slice(0, 10)}
-                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-900">{studentLabel}</td>
                       <td className="px-4 py-3 font-medium text-slate-800">
                         {sub ? pickText(sub.shortLabel, lang) : asg.subjectId}
                       </td>

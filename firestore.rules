@@ -47,6 +47,14 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
+    function isEnglishTeacher() {
+      return isSignedIn()
+        && 'email' in request.auth.token
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'melbernard24@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
     function isValidId(id) {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -59,7 +67,8 @@ service cloud.firestore {
       return isAdmin()
         || (isComputingTeacher() && subjectId == 'computing')
         || (isMathTeacher() && subjectId == 'math')
-        || (isScienceTeacher() && subjectId == 'science');
+        || (isScienceTeacher() && subjectId == 'science')
+        || (isEnglishTeacher() && subjectId == 'english');
     }
 
     function incoming() {
@@ -214,7 +223,7 @@ service cloud.firestore {
         && (
           incoming().role == 'student'
           || (isAdmin() && incoming().role == 'owner')
-          || ((isComputingTeacher() || isMathTeacher() || isScienceTeacher()) && incoming().role == 'teacher')
+          || ((isComputingTeacher() || isMathTeacher() || isScienceTeacher() || isEnglishTeacher()) && incoming().role == 'teacher')
         );
 
       allow update: if isSignedIn()
@@ -231,7 +240,7 @@ service cloud.firestore {
             && incoming().role == existing().role
             && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'updatedAt']))
           || (isOwner(userId)
-            && (isComputingTeacher() || isMathTeacher() || isScienceTeacher())
+            && (isComputingTeacher() || isMathTeacher() || isScienceTeacher() || isEnglishTeacher())
             && incoming().role == 'teacher'
             && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'email', 'updatedAt']))
           || (isAdmin()
@@ -247,12 +256,14 @@ service cloud.firestore {
         || (isComputingTeacher() && existing().subjectId == 'computing')
         || (isMathTeacher() && existing().subjectId == 'math')
         || (isScienceTeacher() && existing().subjectId == 'science')
+        || (isEnglishTeacher() && existing().subjectId == 'english')
         || (isSignedIn() && existing().userId == request.auth.uid)
       );
       allow list: if isAdmin()
         || (isComputingTeacher() && resource.data.subjectId == 'computing')
         || (isMathTeacher() && resource.data.subjectId == 'math')
         || (isScienceTeacher() && resource.data.subjectId == 'science')
+        || (isEnglishTeacher() && resource.data.subjectId == 'english')
         || (isSignedIn() && resource.data.userId == request.auth.uid);
 
       allow create: if isSignedIn()
@@ -310,6 +321,7 @@ service cloud.firestore {
         || (isComputingTeacher() && resource.data.subjectId == 'computing')
         || (isMathTeacher() && resource.data.subjectId == 'math')
         || (isScienceTeacher() && resource.data.subjectId == 'science')
+        || (isEnglishTeacher() && resource.data.subjectId == 'english')
       );
     }
   }

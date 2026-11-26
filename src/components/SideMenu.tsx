@@ -2,11 +2,13 @@ import {
   BarChart3,
   BookOpen,
   ClipboardCheck,
+  Eye,
   Layers,
   LayoutDashboard,
   PanelLeftClose,
   ShieldCheck,
   User as UserIcon,
+  UserCheck,
   X,
 } from 'lucide-react';
 import { UI_COPY } from '../data/subjects';
@@ -50,10 +52,10 @@ export function SideMenu({
     { id: 'quiz', label: copy.navTest, icon: ClipboardCheck },
     { id: 'guide', label: copy.navGuide, icon: BookOpen },
     { id: 'results', label: copy.navResults, icon: BarChart3 },
-    { id: 'preview', label: copy.navPreview, icon: BookOpen },
     ...(isAnyTeacher
       ? [
-          { id: 'assign' as AppView, label: copy.navAssign, icon: Layers },
+          { id: 'preview' as AppView, label: copy.navPreview, icon: Eye },
+          { id: 'assign' as AppView, label: copy.navAssign, icon: UserCheck },
           { id: 'permission' as AppView, label: copy.navPermission, icon: ShieldCheck },
         ]
       : []),

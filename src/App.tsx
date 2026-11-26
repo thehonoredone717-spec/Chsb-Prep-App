@@ -35,19 +35,24 @@ import {
   pickText,
 } from './data/subjects';
 import {
+  COMPUTING_TEACHER_EMAIL,
+  ENGLISH_TEACHER_EMAIL,
+  MATH_TEACHER_EMAIL,
+  OWNER_EMAIL,
   OperationType,
+  SCIENCE_TEACHER_EMAIL,
   UserProfile,
   VARIANT_MAX_LEN,
   auth,
   db,
   deriveUsernameFromUser,
   handleFirestoreError,
+  isAppOwner,
   isComputingTeacher,
+  isEnglishTeacher,
   isMathTeacher,
   isScienceTeacher,
-  isEnglishTeacher,
   isTeacherAdmin,
-  isAppOwner,
   sanitizeDisplayName,
 } from './firebase';
 import { SubjectId, UILanguage } from './types/quiz';
@@ -466,7 +471,7 @@ export default function App() {
   };
 
   const handleSelectView = (view: AppView) => {
-    if (view === 'permission' && teacherScope === 'none') return;
+    if ((view === 'permission' || view === 'assign' || view === 'preview') && teacherScope === 'none') return;
     if (view === activeView) return;
     requestSectionLeave(() => setActiveView(view));
   };
@@ -856,12 +861,12 @@ export default function App() {
           />
         )}
 
-        {activeView === 'preview' && (
-          <PreviewView lang={lang} />
+        {activeView === 'preview' && teacherScope !== 'none' && (
+          <PreviewView lang={lang} teacherScope={teacherScope} />
         )}
 
-        {activeView === 'assign' && (
-          <AssignView lang={lang} userProfile={userProfile} />
+        {activeView === 'assign' && teacherScope !== 'none' && (
+          <AssignView lang={lang} userProfile={userProfile} teacherScope={teacherScope} />
         )}
 
         {activeView === 'guide' && (

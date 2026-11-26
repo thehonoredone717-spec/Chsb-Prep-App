@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Loader2,
+  Lock,
   Play,
   RotateCcw,
   ShieldAlert,
@@ -14,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRecord, UI_COPY, pickText } from '../data/subjects';
-import { UserProfile, db } from '../firebase';
+import { STUDENT_EMAIL, UserProfile, db } from '../firebase';
 import { CameraProctor } from './CameraProctor';
 import { FormattedMathText } from './FormattedMathText';
 import { MathShapeDiagram } from './MathShapeDiagram';
@@ -97,38 +99,163 @@ export function QuizSection({
 }: QuizSectionProps) {
   const copy = UI_COPY[lang];
 
+  const isStudent = userProfile?.role !== 'teacher' && userProfile?.role !== 'owner';
+
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('easy');
   const [variant, setVariant] = useState<VariantSelection>(1);
-  const [assignedVariant, setAssignedVariant] = useState<number | null>(null);
+  const [subjectAssignments, setSubjectAssignments] = useState<
+    Partial<Record<DifficultyLevel, number>>
+  >({});
+  const [assignmentsLoaded, setAssignmentsLoaded] = useState<boolean>(!isStudent);
+
+  const assignedVariant: number | null = isStudent
+    ? (subjectAssignments[difficulty] ?? null)
+    : null;
+
+  const assignedDifficulties = useMemo(
+    () =>
+      DIFFICULTY_LEVELS.filter((lvl) => typeof subjectAssignments[lvl] === 'number'),
+    [subjectAssignments]
+  );
+
+  const difficultyRef = useRef<DifficultyLevel>(difficulty);
+  difficultyRef.current = difficulty;
 
   useEffect(() => {
-    if (!userProfile || userProfile.role === 'teacher' || userProfile.role === 'owner') {
-      setAssignedVariant(null);
+    if (!isStudent || !userProfile) {
+      setSubjectAssignments({});
+      setAssignmentsLoaded(true);
       return;
     }
-    const asgId = `${userProfile.uid}_${subject.id}_${difficulty}`;
-    const docRef = doc(db, 'studentAssignments', asgId);
-    const unsub = onSnapshot(docRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data() as { variant?: number };
-        if (typeof data.variant === 'number') {
-          setAssignedVariant(data.variant);
-          setVariant(data.variant);
-          const fresh = buildVariantQuestions(subject, difficulty, data.variant);
-          setQuestions(fresh);
-          setAnswers({});
-          setCurrentIndex(0);
-          setStarted(false);
-          setSubmitted(false);
-        } else {
-          setAssignedVariant(null);
+
+    setSubjectAssignments({});
+    setAssignmentsLoaded(false);
+
+    const isIbrohim =
+      userProfile.email?.toLowerCase() === STUDENT_EMAIL ||
+      userProfile.username.toLowerCase().includes('ibrohim');
+
+    const primaryMap: Partial<Record<DifficultyLevel, number>> = {};
+    const fallbackMap: Partial<Record<DifficultyLevel, number>> = {};
+    const firedKeys = new Set<string>();
+    const totalExpected = DIFFICULTY_LEVELS.length * (isIbrohim ? 2 : 1);
+    let didAutoSelectForSubject = false;
+
+    const syncAssignments = () => {
+      const merged: Partial<Record<DifficultyLevel, number>> = {};
+      for (const lvl of DIFFICULTY_LEVELS) {
+        const val = primaryMap[lvl] ?? fallbackMap[lvl];
+        if (typeof val === 'number') {
+          merged[lvl] = val;
         }
-      } else {
-        setAssignedVariant(null);
       }
-    });
-    return () => unsub();
-  }, [userProfile, subject, difficulty]);
+      setSubjectAssignments(merged);
+
+      const allReady = firedKeys.size >= totalExpected;
+      if (allReady) {
+        setAssignmentsLoaded(true);
+      }
+
+      const currentDiff = difficultyRef.current;
+      let targetDiff = currentDiff;
+      if (
+        allReady &&
+        !didAutoSelectForSubject &&
+        merged[currentDiff] === undefined
+      ) {
+        const firstAssigned = DIFFICULTY_LEVELS.find((l) => merged[l] !== undefined);
+        if (firstAssigned) {
+          targetDiff = firstAssigned;
+          setDifficulty(firstAssigned);
+        }
+        didAutoSelectForSubject = true;
+      } else if (allReady) {
+        didAutoSelectForSubject = true;
+      }
+
+      const resolvedForTarget = merged[targetDiff] ?? null;
+      if (resolvedForTarget !== null) {
+        setVariant(resolvedForTarget);
+        setQuestions(buildVariantQuestions(subject, targetDiff, resolvedForTarget));
+        setAnswers({});
+        setCurrentIndex(0);
+        setStarted(false);
+        setSubmitted(false);
+      } else if (allReady) {
+        // Current difficulty has no assigned variant — ensure test cannot run
+        setStarted(false);
+        setSubmitted(false);
+      }
+    };
+
+    const unsubs: Array<() => void> = [];
+
+    for (const lvl of DIFFICULTY_LEVELS) {
+      const primaryKey = `p_${lvl}`;
+      const primaryRef = doc(db, 'studentAssignments', `${userProfile.uid}_${subject.id}_${lvl}`);
+      unsubs.push(
+        onSnapshot(
+          primaryRef,
+          (snap) => {
+            if (snap.exists()) {
+              const data = snap.data() as { variant?: number };
+              if (typeof data.variant === 'number') {
+                primaryMap[lvl] = data.variant;
+              } else {
+                delete primaryMap[lvl];
+              }
+            } else {
+              delete primaryMap[lvl];
+            }
+            firedKeys.add(primaryKey);
+            syncAssignments();
+          },
+          () => {
+            delete primaryMap[lvl];
+            firedKeys.add(primaryKey);
+            syncAssignments();
+          }
+        )
+      );
+
+      if (isIbrohim) {
+        const fallbackKey = `f_${lvl}`;
+        const fallbackRef = doc(
+          db,
+          'studentAssignments',
+          `student_ibrohimbek_profile_${subject.id}_${lvl}`
+        );
+        unsubs.push(
+          onSnapshot(
+            fallbackRef,
+            (snap) => {
+              if (snap.exists()) {
+                const data = snap.data() as { variant?: number };
+                if (typeof data.variant === 'number') {
+                  fallbackMap[lvl] = data.variant;
+                } else {
+                  delete fallbackMap[lvl];
+                }
+              } else {
+                delete fallbackMap[lvl];
+              }
+              firedKeys.add(fallbackKey);
+              syncAssignments();
+            },
+            () => {
+              delete fallbackMap[lvl];
+              firedKeys.add(fallbackKey);
+              syncAssignments();
+            }
+          )
+        );
+      }
+    }
+
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+    };
+  }, [isStudent, userProfile, subject]);
 
   const [mode, setMode] = useState<QuizMode>('practice');
   const [questions, setQuestions] = useState<ActiveQuizQuestion[]>(() =>
@@ -267,9 +394,20 @@ export function QuizSection({
     }
   }, []);
 
-  // Reset to Variant 1 of current difficulty whenever user switches to a different subject section
+  // Reset quiz state whenever user switches to a different subject section
   useEffect(() => {
-    if (assignedVariant !== null) return;
+    if (isStudent) {
+      setAnswers({});
+      setCurrentIndex(0);
+      setStarted(false);
+      setSubmitted(false);
+      setElapsedSeconds(0);
+      setReviewFilter('all');
+      setRotationCount(0);
+      setSecretUsedIds([]);
+      resetFocusGuard();
+      return;
+    }
     const fresh = buildVariantQuestions(subject, difficulty, 1);
     setVariant(1);
     setQuestions(fresh);
@@ -283,7 +421,7 @@ export function QuizSection({
     setSecretUsedIds([]);
     resetFocusGuard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subject, assignedVariant]);
+  }, [subject, isStudent]);
 
   // Live exam timer (runs only after user clicks Start)
   useEffect(() => {
@@ -324,8 +462,8 @@ export function QuizSection({
 
   // Mandatory requirement: Every time "Start over" is clicked, questions swap/shuffle
   const handleStartOver = () => {
+    if (isStudent || assignedVariant !== null) return;
     guardSwitch(() => {
-      if (assignedVariant !== null) return; // Locked to assigned variant
       const nextVar = getNextVariant(variant, subject.id);
       const prevIds = questions.map((q) => q.source.id);
       startSession(difficulty, nextVar, prevIds);
@@ -335,14 +473,16 @@ export function QuizSection({
   const handleSelectDifficulty = (chosenDifficulty: DifficultyLevel) => {
     if (chosenDifficulty === difficulty && !submitted) return;
     guardSwitch(() => {
-      const targetVar = assignedVariant !== null ? assignedVariant : 1;
+      const targetVar = isStudent
+        ? (subjectAssignments[chosenDifficulty] ?? 1)
+        : 1;
       const prevIds = questions.map((q) => q.source.id);
       startSession(chosenDifficulty, targetVar, prevIds);
     });
   };
 
   const handleSelectVariant = (chosenVariant: VariantSelection) => {
-    if (assignedVariant !== null) return; // Locked by teacher assignment
+    if (isStudent || assignedVariant !== null) return; // Locked for students
     if (chosenVariant === variant && !submitted) return;
     guardSwitch(() => {
       const prevIds = questions.map((q) => q.source.id);
@@ -351,6 +491,9 @@ export function QuizSection({
   };
 
   const handleBeginTest = async () => {
+    if (isStudent && (!assignmentsLoaded || assignedVariant === null)) {
+      return;
+    }
     if (cameraStatus !== 'active') {
       const ok = await requestCamera();
       if (!ok) return;
@@ -894,15 +1037,17 @@ export function QuizSection({
               <span>{copy.navGuide}</span>
             </button>
 
-            <button
-              type="button"
-              onClick={handleStartOver}
-              title={copy.startOverHint}
-              className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
-            >
-              <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              <span>{copy.startOver}</span>
-            </button>
+            {!isStudent && (
+              <button
+                type="button"
+                onClick={handleStartOver}
+                title={copy.startOverHint}
+                className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
+              >
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                <span>{copy.startOver}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -915,10 +1060,12 @@ export function QuizSection({
             <div
               role="group"
               aria-label={copy.difficultyLabel}
-              className="inline-flex rounded-lg bg-slate-100 p-0.5"
+              className="inline-flex flex-wrap rounded-lg bg-slate-100 p-0.5"
             >
               {DIFFICULTY_LEVELS.map((lvl) => {
                 const active = difficulty === lvl;
+                const assignedForLvl = isStudent ? subjectAssignments[lvl] : undefined;
+                const isLockedLvl = isStudent && assignmentsLoaded && assignedForLvl === undefined;
                 const activeColor =
                   lvl === 'easy'
                     ? 'bg-emerald-700 text-white shadow-xs'
@@ -930,11 +1077,19 @@ export function QuizSection({
                     key={lvl}
                     type="button"
                     onClick={() => handleSelectDifficulty(lvl)}
-                    className={`min-h-[36px] rounded-md px-3.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 sm:text-sm ${
+                    className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-md px-3.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 sm:text-sm ${
                       active ? activeColor : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    {getDifficultyLabel(lvl, lang)}
+                    <span>{getDifficultyLabel(lvl, lang)}</span>
+                    {isStudent && assignedForLvl !== undefined && (
+                      <span className="rounded bg-black/15 px-1.5 py-0.5 text-[10px] font-bold">
+                        V{assignedForLvl}
+                      </span>
+                    )}
+                    {isLockedLvl && (
+                      <Lock className="h-3 w-3 opacity-70" aria-hidden="true" />
+                    )}
                   </button>
                 );
               })}
@@ -973,7 +1128,24 @@ export function QuizSection({
 
         {/* 5 (or 20 for Math) Variants per Difficulty + Random 25 */}
         <div className="mt-3 border-t border-slate-100 pt-3">
-          {assignedVariant !== null && (
+          {isStudent && !assignmentsLoaded && (
+            <div className="mb-2.5 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-600">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              <span>
+                {lang === 'uz'
+                  ? 'Biriktirilgan variantlar tekshirilmoqda...'
+                  : 'Checking assigned variants...'}
+              </span>
+            </div>
+          )}
+          {isStudent && assignmentsLoaded && assignedVariant === null && (
+            <div className="mb-2.5 rounded-lg border border-rose-300 bg-rose-50 p-2.5 text-xs font-semibold text-rose-900">
+              {lang === 'uz'
+                ? `🔒 Sizga ${pickText(subject.shortLabel, lang)} fanidan "${getDifficultyLabel(difficulty, lang)}" darajasi uchun variant biriktirilmagan. Ustoz variant biriktirmagunicha test ishlab bo'lmaydi.`
+                : `🔒 No variant is assigned to you for ${pickText(subject.shortLabel, lang)} (${getDifficultyLabel(difficulty, lang)}). You cannot take tests until a teacher assigns a variant.`}
+            </div>
+          )}
+          {isStudent && assignedVariant !== null && (
             <div className="mb-2.5 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900">
               {lang === 'uz'
                 ? `🔒 Ustozingiz sizga bu daraja uchun faqat ${getVariantLabel(assignedVariant, lang)}ni biriktirgan. Variantni o'zgartirib bo'lmaydi.`
@@ -986,13 +1158,13 @@ export function QuizSection({
             className="flex flex-wrap items-center gap-1.5"
           >
             {variantChoices.map((v) => {
-              const active = variant === v;
-              const isAssigned = assignedVariant !== null && assignedVariant === v;
+              const isAssigned = isStudent && assignedVariant !== null && assignedVariant === v;
+              const active = isStudent ? isAssigned : variant === v;
               return (
                 <button
                   key={String(v)}
                   type="button"
-                  disabled={assignedVariant !== null}
+                  disabled={isStudent}
                   onClick={() => handleSelectVariant(v)}
                   className={`min-h-[34px] rounded-lg px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
                     active
@@ -1000,7 +1172,7 @@ export function QuizSection({
                         ? 'bg-amber-600 text-white shadow-xs'
                         : 'bg-slate-900 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                  } ${assignedVariant !== null ? 'opacity-80 cursor-not-allowed' : ''}`}
+                  } ${isStudent ? 'cursor-not-allowed opacity-75' : ''}`}
                 >
                   {getVariantLabel(v, lang)} {isAssigned ? '🔒' : ''}
                 </button>
@@ -1011,8 +1183,13 @@ export function QuizSection({
 
         <div className="font-mono-num mt-4 flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-slate-500">
           <span>
-            {getDifficultyLabel(difficulty, lang)} · {getVariantLabel(variant, lang)} ·{' '}
-            {QUESTIONS_PER_TEST} {lang === 'uz' ? 'savol' : 'questions'} · {copy.answeredCount}:{' '}
+            {getDifficultyLabel(difficulty, lang)} ·{' '}
+            {!isStudent || assignedVariant !== null
+              ? getVariantLabel(variant, lang)
+              : lang === 'uz'
+                ? 'Variant biriktirilmagan'
+                : 'No variant assigned'}{' '}
+            · {QUESTIONS_PER_TEST} {lang === 'uz' ? 'savol' : 'questions'} · {copy.answeredCount}:{' '}
             {answeredCount}/{QUESTIONS_PER_TEST}
           </span>
           <div className="flex flex-wrap items-center gap-4">
@@ -1289,50 +1466,120 @@ export function QuizSection({
         </div>
       )}
 
-      {/* Ready-to-Start Screen OR Results View OR Active Workspace */}
+      {/* Ready-to-Start Screen OR Locked Assignment Gate OR Results View OR Active Workspace */}
       {!started ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center sm:p-10">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
-            <ShieldCheck className="h-6 w-6" aria-hidden="true" />
+        isStudent && !assignmentsLoaded ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center sm:p-10">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+              <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+            </div>
+            <h2 className="mt-4 font-display text-xl font-extrabold text-slate-900">
+              {lang === 'uz'
+                ? 'Biriktirilgan variantlar tekshirilmoqda...'
+                : 'Checking assigned variants...'}
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+              {lang === 'uz'
+                ? 'Ustoz tomonidan biriktirilgan test varianti yuklanmoqda, biroz kuting.'
+                : 'Please wait while we verify your assigned test variant.'}
+            </p>
           </div>
-          <h2 className="mt-4 font-display text-xl font-extrabold text-slate-900 sm:text-2xl">
-            {pickText(subject.shortLabel, lang)} · {getDifficultyLabel(difficulty, lang)} ·{' '}
-            {getVariantLabel(variant, lang)}
-          </h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
-            {lang === 'uz'
-              ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Test paytida veb-kamera va to‘liq ekran nazorati faol bo‘ladi — boshqa desktop yoki oynaga o‘tish darhol, yuzni burish/berkitish esa 2.5 soniyada ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
-              : `This variant contains ${QUESTIONS_PER_TEST} questions (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Webcam and fullscreen proctoring are active — switching desktops or windows immediately deducts 1 warning, and looking away/obscuring face for over 2.5s deducts 1 warning (3 warnings max; exhausting all 3 gives 0).`}
-          </p>
-
-          <CameraProctor
-            lang={lang}
-            isActive={false}
-            warningsLeft={warningsLeft}
-            maxWarnings={MAX_WARNINGS}
-            onViolation={triggerInstantPenalty}
-            stream={cameraStream}
-            cameraStatus={cameraStatus}
-            cameraError={cameraError}
-            onRequestCamera={requestCamera}
-            variant="preview-card"
-          />
-
-          <button
-            type="button"
-            onClick={handleBeginTest}
-            className="mt-6 inline-flex min-h-[46px] items-center justify-center gap-2 rounded-lg bg-teal-700 px-8 text-base font-bold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
-          >
-            <Play className="h-4 w-4 fill-current" aria-hidden="true" />
-            <span>
-              {cameraStatus === 'active'
-                ? 'Start Test'
+        ) : isStudent && assignedVariant === null ? (
+          <div className="rounded-xl border-2 border-rose-200 bg-white p-8 text-center sm:p-10">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-700">
+              <Lock className="h-7 w-7" aria-hidden="true" />
+            </div>
+            <h2 className="mt-4 font-display text-xl font-extrabold text-slate-900 sm:text-2xl">
+              {assignedDifficulties.length === 0
+                ? lang === 'uz'
+                  ? `${pickText(subject.shortLabel, lang)}: Testlar yopiq (Variant biriktirilmagan)`
+                  : `${pickText(subject.shortLabel, lang)}: Tests Locked (No Variant Assigned)`
                 : lang === 'uz'
-                  ? 'Kamera bilan boshlash'
-                  : 'Start with Camera'}
-            </span>
-          </button>
-        </div>
+                  ? `${getDifficultyLabel(difficulty, lang)} darajasi uchun variant biriktirilmagan`
+                  : `No variant assigned for ${getDifficultyLabel(difficulty, lang)}`}
+            </h2>
+            <p className="mx-auto mt-2.5 max-w-xl text-sm leading-relaxed text-slate-600">
+              {assignedDifficulties.length === 0
+                ? lang === 'uz'
+                  ? `Ustozingiz sizga ${pickText(subject.shortLabel, lang)} fanidan hali hech qaysi qiyinchilik darajasida (Oson, O‘rta yoki Qiyin) variant biriktirmagan. Variant biriktirilmagunicha testlarni ishlay olmaysiz.`
+                  : `Your teacher has not assigned you a variant in ${pickText(subject.shortLabel, lang)} for any difficulty level (Easy, Medium, or Hard) yet. You cannot take tests until a variant is assigned.`
+                : lang === 'uz'
+                  ? `Sizga ${pickText(subject.shortLabel, lang)} fanidan "${getDifficultyLabel(difficulty, lang)}" darajasida variant biriktirilmagan. Faqat ustoz biriktirgan daraja va variantni ishlashingiz mumkin.`
+                  : `You do not have an assigned variant for ${getDifficultyLabel(difficulty, lang)} in ${pickText(subject.shortLabel, lang)}. You can only take the difficulty and variant assigned by your teacher.`}
+            </p>
+
+            {assignedDifficulties.length > 0 && (
+              <div className="mt-6 border-t border-slate-100 pt-5">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  {lang === 'uz'
+                    ? 'Sizga biriktirilgan daraja va variant:'
+                    : 'Your assigned difficulty & variant:'}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2.5">
+                  {assignedDifficulties.map((lvl) => {
+                    const vNum = subjectAssignments[lvl]!;
+                    return (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => handleSelectDifficulty(lvl)}
+                        className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-teal-700 px-5 text-sm font-bold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+                      >
+                        <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                        <span>
+                          {getDifficultyLabel(lvl, lang)} · {getVariantLabel(vNum, lang)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center sm:p-10">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+              <ShieldCheck className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <h2 className="mt-4 font-display text-xl font-extrabold text-slate-900 sm:text-2xl">
+              {pickText(subject.shortLabel, lang)} · {getDifficultyLabel(difficulty, lang)} ·{' '}
+              {getVariantLabel(variant, lang)}
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
+              {lang === 'uz'
+                ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Test paytida veb-kamera va to‘liq ekran nazorati faol bo‘ladi — boshqa desktop yoki oynaga o‘tish darhol, yuzni burish/berkitish esa 2.5 soniyada ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
+                : `This variant contains ${QUESTIONS_PER_TEST} questions (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Webcam and fullscreen proctoring are active — switching desktops or windows immediately deducts 1 warning, and looking away/obscuring face for over 2.5s deducts 1 warning (3 warnings max; exhausting all 3 gives 0).`}
+            </p>
+
+            <CameraProctor
+              lang={lang}
+              isActive={false}
+              warningsLeft={warningsLeft}
+              maxWarnings={MAX_WARNINGS}
+              onViolation={triggerInstantPenalty}
+              stream={cameraStream}
+              cameraStatus={cameraStatus}
+              cameraError={cameraError}
+              onRequestCamera={requestCamera}
+              variant="preview-card"
+            />
+
+            <button
+              type="button"
+              onClick={handleBeginTest}
+              className="mt-6 inline-flex min-h-[46px] items-center justify-center gap-2 rounded-lg bg-teal-700 px-8 text-base font-bold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
+            >
+              <Play className="h-4 w-4 fill-current" aria-hidden="true" />
+              <span>
+                {cameraStatus === 'active'
+                  ? 'Start Test'
+                  : lang === 'uz'
+                    ? 'Kamera bilan boshlash'
+                    : 'Start with Camera'}
+              </span>
+            </button>
+          </div>
+        )
       ) : submitted && resultsSummary ? (
         <div className="space-y-6">
           {forcedZero && (
@@ -1364,14 +1611,16 @@ export function QuizSection({
                 </h2>
                 <p className="mt-1 text-xs text-slate-500">{copy.gradingScaleNote}</p>
               </div>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
-              >
-                <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                <span>{copy.startOver}</span>
-              </button>
+              {!isStudent && (
+                <button
+                  type="button"
+                  onClick={handleStartOver}
+                  className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                  <span>{copy.startOver}</span>
+                </button>
+              )}
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
