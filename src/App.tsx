@@ -29,6 +29,7 @@ import { SideMenu } from './components/SideMenu';
 import { StudyGuidePanel } from './components/StudyGuidePanel';
 import { SubjectBar } from './components/SubjectBar';
 import { AppView, TeacherScope, TopBar } from './components/TopBar';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import {
   AttemptRecord,
   SUBJECTS,
@@ -1059,7 +1060,7 @@ export default function App() {
           onSelectView={handleSelectView}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
           <SubjectBar
             lang={lang}
             onChangeLang={setLang}
@@ -1282,6 +1283,13 @@ export default function App() {
       </footer>
         </div>
       </div>
+
+      <MobileBottomNav
+        lang={lang}
+        activeView={activeView}
+        onSelectView={handleSelectView}
+        isQuizRunning={isQuizRunning}
+      />
 
       <OfflineIndicator lang={lang} />
     </div>

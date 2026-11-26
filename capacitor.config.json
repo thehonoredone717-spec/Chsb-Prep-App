@@ -1,0 +1,6 @@
+{
+  "appId": "com.navps.chsbprep",
+  "appName": "CHSB Prep",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

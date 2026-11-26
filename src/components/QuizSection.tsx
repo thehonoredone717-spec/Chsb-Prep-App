@@ -1,6 +1,7 @@
 import { doc, onSnapshot, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import {
   AlertTriangle,
+  Award,
   BookOpen,
   Calculator,
   CheckCircle2,
@@ -18,6 +19,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRecord, UI_COPY, pickText } from '../data/subjects';
 import { STUDENT_EMAIL, UserProfile, db, sanitizeDisplayName } from '../firebase';
+import { CertificateModal } from './CertificateModal';
+import { playSound } from '../utils/sound';
 import { CameraProctor } from './CameraProctor';
 import { FormattedMathText } from './FormattedMathText';
 import { MathShapeDiagram } from './MathShapeDiagram';
@@ -376,6 +379,7 @@ export function QuizSection({
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [started, setStarted] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
+  const [showCertificate, setShowCertificate] = useState<boolean>(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong'>('all');
   const [rotationCount, setRotationCount] = useState<number>(0);
@@ -836,6 +840,7 @@ export function QuizSection({
       elapsedSeconds,
       completedAt: new Date().toISOString(),
     });
+    playSound('complete');
     setSubmitted(true);
   };
 
@@ -2078,16 +2083,28 @@ export function QuizSection({
                 </h2>
                 <p className="mt-1 text-xs text-slate-500">{copy.gradingScaleNote}</p>
               </div>
-              {!isStudent && (
-                <button
-                  type="button"
-                  onClick={handleStartOver}
-                  className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
-                >
-                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                  <span>{copy.startOver}</span>
-                </button>
-              )}
+              <div className="flex items-center gap-2.5">
+                {resultsSummary.gradeInfo.grade === 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCertificate(true)}
+                    className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-amber-500 px-4 text-sm font-bold text-white shadow-md transition-colors hover:bg-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                  >
+                    <Award className="h-4 w-4" aria-hidden="true" />
+                    <span>{lang === 'uz' ? 'Sertifikatni Olish 🏆' : 'Get Certificate 🏆'}</span>
+                  </button>
+                )}
+                {!isStudent && (
+                  <button
+                    type="button"
+                    onClick={handleStartOver}
+                    className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+                  >
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                    <span>{copy.startOver}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -2527,6 +2544,19 @@ export function QuizSection({
         questionKey={isMathActiveQuiz ? activeQuestionId : null}
         onSecretCodeUsed={handleSecretCodeUsed}
       />
+
+      {showCertificate && resultsSummary && (
+        <CertificateModal
+          lang={lang}
+          studentName={userProfile?.displayName || 'Student'}
+          subject={subject}
+          score={resultsSummary.correct}
+          total={QUESTIONS_PER_TEST}
+          grade={resultsSummary.gradeInfo.grade}
+          dateStr={new Date().toLocaleDateString()}
+          onClose={() => setShowCertificate(false)}
+        />
+      )}
     </section>
   );
 }
