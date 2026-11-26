@@ -9,6 +9,7 @@
   "display": "standalone",
   "display_override": [
     "window-controls-overlay",
+    "tabbed",
     "fullscreen"
   ],
   "orientation": "any",
@@ -21,6 +22,7 @@
   "launch_handler": {
     "client_mode": "navigate-existing"
   },
+  "iarc_rating_id": "urn:iarc:rated:all",
   "icons": [
     {
       "src": "/pwa-192x192.png",
@@ -70,17 +72,22 @@
   "screenshots": [
     {
       "src": "/assets/aistudio/chsb-prep-app___Workers___Pages___Thehonoredone.717_gmail.com_s_Account___Cloudflare_-_Google_Chrome_11_26_2026_4_44_59_PM_8830c829.png",
-      "sizes": "1920x1080",
+      "sizes": "1920x986",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Subjects view of Grade 7 ChSB Prep Platform"
     },
     {
       "src": "/assets/aistudio/chsb-prep-app___Workers___Pages___Thehonoredone.717_gmail.com_s_Account___Cloudflare_-_Google_Chrome_11_26_2026_4_45_05_PM_ab75763a.png",
-      "sizes": "1920x1080",
+      "sizes": "1920x988",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Dashboard view of Grade 7 ChSB Prep Platform"
+    }
+  ],
+  "scope_extensions": [
+    {
+      "origin": "https://chsb-prep-app.thehonoredone-717.workers.dev"
     }
   ],
   "share_target": {
@@ -102,7 +109,20 @@
   "related_applications": [],
   "protocol_handlers": [],
   "file_handlers": [],
-  "scope_extensions": [],
-  "widgets": [],
-  "iarc_rating_id": ""
+  "widgets": [
+    {
+      "name": "ChSB Quick Prep Widget",
+      "description": "Quick access widget for Grade 7 ChSB practice exams",
+      "tag": "chsb-widget",
+      "template": "chsb-widget-template",
+      "data": "/widget-data.json",
+      "type": "application/json",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
 }

@@ -765,15 +765,15 @@ export function CameraProctor({
 
       const buf = recentRawStatusesRef.current;
       buf.push(rawStatus);
-      if (buf.length > 8) buf.shift();
+      if (buf.length > 6) buf.shift();
 
       let status = smoothedStatusRef.current;
       if (status === 'camera_off') {
         status = rawStatus;
       } else if (status === 'facing') {
-        // Require 6 out of last 8 frames non-facing before leaving 'facing' (prevents flicker & false triggers)
+        // Require 4 out of last 6 frames non-facing before leaving 'facing' (balanced sensitivity)
         const nonFacingCount = buf.filter((s) => s !== 'facing').length;
-        if (buf.length >= 6 && nonFacingCount >= 6) {
+        if (buf.length >= 5 && nonFacingCount >= 4) {
           const noFaceCount = buf.filter((s) => s === 'no_face').length;
           const awayCount = buf.filter((s) => s === 'looking_away').length;
           const multiCount = buf.filter((s) => s === 'multiple_faces').length;
