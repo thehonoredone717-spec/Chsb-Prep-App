@@ -17,12 +17,14 @@
   "theme_color": "#056608",
   "background_color": "#ffffff",
   "categories": [
-    "education"
+    "education",
+    "books",
+    "utilities"
   ],
   "launch_handler": {
     "client_mode": "navigate-existing"
   },
-  "iarc_rating_id": "urn:iarc:rated:all",
+  "iarc_rating_id": "urn:iarc:rated:3+",
   "icons": [
     {
       "src": "/pwa-192x192.png",
@@ -88,6 +90,9 @@
   "scope_extensions": [
     {
       "origin": "https://chsb-prep-app.thehonoredone-717.workers.dev"
+    },
+    {
+      "origin": "https://*.thehonoredone-717.workers.dev"
     }
   ],
   "share_target": {
@@ -113,16 +118,42 @@
       "id": "chsb-prep"
     }
   ],
-  "protocol_handlers": [],
-  "file_handlers": [],
+  "protocol_handlers": [
+    {
+      "protocol": "web+chsb",
+      "url": "/?protocol=%s"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "application/json": [".json"]
+      },
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ],
+      "launch_type": "single-client"
+    }
+  ],
   "widgets": [
     {
       "name": "ChSB Quick Prep Widget",
       "description": "Quick access widget for Grade 7 ChSB practice exams",
       "tag": "chsb-widget",
       "template": "chsb-widget-template",
-      "data": "/widget-data.json",
+      "data": "/manifest.json",
       "type": "application/json",
+      "screenshots": [
+        {
+          "src": "/screenshots/wide.png",
+          "sizes": "1280x720",
+          "label": "Widget preview"
+        }
+      ],
       "icons": [
         {
           "src": "/pwa-192x192.png",
