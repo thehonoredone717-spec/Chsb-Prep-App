@@ -802,6 +802,12 @@ export function QuizSection({
       ...prev,
       [currentIndex]: displayIdx,
     }));
+    const activeQ = questions[currentIndex];
+    if (mode === 'practice' && activeQ) {
+      playSound(isChoiceCorrect(activeQ, displayIdx) ? 'success' : 'warning');
+    } else {
+      playSound('click');
+    }
   };
 
   const handleSubmit = () => {
@@ -934,6 +940,70 @@ export function QuizSection({
       unlockSystemKeys();
     };
   }, [started, submitted, onRunningStateChange, registerFinishQuiz]);
+
+  // Keyboard shortcuts during active quiz (A-D / 1-4 to select option, Left/Right arrows to navigate)
+  useEffect(() => {
+    if (!started || submitted || warningModal || pendingSwitchAction || calculatorOpen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const key = e.key.toLowerCase();
+      const mapOption: Record<string, number> = {
+        '1': 0,
+        '2': 1,
+        '3': 2,
+        '4': 3,
+        a: 0,
+        b: 1,
+        c: 2,
+        d: 3,
+      };
+
+      if (key in mapOption) {
+        const idx = mapOption[key];
+        const currentQ = questions[currentIndex];
+        if (!currentQ) return;
+        if (mode === 'practice' && answers[currentIndex] !== undefined) return;
+        e.preventDefault();
+        setAnswers((prev) => ({
+          ...prev,
+          [currentIndex]: idx,
+        }));
+        if (mode === 'practice') {
+          playSound(isChoiceCorrect(currentQ, idx) ? 'success' : 'warning');
+        } else {
+          playSound('click');
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCurrentIndex((i) => Math.min(QUESTIONS_PER_TEST - 1, i + 1));
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCurrentIndex((i) => Math.max(0, i - 1));
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    started,
+    submitted,
+    warningModal,
+    pendingSwitchAction,
+    calculatorOpen,
+    questions,
+    currentIndex,
+    mode,
+    answers,
+  ]);
 
   // Monitor tab switching, window blur, virtual desktop, fullscreen exit, screenshots & system keys
   useEffect(() => {
@@ -2297,8 +2367,27 @@ export function QuizSection({
       ) : (
         /* Active 25-Question Workspace */
         <div className="space-y-5">
-          {/* 1..25 Question Navigator Strip */}
+          {/* 1..25 Question Navigator Strip & Progress */}
           <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+              <span>
+                {lang === 'uz' ? 'Javob berilgan:' : 'Answered:'}{' '}
+                <strong className="font-mono-num text-slate-900">
+                  {Object.keys(answers).length} / {QUESTIONS_PER_TEST}
+                </strong>
+              </span>
+              <span className="hidden font-mono-num text-[11px] text-slate-400 sm:inline">
+                {lang === 'uz' ? 'Tezkor tugmalar: A–D / 1–4 · ← →' : 'Shortcuts: A–D / 1–4 · ← →'}
+              </span>
+            </div>
+            <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full bg-teal-600 transition-all duration-200"
+                style={{
+                  width: `${Math.round((Object.keys(answers).length / QUESTIONS_PER_TEST) * 100)}%`,
+                }}
+              />
+            </div>
             <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10 md:grid-cols-[repeat(25,minmax(0,1fr))]">
               {questions.map((q, idx) => {
                 const isCurrent = idx === currentIndex;

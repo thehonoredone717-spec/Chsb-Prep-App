@@ -1,4 +1,5 @@
 import {
+  GraduationCap,
   LogOut,
   Maximize2,
   Menu,
@@ -68,7 +69,7 @@ export function TopBar({
               : `@${userProfile.username}`;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
+    <header className="sticky top-0 z-30 border-b border-slate-200/90 bg-white/95 backdrop-blur-sm">
       <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-3">
           <button
@@ -116,11 +117,9 @@ export function TopBar({
             onClick={() => onSelectView('dashboard')}
             className="flex shrink-0 items-center gap-2.5 whitespace-nowrap text-left font-display text-lg font-bold tracking-tight text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
           >
-            <img
-              src="/assets/aistudio/Gemini_Generated_Image_cp4xjscp4xjscp4x_f257542a.jpg"
-              alt="NavPS ChSB Logo"
-              className="h-8 w-8 rounded-lg object-cover shadow-xs ring-1 ring-slate-900/10"
-            />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-700 text-white shadow-xs ring-1 ring-teal-800">
+              <GraduationCap className="h-5 w-5" aria-hidden="true" />
+            </div>
             <span>{copy.brand}</span>
           </button>
         </div>

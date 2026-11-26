@@ -3,6 +3,7 @@ import {
   BookOpen,
   ClipboardCheck,
   Eye,
+  GraduationCap,
   Layers,
   LayoutDashboard,
   PanelLeftClose,
@@ -106,7 +107,7 @@ export function SideMenu({
             aria-current={isActive ? 'page' : undefined}
             className={`flex min-h-[42px] w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
               isActive
-                ? 'bg-teal-50 font-bold text-teal-800'
+                ? 'bg-teal-50 font-bold text-teal-800 ring-1 ring-teal-200/80'
                 : 'font-semibold text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
             }`}
           >
@@ -161,11 +162,9 @@ export function SideMenu({
           <aside className="relative z-10 flex w-72 max-w-[85vw] flex-col border-r border-slate-200 bg-white p-4 shadow-xl">
             <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
-                <img
-                  src="/assets/aistudio/Gemini_Generated_Image_cp4xjscp4xjscp4x_f257542a.jpg"
-                  alt="NavPS_ChSB Logo"
-                  className="h-7 w-7 rounded-lg object-cover shadow-xs ring-1 ring-slate-900/10"
-                />
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-700 text-white shadow-xs">
+                  <GraduationCap className="h-4 w-4" aria-hidden="true" />
+                </div>
                 <span className="font-display text-base font-bold text-slate-900">
                   {copy.brand}
                 </span>

@@ -24,8 +24,12 @@ import {
   UI_COPY,
   pickText,
 } from '../data/subjects';
+import { useEffect, useState } from 'react';
 import { UserProfile } from '../firebase';
 import { SubjectId, UILanguage } from '../types/quiz';
+import { SUBJECT_THEMES } from '../utils/subjectTheme';
+import { AchievementsStrip } from './AchievementsStrip';
+import { DailyWarmupCard } from './DailyWarmupCard';
 import { AppView, TeacherScope } from './TopBar';
 
 interface DashboardSectionProps {
@@ -60,6 +64,16 @@ export function DashboardSection({
 }: DashboardSectionProps) {
   const uz = lang === 'uz';
   const copy = UI_COPY[lang];
+  const [blitzBest, setBlitzBest] = useState<number>(0);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(`g7_chsb_blitz_best_${userProfile.uid}`);
+      setBlitzBest(saved ? Math.max(0, Number(saved) || 0) : 0);
+    } catch {
+      setBlitzBest(0);
+    }
+  }, [userProfile.uid]);
 
   const openSubjectsCount = SUBJECTS.filter((s) => !prohibitedSubjects.has(s.id)).length;
   const avgPct =
@@ -70,6 +84,9 @@ export function DashboardSection({
     history.length > 0
       ? history.reduce((best, item) => Math.max(best, item.percentage), 0)
       : null;
+  const masteredSubjectsCount = SUBJECTS.filter((s) =>
+    history.some((h) => h.subjectId === s.id && h.percentage >= 86)
+  ).length;
   const recentAttempts = history.slice(0, 5);
 
   const roleLabel =
@@ -96,7 +113,8 @@ export function DashboardSection({
             <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-teal-700">
               <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
               <span>
-                {uz ? '7-Sinf ChSB · Asosiy Dashboard' : 'Grade 7 ChSB · Home Dashboard'} · {roleLabel}
+                {uz ? '7-Sinf ChSB · Asosiy Dashboard' : 'Grade 7 ChSB · Home Dashboard'} ·{' '}
+                {roleLabel}
               </span>
             </div>
 
@@ -108,8 +126,8 @@ export function DashboardSection({
 
             <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-base">
               {uz
-                ? `Platformada ${SUBJECTS.length} ta asosiy fan, ${TOTAL_QUESTION_COUNT} ta test savoli va barcha mavzular bo‘yicha qo‘llanmalar jamlangan. Qaysi bo‘limdan boshlashni tanlang.`
-                : `Access ${SUBJECTS.length} core subjects, ${TOTAL_QUESTION_COUNT} ChSB practice questions, and full revision study guides. Choose where to start below.`}
+                ? `Platformada ${SUBJECTS.length} ta asosiy fan, ${TOTAL_QUESTION_COUNT} ta test savoli, interaktiv kartochkalar va fan laboratoriyalari mavjud.`
+                : `Access ${SUBJECTS.length} core subjects, ${TOTAL_QUESTION_COUNT} ChSB practice questions, interactive flashcards, and STEM formula labs.`}
             </p>
           </div>
 
@@ -145,7 +163,7 @@ export function DashboardSection({
               <button
                 type="button"
                 onClick={() => onNavigate('permission')}
-                className="inline-flex min-h-[42px] items-center gap-2 rounded-lg border border-slate-200 bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+                className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
               >
                 <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                 <span>{copy.navPermission}</span>
@@ -172,13 +190,15 @@ export function DashboardSection({
 
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-            <span>{uz ? 'Savollar bazasi' : 'Question Bank'}</span>
-            <BookOpen className="h-4 w-4 text-teal-700" aria-hidden="true" />
+            <span>{uz ? '5 Baho (A’lo) Fanlar' : 'Grade 5 Mastery'}</span>
+            <Award className="h-4 w-4 text-amber-600" aria-hidden="true" />
           </div>
           <p className="font-mono-num mt-2 text-2xl font-extrabold text-slate-900">
-            {TOTAL_QUESTION_COUNT}
+            {masteredSubjectsCount} / {SUBJECTS.length}
           </p>
-          <p className="mt-1 text-xs text-slate-500">{copy.questionsPerTest}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {uz ? '86%+ natija qayd etilgan fanlar' : 'Subjects scored 86%+'}
+          </p>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -192,8 +212,8 @@ export function DashboardSection({
           <p className="mt-1 text-xs text-slate-500">
             {teacherScope === 'none'
               ? uz
-                ? 'Shaxsiy natijalaringiz'
-                : 'Your saved attempts'
+                ? `${TOTAL_QUESTION_COUNT} savol bazasidan`
+                : `Across ${TOTAL_QUESTION_COUNT} questions`
               : uz
                 ? 'Ko‘rinadigan natijalar'
                 : 'Scoped records'}
@@ -220,19 +240,39 @@ export function DashboardSection({
         </div>
       </div>
 
+      {/* Interactive 60s Blitz & 5-Question Sprint */}
+      <DailyWarmupCard
+        lang={lang}
+        userUid={userProfile.uid}
+        prohibitedSubjects={prohibitedSubjects}
+        blitzBest={blitzBest}
+        onBlitzBestChange={setBlitzBest}
+        onOpenSubjectGuide={onOpenSubjectGuide}
+      />
+
+      {/* Academic Rank, Badges & Smart Next-Step Recommendation */}
+      <AchievementsStrip
+        lang={lang}
+        history={history}
+        blitzBest={blitzBest}
+        prohibitedSubjects={prohibitedSubjects}
+        onOpenSubjectGuide={onOpenSubjectGuide}
+        onStartSubjectQuiz={onStartSubjectQuiz}
+      />
+
       {/* Main Two-Column Content */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Subjects Quick Access */}
+        {/* Subject Mastery & Quick Access */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 lg:col-span-7">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <h2 className="font-display text-lg font-bold text-slate-900">
-                {uz ? 'Fanlar va tezkor kirish' : 'Subjects Quick Access'}
+                {uz ? 'Fanlar bo‘yicha o‘zlashtirish' : 'Subject Mastery & Quick Access'}
               </h2>
               <p className="mt-0.5 text-xs text-slate-500">
                 {uz
-                  ? 'Kerakli fanning qo‘llanmasini o‘qing yoki testni tanlang'
-                  : 'Open any subject study guide or launch a practice/exam test'}
+                  ? 'Har bir fanning qo‘llanmasi, kartochkalari yoki testini oching'
+                  : 'Open any subject study guide, flashcards, or launch a test'}
               </p>
             </div>
             <button
@@ -247,25 +287,26 @@ export function DashboardSection({
           <div className="mt-4 divide-y divide-slate-100">
             {SUBJECTS.map((subject) => {
               const Icon = SUBJECT_ICONS[subject.id];
+              const theme = SUBJECT_THEMES[subject.id];
               const isProhibited = prohibitedSubjects.has(subject.id);
-              const best = history
-                .filter((h) => h.subjectId === subject.id)
-                .reduce<AttemptRecord | null>(
-                  (acc, cur) => (!acc || cur.percentage > acc.percentage ? cur : acc),
-                  null
-                );
+              const subAttempts = history.filter((h) => h.subjectId === subject.id);
+              const best = subAttempts.reduce<AttemptRecord | null>(
+                (acc, cur) => (!acc || cur.percentage > acc.percentage ? cur : acc),
+                null
+              );
+              const bestVal = best ? best.percentage : 0;
 
               return (
                 <div
                   key={subject.id}
-                  className="flex flex-col justify-between gap-3 py-3.5 first:pt-1 last:pb-1 sm:flex-row sm:items-center"
+                  className="flex flex-col justify-between gap-3 py-4 first:pt-1 last:pb-1 sm:flex-row sm:items-center"
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
                     <div
                       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
                         isProhibited
                           ? 'bg-rose-50 text-rose-700'
-                          : 'bg-slate-100 text-teal-700'
+                          : `${theme.iconBg} ${theme.iconText}`
                       }`}
                     >
                       {isProhibited ? (
@@ -274,26 +315,37 @@ export function DashboardSection({
                         <Icon className="h-5 w-5" aria-hidden="true" />
                       )}
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-display text-sm font-bold text-slate-900">
                           {pickText(subject.title, lang)}
                         </h3>
-                        {isProhibited ? (
-                          <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[11px] font-bold text-rose-700">
-                            {uz ? 'Test yopiq' : 'Test Prohibited'}
-                          </span>
-                        ) : (
-                          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                            {uz ? 'Ochiq' : 'Open'}
-                          </span>
-                        )}
+                        <span
+                          className={`text-[11px] font-semibold ${
+                            isProhibited ? 'text-rose-700' : 'text-emerald-700'
+                          }`}
+                        >
+                          · {isProhibited ? (uz ? 'Test yopiq' : 'Prohibited') : uz ? 'Ochiq' : 'Open'}
+                        </span>
                       </div>
+
                       <p className="mt-0.5 text-xs text-slate-500">
                         {subject.topics.length} {uz ? 'mavzu' : 'topics'} ·{' '}
                         {subject.questions.length} {uz ? 'savol' : 'questions'}
-                        {best ? ` · ${uz ? 'Eng yaxshi' : 'Best'}: ${best.percentage}%` : ''}
+                        {best
+                          ? ` · ${uz ? 'Eng yaxshi' : 'Best'}: ${best.percentage}% (${uz ? 'Baho' : 'Grade'} ${best.grade})`
+                          : ''}
                       </p>
+
+                      {/* Progress Bar */}
+                      <div className="mt-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className={`h-full transition-all duration-300 ${
+                            isProhibited ? 'bg-rose-400' : theme.barFill
+                          }`}
+                          style={{ width: `${bestVal}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -303,7 +355,7 @@ export function DashboardSection({
                       onClick={() => onOpenSubjectGuide(subject.id)}
                       className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
                     >
-                      <BookOpen className="h-3.5 w-3.5 text-teal-700" aria-hidden="true" />
+                      <BookOpen className={`h-3.5 w-3.5 ${theme.accentText}`} aria-hidden="true" />
                       <span>{copy.navGuide}</span>
                     </button>
 
@@ -414,8 +466,8 @@ export function DashboardSection({
               </li>
               <li>
                 {uz
-                  ? "• Biror fan testi yopilgan (Prohibited) bo'lsa ham, uning Qo'llanma bo'limi ochiq qoladi."
-                  : '• Study Guides remain open and readable even if quizzes for a subject are prohibited.'}
+                  ? "• Biror fan testi yopilgan (Prohibited) bo'lsa ham, uning Qo'llanma va Interaktiv Kartochkalar bo'limi ochiq qoladi."
+                  : '• Study Guides and Interactive Flashcards remain open even if quizzes for a subject are prohibited.'}
               </li>
             </ul>
           </div>

@@ -1,6 +1,15 @@
-import { Lock } from 'lucide-react';
+import {
+  Calculator,
+  Code2,
+  FlaskConical,
+  Globe2,
+  Landmark,
+  Languages,
+  Lock,
+} from 'lucide-react';
 import { SUBJECTS, pickText } from '../data/subjects';
 import { SubjectId, UILanguage } from '../types/quiz';
+import { SUBJECT_THEMES } from '../utils/subjectTheme';
 
 interface SubjectBarProps {
   lang: UILanguage;
@@ -10,6 +19,15 @@ interface SubjectBarProps {
   prohibitedSubjects?: ReadonlySet<SubjectId>;
 }
 
+const SUBJECT_ICONS: Record<SubjectId, typeof Calculator> = {
+  math: Calculator,
+  history: Landmark,
+  science: FlaskConical,
+  computing: Code2,
+  english: Globe2,
+  uzbek: Languages,
+};
+
 export function SubjectBar({
   lang,
   onChangeLang,
@@ -18,7 +36,7 @@ export function SubjectBar({
   prohibitedSubjects,
 }: SubjectBarProps) {
   return (
-    <div className="border-b border-slate-200 bg-slate-50/70">
+    <div className="border-b border-slate-200 bg-slate-50/80">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <div
           role="tablist"
@@ -26,6 +44,8 @@ export function SubjectBar({
           className="flex flex-wrap items-center gap-1.5"
         >
           {SUBJECTS.map((subject) => {
+            const Icon = SUBJECT_ICONS[subject.id];
+            const theme = SUBJECT_THEMES[subject.id];
             const selected = subject.id === activeSubjectId;
             const prohibited = Boolean(prohibitedSubjects?.has(subject.id));
             return (
@@ -41,11 +61,18 @@ export function SubjectBar({
                       ? 'bg-rose-700 text-white shadow-xs'
                       : 'bg-rose-50 text-rose-700 ring-1 ring-rose-200 hover:bg-rose-100 hover:text-rose-900'
                     : selected
-                      ? 'bg-teal-700 text-white shadow-xs'
+                      ? `${theme.activeTabBg} text-white shadow-xs`
                       : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                {prohibited && <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+                {prohibited ? (
+                  <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                ) : (
+                  <Icon
+                    className={`h-3.5 w-3.5 shrink-0 ${selected ? 'text-white/90' : theme.iconText}`}
+                    aria-hidden="true"
+                  />
+                )}
                 <span>{pickText(subject.shortLabel, lang)}</span>
               </button>
             );
