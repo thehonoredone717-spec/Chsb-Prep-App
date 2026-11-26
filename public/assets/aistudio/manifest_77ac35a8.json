@@ -1,0 +1,47 @@
+{
+  "background_color": "#ffffff",
+  "description": "7-sinf Matematika, Tarix, Science, Informatika, Ingliz tili va Ona tili va Adabiyot fanlaridan 25 talik ChSB testlari va 5 ta variant.",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Prep App For 7 Graders",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "CHSB Prep",
+  "start_url": "https://chsb-prep-app.thehonoredone-717.workers.dev/",
+  "theme_color": "#056608",
+  "icons": [
+    {
+      "src": "https://chsb-prep-app.thehonoredone-717.workers.dev/assets/aistudio/Gemini_Generated_Image_cp4xjscp4xjscp4x_f257542a.jpg",
+      "type": "image/jpeg",
+      "sizes": "1024x1024",
+      "isSquare": true,
+      "isPng": false,
+      "isWebp": false,
+      "isJpg": true,
+      "width": 1024,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
+    },
+    {
+      "src": "https://chsb-prep-app.thehonoredone-717.workers.dev/favicon.ico",
+      "type": "image/x-icon",
+      "isSquare": false,
+      "isPng": false,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 0,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
+    }
+  ],
+  "id": "chsb-prep",
+  "display_override": [
+    "window-controls-overlay",
+    "fullscreen"
+  ],
+  "categories": [
+    "education"
+  ]
+}

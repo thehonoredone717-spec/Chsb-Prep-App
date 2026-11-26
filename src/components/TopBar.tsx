@@ -1,5 +1,4 @@
 import {
-  Download,
   LogOut,
   Maximize2,
   Menu,
@@ -20,8 +19,6 @@ export type TeacherScope = 'none' | 'computing' | 'math' | 'science' | 'english'
 interface TopBarProps {
   lang: UILanguage;
   onSelectView: (view: AppView) => void;
-  onDownloadHtml: () => void;
-  downloadNotice: boolean;
   userProfile: UserProfile;
   teacherScope: TeacherScope;
   onSignOut: () => void;
@@ -40,8 +37,6 @@ interface TopBarProps {
 export function TopBar({
   lang,
   onSelectView,
-  onDownloadHtml,
-  downloadNotice,
   userProfile,
   teacherScope,
   onSignOut,
@@ -58,7 +53,6 @@ export function TopBar({
 }: TopBarProps) {
   const copy = UI_COPY[lang];
   const isAnyTeacher = teacherScope !== 'none';
-  const canDownloadHtml = teacherScope === 'all';
 
   const badgeText =
     teacherScope === 'all'
@@ -196,19 +190,6 @@ export function TopBar({
             <LogOut className="h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">{copy.signOut}</span>
           </button>
-
-          {canDownloadHtml && (
-            <button
-              type="button"
-              onClick={onDownloadHtml}
-              className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden md:inline">
-                {downloadNotice ? copy.htmlDownloaded : copy.downloadHtml}
-              </span>
-            </button>
-          )}
         </div>
       </div>
     </header>

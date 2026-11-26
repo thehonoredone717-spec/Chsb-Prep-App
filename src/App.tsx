@@ -19,6 +19,7 @@ import { AuthGate } from './components/AuthGate';
 import { AssignView } from './components/AssignView';
 import { DashboardSection } from './components/DashboardSection';
 import { AppNotification } from './components/NotificationBell';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { OverviewSection } from './components/OverviewSection';
 import { PermissionView } from './components/PermissionView';
 import { PreviewView } from './components/PreviewView';
@@ -58,7 +59,6 @@ import {
   sanitizeDisplayName,
 } from './firebase';
 import { DifficultyLevel, SubjectId, UILanguage } from './types/quiz';
-import { downloadStandaloneHtml } from './utils/exportHtml';
 import { getDifficultyLabel, getVariantLabel } from './utils/quizEngine';
 import {
   exitAppFullscreen,
@@ -86,7 +86,6 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
   const [history, setHistory] = useState<AttemptRecord[]>([]);
-  const [downloadNotice, setDownloadNotice] = useState<boolean>(false);
   const [fatalError, setFatalError] = useState<Error | null>(null);
   const [isQuizRunning, setIsQuizRunning] = useState<boolean>(false);
   const [pendingNavAction, setPendingNavAction] = useState<(() => void) | null>(null);
@@ -993,13 +992,6 @@ export default function App() {
     void signOut(auth);
   };
 
-  const handleDownloadHtml = () => {
-    if (!isFullAdmin) return;
-    downloadStandaloneHtml();
-    setDownloadNotice(true);
-    window.setTimeout(() => setDownloadNotice(false), 3000);
-  };
-
   if (!authReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] text-sm font-semibold text-slate-600">
@@ -1039,8 +1031,6 @@ export default function App() {
       <TopBar
         lang={lang}
         onSelectView={handleSelectView}
-        onDownloadHtml={handleDownloadHtml}
-        downloadNotice={downloadNotice}
         userProfile={userProfile}
         teacherScope={teacherScope}
         onSignOut={handleSignOut}
@@ -1292,6 +1282,8 @@ export default function App() {
       </footer>
         </div>
       </div>
+
+      <OfflineIndicator lang={lang} />
     </div>
   );
 }
