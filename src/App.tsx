@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AuthGate } from './components/AuthGate';
 import { AssignView } from './components/AssignView';
 import { DashboardSection } from './components/DashboardSection';
+import { AppNotification } from './components/NotificationBell';
 import { OverviewSection } from './components/OverviewSection';
 import { PermissionView } from './components/PermissionView';
 import { PreviewView } from './components/PreviewView';
@@ -41,6 +42,7 @@ import {
   OWNER_EMAIL,
   OperationType,
   SCIENCE_TEACHER_EMAIL,
+  STUDENT_EMAIL,
   UserProfile,
   VARIANT_MAX_LEN,
   auth,
@@ -55,8 +57,9 @@ import {
   isTeacherAdmin,
   sanitizeDisplayName,
 } from './firebase';
-import { SubjectId, UILanguage } from './types/quiz';
+import { DifficultyLevel, SubjectId, UILanguage } from './types/quiz';
 import { downloadStandaloneHtml } from './utils/exportHtml';
+import { getDifficultyLabel, getVariantLabel } from './utils/quizEngine';
 import {
   exitAppFullscreen,
   isFullscreenActive,
@@ -94,6 +97,32 @@ export default function App() {
   const [savingPermissionId, setSavingPermissionId] = useState<SubjectId | null>(null);
   const [desktopMenuOpen, setDesktopMenuOpen] = useState<boolean>(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [liveAssignments, setLiveAssignments] = useState<
+    Array<{
+      id: string;
+      studentUid: string;
+      subjectId: SubjectId;
+      difficulty: DifficultyLevel;
+      variant: number;
+      assignedByName: string;
+      updatedAtMs: number;
+    }>
+  >([]);
+  const [liveRetakeCodes, setLiveRetakeCodes] = useState<
+    Array<{
+      id: string;
+      assignmentId: string;
+      studentUid: string;
+      studentName: string;
+      subjectId: SubjectId;
+      difficulty: DifficultyLevel;
+      variant: number;
+      code: string;
+      status: 'pending' | 'used';
+      updatedAtMs: number;
+    }>
+  >([]);
+  const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(() => new Set());
 
   const pendingSignupRef = useRef<{ username: string; displayName: string } | null>(null);
   const finishQuizRef = useRef<(() => void) | null>(null);
@@ -153,6 +182,9 @@ export default function App() {
         setUsersList([]);
         setHistory([]);
         setSubjectPermissions({});
+        setLiveAssignments([]);
+        setLiveRetakeCodes([]);
+        setReadNotificationIds(new Set());
         setActiveView('dashboard');
         setAuthReady(true);
         return;
@@ -406,7 +438,15 @@ export default function App() {
               delete next[subject.id];
               return next;
             }
-            const raw = snap.data() as Partial<SubjectPermission>;
+            const raw = snap.data() as Omit<Partial<SubjectPermission>, 'updatedAt'> & {
+              updatedAt?: string | { toMillis?: () => number };
+            };
+            const updatedAtStr =
+              typeof raw.updatedAt === 'string'
+                ? raw.updatedAt
+                : typeof raw.updatedAt?.toMillis === 'function'
+                  ? String(raw.updatedAt.toMillis())
+                  : undefined;
             return {
               ...prev,
               [subject.id]: {
@@ -414,6 +454,7 @@ export default function App() {
                 prohibited: raw.prohibited === true,
                 updatedByUid: raw.updatedByUid,
                 updatedByName: raw.updatedByName,
+                updatedAt: updatedAtStr,
               },
             };
           });
@@ -428,12 +469,352 @@ export default function App() {
       )
     );
 
+    const isIbrohimUser =
+      userProfile.email?.toLowerCase() === STUDENT_EMAIL ||
+      userProfile.username.toLowerCase().includes('ibrohim');
+    const assignmentsQuery =
+      teacherScope === 'none'
+        ? query(
+            collection(db, 'studentAssignments'),
+            where(
+              'studentUid',
+              'in',
+              isIbrohimUser ? [userProfile.uid, 'student_ibrohimbek_profile'] : [userProfile.uid]
+            )
+          )
+        : teacherScope === 'all'
+          ? collection(db, 'studentAssignments')
+          : query(collection(db, 'studentAssignments'), where('subjectId', '==', teacherScope));
+
+    const unsubscribeAssignments = onSnapshot(
+      assignmentsQuery,
+      (snapshot) => {
+        const list = snapshot.docs.map((d) => {
+          const raw = d.data() as {
+            id?: string;
+            studentUid?: string;
+            subjectId?: SubjectId;
+            difficulty?: DifficultyLevel;
+            variant?: number;
+            assignedByName?: string;
+            updatedAt?: { toMillis?: () => number };
+          };
+          const updatedAtMs =
+            typeof raw.updatedAt?.toMillis === 'function' ? raw.updatedAt.toMillis() : 0;
+          return {
+            id: raw.id || d.id,
+            studentUid: raw.studentUid || '',
+            subjectId: raw.subjectId || 'math',
+            difficulty: raw.difficulty || 'easy',
+            variant: typeof raw.variant === 'number' ? raw.variant : 1,
+            assignedByName: raw.assignedByName || 'Teacher',
+            updatedAtMs,
+          };
+        });
+        setLiveAssignments(list);
+      },
+      (err) => {
+        try {
+          handleFirestoreError(err, OperationType.LIST, 'studentAssignments');
+        } catch (wrapped) {
+          setFatalError(wrapped as Error);
+        }
+      }
+    );
+
+    let unsubscribeRetakeCodes: (() => void) | null = null;
+    if (teacherScope !== 'none') {
+      const retakeQuery =
+        teacherScope === 'all'
+          ? collection(db, 'retakeCodes')
+          : query(collection(db, 'retakeCodes'), where('subjectId', '==', teacherScope));
+
+      unsubscribeRetakeCodes = onSnapshot(
+        retakeQuery,
+        (snapshot) => {
+          const list = snapshot.docs.map((d) => {
+            const raw = d.data() as {
+              id?: string;
+              assignmentId?: string;
+              studentUid?: string;
+              studentName?: string;
+              subjectId?: SubjectId;
+              difficulty?: DifficultyLevel;
+              variant?: number;
+              code?: string;
+              status?: 'pending' | 'used';
+              updatedAt?: { toMillis?: () => number };
+            };
+            const updatedAtMs =
+              typeof raw.updatedAt?.toMillis === 'function' ? raw.updatedAt.toMillis() : 0;
+            return {
+              id: raw.id || d.id,
+              assignmentId: raw.assignmentId || d.id,
+              studentUid: raw.studentUid || '',
+              studentName: raw.studentName || 'Student',
+              subjectId: raw.subjectId || 'math',
+              difficulty: raw.difficulty || 'easy',
+              variant: typeof raw.variant === 'number' ? raw.variant : 1,
+              code: raw.code || '',
+              status: (raw.status === 'used' ? 'used' : 'pending') as 'pending' | 'used',
+              updatedAtMs,
+            };
+          });
+          setLiveRetakeCodes(list);
+        },
+        (err) => {
+          try {
+            handleFirestoreError(err, OperationType.LIST, 'retakeCodes');
+          } catch (wrapped) {
+            setFatalError(wrapped as Error);
+          }
+        }
+      );
+    } else {
+      setLiveRetakeCodes([]);
+    }
+
     return () => {
       unsubscribeAttempts();
       unsubscribeUsers();
       permissionUnsubs.forEach((unsub) => unsub());
+      unsubscribeAssignments();
+      unsubscribeRetakeCodes?.();
     };
-  }, [authReady, authUser, userProfile, isFullAdmin, isCompTeacher, isMathTch, isScienceTch]);
+  }, [
+    authReady,
+    authUser,
+    userProfile,
+    isFullAdmin,
+    isCompTeacher,
+    isMathTch,
+    isScienceTch,
+    isEnglishTch,
+    teacherScope,
+  ]);
+
+  useEffect(() => {
+    if (!userProfile?.uid) return;
+    try {
+      const raw = window.localStorage.getItem(`g7_chsb_read_notifs_${userProfile.uid}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed)) {
+          setReadNotificationIds(new Set(parsed.filter((v): v is string => typeof v === 'string')));
+          return;
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    setReadNotificationIds(new Set());
+  }, [userProfile?.uid]);
+
+  const persistReadNotificationIds = (nextSet: Set<string>) => {
+    if (!userProfile?.uid) return;
+    try {
+      window.localStorage.setItem(
+        `g7_chsb_read_notifs_${userProfile.uid}`,
+        JSON.stringify(Array.from(nextSet).slice(-200))
+      );
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
+  const handleMarkNotificationRead = (id: string) => {
+    setReadNotificationIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      persistReadNotificationIds(next);
+      return next;
+    });
+  };
+
+  const notifications = useMemo<AppNotification[]>(() => {
+    if (!userProfile) return [];
+    const items: AppNotification[] = [];
+    const uz = lang === 'uz';
+
+    // 0. Pending 2nd-attempt unlock codes for teachers/owner
+    if (teacherScope !== 'none') {
+      liveRetakeCodes.forEach((rc) => {
+        if (rc.status !== 'pending' || !rc.code) return;
+        const sub = SUBJECT_MAP[rc.subjectId];
+        const subLabel = sub ? pickText(sub.shortLabel, lang) : rc.subjectId;
+        const diffLabel = getDifficultyLabel(rc.difficulty, lang);
+        const varLabel = getVariantLabel(rc.variant, lang);
+        const st = usersList.find((u) => u.uid === rc.studentUid);
+        const studentLabel = st ? st.displayName : rc.studentName || rc.studentUid;
+
+        items.push({
+          id: `retake:${rc.id}:${rc.code}:${rc.updatedAtMs}`,
+          kind: 'retake',
+          title: uz
+            ? `🔑 ${studentLabel} — 2-urinish kodi: ${rc.code}`
+            : `🔑 ${studentLabel} — 2nd attempt code: ${rc.code}`,
+          description: uz
+            ? `${subLabel} (${diffLabel} · ${varLabel}) uchun qayta ishlash kodi. O‘quvchi 2-marta ishlashi uchun ushbu kodni bering.`
+            : `Unlock code for ${subLabel} (${diffLabel} · ${varLabel}). Share this code with the student for a 2nd attempt.`,
+          timestampMs: rc.updatedAtMs,
+          onClick: () => {
+            requestSectionLeave(() => setActiveView('assign'));
+          },
+        });
+      });
+    }
+
+    // 1. Live variant assignments
+    liveAssignments.forEach((asg) => {
+      const sub = SUBJECT_MAP[asg.subjectId];
+      const subLabel = sub ? pickText(sub.shortLabel, lang) : asg.subjectId;
+      const diffLabel = getDifficultyLabel(asg.difficulty, lang);
+      const varLabel = getVariantLabel(asg.variant, lang);
+
+      if (teacherScope === 'none') {
+        items.push({
+          id: `assign:${asg.id}:v${asg.variant}:${asg.updatedAtMs}`,
+          kind: 'assignment',
+          title: uz
+            ? `${subLabel}: ${varLabel} biriktirildi`
+            : `${subLabel}: ${varLabel} assigned`,
+          description: uz
+            ? `${diffLabel} daraja · ${asg.assignedByName} tomonidan biriktirildi. Testni boshlash uchun bosing.`
+            : `${diffLabel} tier · Assigned by ${asg.assignedByName}. Click to open quiz.`,
+          timestampMs: asg.updatedAtMs,
+          onClick: () => {
+            requestSectionLeave(() => {
+              hasManualSubjectSelectionRef.current = true;
+              setActiveSubjectId(asg.subjectId);
+              setActiveView('quiz');
+            });
+          },
+        });
+      } else {
+        const st = usersList.find((u) => u.uid === asg.studentUid);
+        const studentLabel = st
+          ? st.displayName
+          : asg.studentUid === 'student_ibrohimbek_profile'
+            ? 'Ibrohimbek Xujanazarov'
+            : asg.studentUid;
+        items.push({
+          id: `assign:${asg.id}:v${asg.variant}:${asg.updatedAtMs}`,
+          kind: 'assignment',
+          title: uz
+            ? `${studentLabel} — ${subLabel} (${varLabel})`
+            : `${studentLabel} — ${subLabel} (${varLabel})`,
+          description: uz
+            ? `${diffLabel} daraja · ${asg.assignedByName} tomonidan biriktirilgan`
+            : `${diffLabel} tier · Assigned by ${asg.assignedByName}`,
+          timestampMs: asg.updatedAtMs,
+          onClick: () => {
+            requestSectionLeave(() => setActiveView('assign'));
+          },
+        });
+      }
+    });
+
+    // 2. Subject prohibitions
+    SUBJECTS.forEach((sub) => {
+      const perm = subjectPermissions[sub.id];
+      if (!perm?.prohibited) return;
+      const subLabel = pickText(sub.shortLabel, lang);
+      const ts = perm.updatedAt ? Number(perm.updatedAt) || 0 : 0;
+      items.push({
+        id: `prohibit:${sub.id}:${perm.updatedAt ?? 'on'}`,
+        kind: 'prohibition',
+        title: uz ? `${subLabel} testlari yopilgan` : `${subLabel} quizzes locked`,
+        description: uz
+          ? `${perm.updatedByName ? `${perm.updatedByName} tomonidan ` : ''}hozircha ushbu fandan testlar to‘xtatilgan.`
+          : `Tests for this subject are currently prohibited${perm.updatedByName ? ` by ${perm.updatedByName}` : ''}.`,
+        timestampMs: ts,
+        onClick: () => {
+          requestSectionLeave(() => {
+            hasManualSubjectSelectionRef.current = true;
+            setActiveSubjectId(sub.id);
+            setActiveView(teacherScope === 'none' ? 'guide' : 'permission');
+          });
+        },
+      });
+    });
+
+    // 3. Recent attempts & proctoring alerts
+    const recentHistory = history.slice(0, 15);
+    recentHistory.forEach((att) => {
+      const sub = SUBJECT_MAP[att.subjectId];
+      const subLabel = sub ? pickText(sub.shortLabel, lang) : att.subjectId;
+      const ts = new Date(att.completedAt).getTime() || 0;
+      const studentProfile = att.userId
+        ? usersList.find((u) => u.uid === att.userId)
+        : undefined;
+      const studentLabel =
+        att.studentName ||
+        studentProfile?.displayName ||
+        att.username ||
+        studentProfile?.username ||
+        (uz ? 'O‘quvchi' : 'Student');
+      const diffLabel = att.difficulty ? getDifficultyLabel(att.difficulty, lang) : '';
+
+      if (att.cheated) {
+        items.push({
+          id: `cheated:${att.id}`,
+          kind: 'warning',
+          title:
+            teacherScope === 'none'
+              ? uz
+                ? `${subLabel}: Proktoring ogohlantirishi (0 ball)`
+                : `${subLabel}: Proctoring violation (0 score)`
+              : uz
+                ? `${studentLabel} — ${subLabel} qoidabuzarlik (0 ball)`
+                : `${studentLabel} — ${subLabel} flagged (0 score)`,
+          description: uz
+            ? `${diffLabel ? `${diffLabel} · ` : ''}${att.variant} · Barcha 3 ta ogohlantirish tugagani uchun test 0 ball bilan yakunlandi.`
+            : `${diffLabel ? `${diffLabel} · ` : ''}${att.variant} · Test ended with 0 due to 3 proctoring warnings.`,
+          timestampMs: ts,
+          onClick: () => requestSectionLeave(() => setActiveView('results')),
+        });
+      } else if (teacherScope === 'none') {
+        items.push({
+          id: `attempt:${att.id}`,
+          kind: 'result',
+          title: uz
+            ? `${subLabel} natijasi: ${att.score}/${att.total} (${att.percentage}%)`
+            : `${subLabel} result: ${att.score}/${att.total} (${att.percentage}%)`,
+          description: uz
+            ? `${diffLabel ? `${diffLabel} · ` : ''}${att.variant} · Baho: ${att.grade}`
+            : `${diffLabel ? `${diffLabel} · ` : ''}${att.variant} · Grade: ${att.grade}`,
+          timestampMs: ts,
+          onClick: () => requestSectionLeave(() => setActiveView('results')),
+        });
+      } else {
+        items.push({
+          id: `attempt:${att.id}`,
+          kind: 'result',
+          title: uz
+            ? `${studentLabel} — ${subLabel}: ${att.score}/${att.total} (${att.percentage}%)`
+            : `${studentLabel} — ${subLabel}: ${att.score}/${att.total} (${att.percentage}%)`,
+          description: uz
+            ? `${diffLabel ? `${diffLabel} · ` : ''}${att.variant} · Baho: ${att.grade} · ${att.mode === 'exam' ? 'Imtihon' : 'Mashq'}`
+            : `${diffLabel ? `${diffLabel} · ` : ''}${att.variant} · Grade: ${att.grade} · ${att.mode === 'exam' ? 'Exam' : 'Practice'}`,
+          timestampMs: ts,
+          onClick: () => requestSectionLeave(() => setActiveView('results')),
+        });
+      }
+    });
+
+    items.sort((a, b) => b.timestampMs - a.timestampMs);
+    return items.slice(0, 30);
+  }, [userProfile, lang, liveRetakeCodes, liveAssignments, subjectPermissions, history, teacherScope, usersList]);
+
+  const handleMarkAllNotificationsRead = () => {
+    setReadNotificationIds((prev) => {
+      const next = new Set(prev);
+      notifications.forEach((n) => next.add(n.id));
+      persistReadNotificationIds(next);
+      return next;
+    });
+  };
 
   const prohibitedSubjects = useMemo(() => {
     const set = new Set<SubjectId>();
@@ -669,6 +1050,10 @@ export default function App() {
         desktopMenuOpen={desktopMenuOpen}
         onToggleDesktopMenu={() => setDesktopMenuOpen((prev) => !prev)}
         onOpenMobileMenu={() => setMobileMenuOpen(true)}
+        notifications={notifications}
+        readNotificationIds={readNotificationIds}
+        onMarkNotificationRead={handleMarkNotificationRead}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
       />
 
       <div className="flex flex-1">
@@ -852,6 +1237,7 @@ export default function App() {
             subject={activeSubject}
             lang={lang}
             userProfile={userProfile}
+            history={history}
             onOpenGuide={() => requestSectionLeave(() => setActiveView('guide'))}
             onRecordAttempt={handleRecordAttempt}
             onRunningStateChange={setIsQuizRunning}

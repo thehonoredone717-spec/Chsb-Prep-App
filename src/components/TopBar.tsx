@@ -1,6 +1,5 @@
 import {
   Download,
-  GraduationCap,
   LogOut,
   Maximize2,
   Menu,
@@ -13,6 +12,7 @@ import {
 import { UI_COPY } from '../data/subjects';
 import { UserProfile } from '../firebase';
 import { UILanguage } from '../types/quiz';
+import { AppNotification, NotificationBell } from './NotificationBell';
 
 export type AppView = 'dashboard' | 'subjects' | 'quiz' | 'guide' | 'results' | 'permission' | 'assign' | 'preview';
 export type TeacherScope = 'none' | 'computing' | 'math' | 'science' | 'english' | 'all';
@@ -31,6 +31,10 @@ interface TopBarProps {
   desktopMenuOpen: boolean;
   onToggleDesktopMenu: () => void;
   onOpenMobileMenu: () => void;
+  notifications: AppNotification[];
+  readNotificationIds: Set<string>;
+  onMarkNotificationRead: (id: string) => void;
+  onMarkAllNotificationsRead: () => void;
 }
 
 export function TopBar({
@@ -47,6 +51,10 @@ export function TopBar({
   desktopMenuOpen,
   onToggleDesktopMenu,
   onOpenMobileMenu,
+  notifications,
+  readNotificationIds,
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
 }: TopBarProps) {
   const copy = UI_COPY[lang];
   const isAnyTeacher = teacherScope !== 'none';
@@ -170,6 +178,14 @@ export function TopBar({
               <Maximize2 className="h-4 w-4" aria-hidden="true" />
             )}
           </button>
+
+          <NotificationBell
+            lang={lang}
+            notifications={notifications}
+            readIds={readNotificationIds}
+            onMarkRead={onMarkNotificationRead}
+            onMarkAllRead={onMarkAllNotificationsRead}
+          />
 
           <button
             type="button"

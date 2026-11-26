@@ -1,4 +1,4 @@
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import {
   AlertTriangle,
   BookOpen,
@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  KeyRound,
   Loader2,
   Lock,
   Play,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRecord, UI_COPY, pickText } from '../data/subjects';
-import { STUDENT_EMAIL, UserProfile, db } from '../firebase';
+import { STUDENT_EMAIL, UserProfile, db, sanitizeDisplayName } from '../firebase';
 import { CameraProctor } from './CameraProctor';
 import { FormattedMathText } from './FormattedMathText';
 import { MathShapeDiagram } from './MathShapeDiagram';
@@ -26,6 +27,7 @@ import {
   DifficultyLevel,
   QuizMode,
   SubjectConfig,
+  SubjectId,
   UILanguage,
   VariantSelection,
 } from '../types/quiz';
@@ -50,10 +52,26 @@ import {
   unlockSystemKeys,
 } from '../utils/fullscreen';
 
+interface AssignedSlot {
+  docId: string;
+  studentUid: string;
+  variant: number;
+  attemptsAllowed: number;
+  attemptsUsed: number;
+  hasExplicitCounters: boolean;
+  retakeCodePending: boolean;
+}
+
+function generateSixDigitCode(): string {
+  const num = Math.floor(100000 + Math.random() * 900000);
+  return String(num);
+}
+
 interface QuizSectionProps {
   subject: SubjectConfig;
   lang: UILanguage;
   userProfile?: UserProfile | null;
+  history?: AttemptRecord[];
   onOpenGuide: () => void;
   onRecordAttempt: (record: AttemptRecord) => void;
   onRunningStateChange?: (running: boolean) => void;
@@ -92,6 +110,7 @@ export function QuizSection({
   subject,
   lang,
   userProfile,
+  history = [],
   onOpenGuide,
   onRecordAttempt,
   onRunningStateChange,
@@ -104,17 +123,48 @@ export function QuizSection({
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('easy');
   const [variant, setVariant] = useState<VariantSelection>(1);
   const [subjectAssignments, setSubjectAssignments] = useState<
-    Partial<Record<DifficultyLevel, number>>
+    Partial<Record<DifficultyLevel, AssignedSlot>>
   >({});
   const [assignmentsLoaded, setAssignmentsLoaded] = useState<boolean>(!isStudent);
 
-  const assignedVariant: number | null = isStudent
+  const [retakeInput, setRetakeInput] = useState<string>('');
+  const [retakeBusy, setRetakeBusy] = useState<boolean>(false);
+  const [retakeError, setRetakeError] = useState<string | null>(null);
+  const [retakeSuccess, setRetakeSuccess] = useState<string | null>(null);
+  const autoSentCodesRef = useRef<Set<string>>(new Set());
+
+  const activeBuiltRef = useRef<{
+    subjectId: SubjectId;
+    diff: DifficultyLevel;
+    variant: number;
+  } | null>(null);
+
+  const activeAssignment: AssignedSlot | null = isStudent
     ? (subjectAssignments[difficulty] ?? null)
     : null;
+  const assignedVariant: number | null = activeAssignment?.variant ?? null;
+
+  const effectiveAllowed = activeAssignment?.attemptsAllowed ?? 1;
+  const effectiveUsed = useMemo(() => {
+    if (!isStudent || !activeAssignment) return 0;
+    if (activeAssignment.hasExplicitCounters) {
+      return activeAssignment.attemptsUsed;
+    }
+    const vLabelUz = getVariantLabel(activeAssignment.variant, 'uz');
+    const vLabelEn = getVariantLabel(activeAssignment.variant, 'en');
+    const hasLegacyAttempt = history.some(
+      (rec) =>
+        rec.subjectId === subject.id &&
+        rec.difficulty === difficulty &&
+        (rec.variant === vLabelUz || rec.variant === vLabelEn)
+    );
+    return hasLegacyAttempt ? Math.max(activeAssignment.attemptsUsed, 1) : activeAssignment.attemptsUsed;
+  }, [isStudent, activeAssignment, history, subject.id, difficulty]);
+
+  const hasAttemptsLeft = !isStudent || (activeAssignment !== null && effectiveUsed < effectiveAllowed);
 
   const assignedDifficulties = useMemo(
-    () =>
-      DIFFICULTY_LEVELS.filter((lvl) => typeof subjectAssignments[lvl] === 'number'),
+    () => DIFFICULTY_LEVELS.filter((lvl) => subjectAssignments[lvl] !== undefined),
     [subjectAssignments]
   );
 
@@ -122,31 +172,64 @@ export function QuizSection({
   difficultyRef.current = difficulty;
 
   useEffect(() => {
+    setRetakeInput('');
+    setRetakeError(null);
+    setRetakeSuccess(null);
+  }, [subject.id, difficulty]);
+
+  useEffect(() => {
     if (!isStudent || !userProfile) {
       setSubjectAssignments({});
       setAssignmentsLoaded(true);
+      activeBuiltRef.current = null;
       return;
     }
 
     setSubjectAssignments({});
     setAssignmentsLoaded(false);
+    activeBuiltRef.current = null;
 
     const isIbrohim =
       userProfile.email?.toLowerCase() === STUDENT_EMAIL ||
       userProfile.username.toLowerCase().includes('ibrohim');
 
-    const primaryMap: Partial<Record<DifficultyLevel, number>> = {};
-    const fallbackMap: Partial<Record<DifficultyLevel, number>> = {};
+    const primaryMap: Partial<Record<DifficultyLevel, AssignedSlot>> = {};
+    const fallbackMap: Partial<Record<DifficultyLevel, AssignedSlot>> = {};
     const firedKeys = new Set<string>();
     const totalExpected = DIFFICULTY_LEVELS.length * (isIbrohim ? 2 : 1);
     let didAutoSelectForSubject = false;
 
+    const parseSlot = (
+      docId: string,
+      studentUidFallback: string,
+      data: {
+        studentUid?: string;
+        variant?: number;
+        attemptsAllowed?: number;
+        attemptsUsed?: number;
+        retakeCodePending?: boolean;
+      }
+    ): AssignedSlot | null => {
+      if (typeof data.variant !== 'number') return null;
+      const hasExplicitCounters =
+        typeof data.attemptsAllowed === 'number' && typeof data.attemptsUsed === 'number';
+      return {
+        docId,
+        studentUid: data.studentUid || studentUidFallback,
+        variant: data.variant,
+        attemptsAllowed: typeof data.attemptsAllowed === 'number' ? data.attemptsAllowed : 1,
+        attemptsUsed: typeof data.attemptsUsed === 'number' ? data.attemptsUsed : 0,
+        hasExplicitCounters,
+        retakeCodePending: data.retakeCodePending === true,
+      };
+    };
+
     const syncAssignments = () => {
-      const merged: Partial<Record<DifficultyLevel, number>> = {};
+      const merged: Partial<Record<DifficultyLevel, AssignedSlot>> = {};
       for (const lvl of DIFFICULTY_LEVELS) {
-        const val = primaryMap[lvl] ?? fallbackMap[lvl];
-        if (typeof val === 'number') {
-          merged[lvl] = val;
+        const slot = primaryMap[lvl] ?? fallbackMap[lvl];
+        if (slot) {
+          merged[lvl] = slot;
         }
       }
       setSubjectAssignments(merged);
@@ -158,11 +241,7 @@ export function QuizSection({
 
       const currentDiff = difficultyRef.current;
       let targetDiff = currentDiff;
-      if (
-        allReady &&
-        !didAutoSelectForSubject &&
-        merged[currentDiff] === undefined
-      ) {
+      if (allReady && !didAutoSelectForSubject && merged[currentDiff] === undefined) {
         const firstAssigned = DIFFICULTY_LEVELS.find((l) => merged[l] !== undefined);
         if (firstAssigned) {
           targetDiff = firstAssigned;
@@ -173,16 +252,30 @@ export function QuizSection({
         didAutoSelectForSubject = true;
       }
 
-      const resolvedForTarget = merged[targetDiff] ?? null;
-      if (resolvedForTarget !== null) {
-        setVariant(resolvedForTarget);
-        setQuestions(buildVariantQuestions(subject, targetDiff, resolvedForTarget));
-        setAnswers({});
-        setCurrentIndex(0);
-        setStarted(false);
-        setSubmitted(false);
+      const resolvedSlot = merged[targetDiff] ?? null;
+      if (resolvedSlot !== null) {
+        const prevBuilt = activeBuiltRef.current;
+        const assignmentIdentityChanged =
+          !prevBuilt ||
+          prevBuilt.subjectId !== subject.id ||
+          prevBuilt.diff !== targetDiff ||
+          prevBuilt.variant !== resolvedSlot.variant;
+
+        if (assignmentIdentityChanged) {
+          activeBuiltRef.current = {
+            subjectId: subject.id,
+            diff: targetDiff,
+            variant: resolvedSlot.variant,
+          };
+          setVariant(resolvedSlot.variant);
+          setQuestions(buildVariantQuestions(subject, targetDiff, resolvedSlot.variant));
+          setAnswers({});
+          setCurrentIndex(0);
+          setStarted(false);
+          setSubmitted(false);
+        }
       } else if (allReady) {
-        // Current difficulty has no assigned variant — ensure test cannot run
+        activeBuiltRef.current = null;
         setStarted(false);
         setSubmitted(false);
       }
@@ -192,15 +285,26 @@ export function QuizSection({
 
     for (const lvl of DIFFICULTY_LEVELS) {
       const primaryKey = `p_${lvl}`;
-      const primaryRef = doc(db, 'studentAssignments', `${userProfile.uid}_${subject.id}_${lvl}`);
+      const primaryDocId = `${userProfile.uid}_${subject.id}_${lvl}`;
+      const primaryRef = doc(db, 'studentAssignments', primaryDocId);
       unsubs.push(
         onSnapshot(
           primaryRef,
           (snap) => {
             if (snap.exists()) {
-              const data = snap.data() as { variant?: number };
-              if (typeof data.variant === 'number') {
-                primaryMap[lvl] = data.variant;
+              const slot = parseSlot(
+                primaryDocId,
+                userProfile.uid,
+                snap.data() as {
+                  studentUid?: string;
+                  variant?: number;
+                  attemptsAllowed?: number;
+                  attemptsUsed?: number;
+                  retakeCodePending?: boolean;
+                }
+              );
+              if (slot) {
+                primaryMap[lvl] = slot;
               } else {
                 delete primaryMap[lvl];
               }
@@ -220,19 +324,26 @@ export function QuizSection({
 
       if (isIbrohim) {
         const fallbackKey = `f_${lvl}`;
-        const fallbackRef = doc(
-          db,
-          'studentAssignments',
-          `student_ibrohimbek_profile_${subject.id}_${lvl}`
-        );
+        const fallbackDocId = `student_ibrohimbek_profile_${subject.id}_${lvl}`;
+        const fallbackRef = doc(db, 'studentAssignments', fallbackDocId);
         unsubs.push(
           onSnapshot(
             fallbackRef,
             (snap) => {
               if (snap.exists()) {
-                const data = snap.data() as { variant?: number };
-                if (typeof data.variant === 'number') {
-                  fallbackMap[lvl] = data.variant;
+                const slot = parseSlot(
+                  fallbackDocId,
+                  'student_ibrohimbek_profile',
+                  snap.data() as {
+                    studentUid?: string;
+                    variant?: number;
+                    attemptsAllowed?: number;
+                    attemptsUsed?: number;
+                    retakeCodePending?: boolean;
+                  }
+                );
+                if (slot) {
+                  fallbackMap[lvl] = slot;
                 } else {
                   delete fallbackMap[lvl];
                 }
@@ -269,6 +380,76 @@ export function QuizSection({
   const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong'>('all');
   const [rotationCount, setRotationCount] = useState<number>(0);
   const [pendingSwitchAction, setPendingSwitchAction] = useState<(() => void) | null>(null);
+
+  const sendRetakeCodeToTeacher = useCallback(
+    async (slot: AssignedSlot, forceUsedCount: number) => {
+      if (!userProfile) return;
+      const newCode = generateSixDigitCode();
+      const batch = writeBatch(db);
+      const codeRef = doc(db, 'retakeCodes', slot.docId);
+      batch.set(codeRef, {
+        id: slot.docId,
+        assignmentId: slot.docId,
+        studentUid: slot.studentUid,
+        studentName: sanitizeDisplayName(userProfile.displayName, userProfile.username),
+        subjectId: subject.id,
+        difficulty,
+        variant: slot.variant,
+        code: newCode,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      batch.update(
+        doc(db, 'studentAssignments', slot.docId),
+        slot.hasExplicitCounters
+          ? {
+              retakeCodePending: true,
+              updatedAt: serverTimestamp(),
+            }
+          : {
+              attemptsAllowed: 1,
+              attemptsUsed: forceUsedCount,
+              retakeCodePending: true,
+              updatedAt: serverTimestamp(),
+            }
+      );
+      await batch.commit();
+    },
+    [userProfile, subject.id, difficulty]
+  );
+
+  // Automatically send 6-digit unlock code to teachers once 1st attempt is finished or locked
+  useEffect(() => {
+    if (!isStudent || !assignmentsLoaded || !activeAssignment) return;
+    if (effectiveUsed < effectiveAllowed) {
+      autoSentCodesRef.current.delete(activeAssignment.docId);
+      return;
+    }
+    if (
+      (started && !submitted) ||
+      effectiveAllowed >= 2 ||
+      activeAssignment.retakeCodePending
+    ) {
+      return;
+    }
+    if (autoSentCodesRef.current.has(activeAssignment.docId)) {
+      return;
+    }
+    autoSentCodesRef.current.add(activeAssignment.docId);
+    void sendRetakeCodeToTeacher(activeAssignment, Math.max(1, effectiveUsed)).catch((err) => {
+      console.error('Failed to auto-dispatch retake code to teacher:', err);
+    });
+  }, [
+    isStudent,
+    assignmentsLoaded,
+    activeAssignment,
+    started,
+    submitted,
+    effectiveUsed,
+    effectiveAllowed,
+    sendRetakeCodeToTeacher,
+  ]);
 
   // Per-test anti-cheat focus / tab / desktop guard state (3 warnings, 3s grace period)
   const [warningsLeft, setWarningsLeft] = useState<number>(MAX_WARNINGS);
@@ -324,14 +505,26 @@ export function QuizSection({
             : 'Camera access is not supported by your browser'
         );
       }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+      } catch (constraintErr: unknown) {
+        const cName = (constraintErr as { name?: string })?.name;
+        if (cName === 'NotAllowedError' || cName === 'PermissionDeniedError') {
+          throw constraintErr;
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
       setCameraStream(stream);
       setCameraStatus('active');
       return true;
@@ -438,6 +631,15 @@ export function QuizSection({
     prevIds: string[]
   ) => {
     const nextQuestions = buildVariantQuestions(subject, nextDiff, nextVar, prevIds);
+    if (isStudent && typeof nextVar === 'number') {
+      activeBuiltRef.current = {
+        subjectId: subject.id,
+        diff: nextDiff,
+        variant: nextVar,
+      };
+    } else if (!isStudent) {
+      activeBuiltRef.current = null;
+    }
     setDifficulty(nextDiff);
     setVariant(nextVar);
     setQuestions(nextQuestions);
@@ -449,6 +651,8 @@ export function QuizSection({
     setReviewFilter('all');
     setRotationCount((c) => c + 1);
     setSecretUsedIds([]);
+    setRetakeError(null);
+    setRetakeSuccess(null);
     resetFocusGuard();
   };
 
@@ -474,7 +678,7 @@ export function QuizSection({
     if (chosenDifficulty === difficulty && !submitted) return;
     guardSwitch(() => {
       const targetVar = isStudent
-        ? (subjectAssignments[chosenDifficulty] ?? 1)
+        ? (subjectAssignments[chosenDifficulty]?.variant ?? 1)
         : 1;
       const prevIds = questions.map((q) => q.source.id);
       startSession(chosenDifficulty, targetVar, prevIds);
@@ -490,14 +694,89 @@ export function QuizSection({
     });
   };
 
+  const handleVerifyRetakeCode = async () => {
+    if (!isStudent || !activeAssignment) return;
+    const cleaned = retakeInput.replace(/\s+/g, '').trim();
+    if (!/^[0-9]{6}$/.test(cleaned)) {
+      setRetakeError(
+        lang === 'uz'
+          ? 'Iltimos, ustozga borgan 6 xonali raqamli kodni kiriting.'
+          : 'Please enter the 6-digit numeric code sent to your teacher.'
+      );
+      return;
+    }
+
+    setRetakeBusy(true);
+    setRetakeError(null);
+    setRetakeSuccess(null);
+
+    try {
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'retakeCodes', activeAssignment.docId), {
+        code: cleaned,
+        status: 'used',
+        updatedAt: serverTimestamp(),
+      });
+      batch.update(doc(db, 'studentAssignments', activeAssignment.docId), {
+        attemptsAllowed: effectiveAllowed + 1,
+        retakeCodePending: false,
+        updatedAt: serverTimestamp(),
+      });
+      await batch.commit();
+
+      setRetakeInput('');
+      setRetakeSuccess(
+        lang === 'uz'
+          ? '2-urinish muvaffaqiyatli ochildi! Endi testni boshlashingiz mumkin.'
+          : '2nd attempt unlocked! You can now start your test.'
+      );
+    } catch (err) {
+      console.error('Retake code verification failed:', err);
+      setRetakeError(
+        lang === 'uz'
+          ? 'Kod noto‘g‘ri yoki muddati tugagan! Ustozga borgan 6 xonali kodni tekshirib qayta kiriting.'
+          : 'Incorrect or expired code! Check the 6-digit code with your teacher and try again.'
+      );
+    } finally {
+      setRetakeBusy(false);
+    }
+  };
+
   const handleBeginTest = async () => {
-    if (isStudent && (!assignmentsLoaded || assignedVariant === null)) {
+    if (isStudent && (!assignmentsLoaded || !activeAssignment || effectiveUsed >= effectiveAllowed)) {
       return;
     }
     if (cameraStatus !== 'active') {
       const ok = await requestCamera();
       if (!ok) return;
     }
+
+    if (isStudent && activeAssignment) {
+      try {
+        await updateDoc(
+          doc(db, 'studentAssignments', activeAssignment.docId),
+          activeAssignment.hasExplicitCounters
+            ? {
+                attemptsUsed: effectiveUsed + 1,
+                updatedAt: serverTimestamp(),
+              }
+            : {
+                attemptsAllowed: effectiveAllowed,
+                attemptsUsed: effectiveUsed + 1,
+                updatedAt: serverTimestamp(),
+              }
+        );
+      } catch (err) {
+        console.error('Failed to record attempt start:', err);
+        setRetakeError(
+          lang === 'uz'
+            ? 'Urinishni boshlashda xatolik yuz berdi. Sahifani yangilab qayta urinib ko‘ring.'
+            : 'Could not start attempt. Please refresh and try again.'
+        );
+        return;
+      }
+    }
+
     resetFocusGuard();
     setSecretUsedIds([]);
     guardArmedAtRef.current = Date.now() + 700;
@@ -1084,7 +1363,7 @@ export function QuizSection({
                     <span>{getDifficultyLabel(lvl, lang)}</span>
                     {isStudent && assignedForLvl !== undefined && (
                       <span className="rounded bg-black/15 px-1.5 py-0.5 text-[10px] font-bold">
-                        V{assignedForLvl}
+                        V{assignedForLvl.variant}
                       </span>
                     )}
                     {isLockedLvl && (
@@ -1146,10 +1425,23 @@ export function QuizSection({
             </div>
           )}
           {isStudent && assignedVariant !== null && (
-            <div className="mb-2.5 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900">
-              {lang === 'uz'
-                ? `🔒 Ustozingiz sizga bu daraja uchun faqat ${getVariantLabel(assignedVariant, lang)}ni biriktirgan. Variantni o'zgartirib bo'lmaydi.`
-                : `🔒 Your teacher assigned you ${getVariantLabel(assignedVariant, lang)} for this difficulty tier. Variant switching is locked.`}
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900">
+              <span>
+                {lang === 'uz'
+                  ? `🔒 Ustozingiz sizga bu daraja uchun faqat ${getVariantLabel(assignedVariant, lang)}ni biriktirgan. Variantni o'zgartirib bo'lmaydi.`
+                  : `🔒 Your teacher assigned you ${getVariantLabel(assignedVariant, lang)} for this difficulty tier. Variant switching is locked.`}
+              </span>
+              <span
+                className={`font-mono-num rounded px-2 py-0.5 text-[11px] font-bold ${
+                  hasAttemptsLeft
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-rose-100 text-rose-800'
+                }`}
+              >
+                {lang === 'uz'
+                  ? `Urinish: ${effectiveUsed}/${effectiveAllowed}`
+                  : `Attempts: ${effectiveUsed}/${effectiveAllowed}`}
+              </span>
             </div>
           )}
           <div
@@ -1517,7 +1809,7 @@ export function QuizSection({
                 </p>
                 <div className="mt-3 flex flex-wrap items-center justify-center gap-2.5">
                   {assignedDifficulties.map((lvl) => {
-                    const vNum = subjectAssignments[lvl]!;
+                    const slot = subjectAssignments[lvl]!;
                     return (
                       <button
                         key={lvl}
@@ -1527,12 +1819,86 @@ export function QuizSection({
                       >
                         <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                         <span>
-                          {getDifficultyLabel(lvl, lang)} · {getVariantLabel(vNum, lang)}
+                          {getDifficultyLabel(lvl, lang)} · {getVariantLabel(slot.variant, lang)}
                         </span>
                       </button>
                     );
                   })}
                 </div>
+              </div>
+            )}
+          </div>
+        ) : isStudent && activeAssignment !== null && effectiveUsed >= effectiveAllowed ? (
+          <div className="rounded-xl border-2 border-indigo-200 bg-white p-8 text-center sm:p-10">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700">
+              <KeyRound className="h-7 w-7" aria-hidden="true" />
+            </div>
+            <h2 className="mt-4 font-display text-xl font-extrabold text-slate-900 sm:text-2xl">
+              {lang === 'uz'
+                ? `1-urinish yakunlangan — ${getVariantLabel(activeAssignment.variant, lang)} yopiq`
+                : `Attempt Limit Reached — ${getVariantLabel(activeAssignment.variant, lang)} Locked`}
+            </h2>
+            <p className="mx-auto mt-2.5 max-w-xl text-sm leading-relaxed text-slate-600">
+              {effectiveAllowed >= 2 && effectiveUsed >= effectiveAllowed
+                ? lang === 'uz'
+                  ? `Siz ushbu variant uchun barcha ${effectiveUsed}/${effectiveAllowed} ta urinishdan foydalandingiz. Yana ishlash uchun ustozdan yangi ruxsat/kod so‘rang.`
+                  : `You have used all ${effectiveUsed}/${effectiveAllowed} attempts for this variant. Ask your teacher to issue a new code.`
+                : lang === 'uz'
+                  ? 'Biriktirilgan variantni faqat 1 marta ishlash mumkin. 2-marta urinish uchun ustozingizga borgan 6 xonali maxfiy kodni so‘rab shu yerga tering.'
+                  : 'An assigned variant allows 1 attempt by default. To unlock a 2nd attempt, enter the 6-digit code sent to your teacher.'}
+            </p>
+
+            {(activeAssignment.retakeCodePending || effectiveAllowed < 2) && (
+              <div className="mx-auto mt-6 max-w-sm rounded-xl border border-slate-200 bg-slate-50 p-5 text-left">
+                <label
+                  htmlFor="retake-code-input-locked"
+                  className="block text-xs font-bold uppercase tracking-wider text-slate-700"
+                >
+                  {lang === 'uz'
+                    ? 'Ustozga borgan 6 xonali kod'
+                    : '6-Digit Teacher Unlock Code'}
+                </label>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    id="retake-code-input-locked"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={retakeInput}
+                    onChange={(e) => setRetakeInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className="font-mono-num min-h-[44px] w-full rounded-lg border border-slate-300 bg-white px-3.5 text-center text-lg font-extrabold tracking-[0.25em] text-slate-900 focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
+                  />
+                  <button
+                    type="button"
+                    disabled={retakeBusy || retakeInput.length !== 6}
+                    onClick={() => void handleVerifyRetakeCode()}
+                    className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-lg bg-indigo-700 px-5 text-sm font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {retakeBusy
+                      ? '...'
+                      : lang === 'uz'
+                        ? 'Ochish'
+                        : 'Unlock'}
+                  </button>
+                </div>
+
+                {retakeError && (
+                  <p className="mt-2.5 text-xs font-semibold text-rose-700">{retakeError}</p>
+                )}
+                {retakeSuccess && (
+                  <p className="mt-2.5 text-xs font-semibold text-emerald-700">{retakeSuccess}</p>
+                )}
+
+                <p className="mt-3 text-[11px] text-slate-500">
+                  {activeAssignment.retakeCodePending
+                    ? lang === 'uz'
+                      ? 'Kod ustozning Bildirishnomalar paneliga yuborilgan.'
+                      : 'The unlock code has been sent to your teacher’s Notification Center.'
+                    : lang === 'uz'
+                      ? 'Kod ustoz paneliga yuborilmoqda...'
+                      : 'Sending unlock code to your teacher...'}
+                </p>
               </div>
             )}
           </div>
@@ -1550,6 +1916,17 @@ export function QuizSection({
                 ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Test paytida veb-kamera va to‘liq ekran nazorati faol bo‘ladi — boshqa desktop yoki oynaga o‘tish darhol, yuzni burish/berkitish esa 2.5 soniyada ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
                 : `This variant contains ${QUESTIONS_PER_TEST} questions (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Webcam and fullscreen proctoring are active — switching desktops or windows immediately deducts 1 warning, and looking away/obscuring face for over 2.5s deducts 1 warning (3 warnings max; exhausting all 3 gives 0).`}
             </p>
+
+            {retakeSuccess && (
+              <div className="mx-auto mt-4 max-w-md rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-800">
+                {retakeSuccess}
+              </div>
+            )}
+            {retakeError && (
+              <div className="mx-auto mt-4 max-w-md rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-800">
+                {retakeError}
+              </div>
+            )}
 
             <CameraProctor
               lang={lang}
@@ -1600,6 +1977,96 @@ export function QuizSection({
                     : 'All 3 warnings were used (you switched outside the test tab, window, or desktop). Your score for this test was recorded as 0 / 25 (0%).'}
                 </p>
               </div>
+            </div>
+          )}
+
+          {isStudent && activeAssignment !== null && (
+            <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/50 p-5 sm:p-6">
+              {effectiveUsed < effectiveAllowed ? (
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                      <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h3 className="font-display text-base font-extrabold text-slate-900">
+                        {lang === 'uz'
+                          ? '2-urinish ochildi!'
+                          : '2nd Attempt Unlocked!'}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-slate-600">
+                        {retakeSuccess ||
+                          (lang === 'uz'
+                            ? `Urinish holati: ${effectiveUsed}/${effectiveAllowed}. Endi 2-marta testni boshlashingiz mumkin.`
+                            : `Attempts: ${effectiveUsed}/${effectiveAllowed}. You can now start your 2nd attempt.`)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => startSession(difficulty, activeAssignment.variant, [])}
+                    className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-teal-700 px-5 text-sm font-bold text-white transition-colors hover:bg-teal-800"
+                  >
+                    <Play className="h-4 w-4 fill-current" aria-hidden="true" />
+                    <span>{lang === 'uz' ? '2-urinishni boshlash' : 'Start 2nd Attempt'}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+                      <KeyRound className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h3 className="font-display text-base font-extrabold text-slate-900">
+                        {lang === 'uz'
+                          ? '2-marta urinish uchun ustoz kodini kiriting'
+                          : 'Enter Teacher Code for 2nd Attempt'}
+                      </h3>
+                      <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
+                        {effectiveAllowed >= 2
+                          ? lang === 'uz'
+                            ? `Urinishlar tugadi (${effectiveUsed}/${effectiveAllowed}). Yana ishlash uchun ustozdan yangi kod so‘rang.`
+                            : `All attempts used (${effectiveUsed}/${effectiveAllowed}). Ask your teacher for a new code.`
+                          : lang === 'uz'
+                            ? 'Ushbu variant 1 marta ishlandi. Qayta ishlash uchun ustozingizga borgan 6 xonali kodni tering.'
+                            : 'This variant has been used once. Enter the 6-digit code sent to your teacher to unlock a 2nd attempt.'}
+                      </p>
+                      {retakeError && (
+                        <p className="mt-1.5 text-xs font-semibold text-rose-700">{retakeError}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {(activeAssignment.retakeCodePending || effectiveAllowed < 2) && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={retakeInput}
+                        onChange={(e) =>
+                          setRetakeInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))
+                        }
+                        placeholder="000000"
+                        className="font-mono-num min-h-[42px] w-36 rounded-lg border border-indigo-300 bg-white px-3 text-center text-base font-extrabold tracking-[0.2em] text-slate-900 focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
+                      />
+                      <button
+                        type="button"
+                        disabled={retakeBusy || retakeInput.length !== 6}
+                        onClick={() => void handleVerifyRetakeCode()}
+                        className="inline-flex min-h-[42px] items-center justify-center rounded-lg bg-indigo-700 px-4 text-sm font-bold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {retakeBusy
+                          ? '...'
+                          : lang === 'uz'
+                            ? 'Tasdiqlash'
+                            : 'Unlock'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

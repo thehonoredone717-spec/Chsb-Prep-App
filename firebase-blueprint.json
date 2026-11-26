@@ -139,7 +139,7 @@
     },
     "StudentAssignment": {
       "title": "StudentAssignment",
-      "description": "Teacher-assigned specific variant for a student per subject and difficulty",
+      "description": "Teacher-assigned specific variant for a student per subject and difficulty with 1-attempt tracking",
       "type": "object",
       "properties": {
         "id": {
@@ -165,6 +165,19 @@
           "minimum": 1,
           "maximum": 20
         },
+        "attemptsAllowed": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "attemptsUsed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "retakeCodePending": {
+          "type": "boolean"
+        },
         "assignedByUid": {
           "type": "string",
           "minLength": 1,
@@ -181,6 +194,77 @@
         }
       },
       "required": ["id", "studentUid", "subjectId", "difficulty", "variant", "assignedByUid", "assignedByName", "updatedAt"]
+    },
+    "RetakeCode": {
+      "title": "RetakeCode",
+      "description": "6-digit unlock code sent to teachers to authorize a student's 2nd attempt on an assigned variant",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "assignmentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "studentUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "studentName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "subjectId": {
+          "type": "string",
+          "enum": ["math", "history", "science", "computing", "english", "uzbek"]
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["easy", "medium", "hard"]
+        },
+        "variant": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "code": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 6,
+          "pattern": "^[0-9]{6}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "used"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "assignmentId",
+        "studentUid",
+        "studentName",
+        "subjectId",
+        "difficulty",
+        "variant",
+        "code",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -198,7 +282,11 @@
     },
     "/studentAssignments/{assignmentId}": {
       "schema": { "$ref": "#/entities/StudentAssignment" },
-      "description": "Teacher assigned variant per student and subject"
+      "description": "Teacher assigned variant per student and subject with 1-attempt tracking"
+    },
+    "/retakeCodes/{codeId}": {
+      "schema": { "$ref": "#/entities/RetakeCode" },
+      "description": "Teacher-only 6-digit unlock codes for student 2nd attempts"
     }
   }
 }

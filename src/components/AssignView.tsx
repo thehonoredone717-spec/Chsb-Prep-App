@@ -1,5 +1,15 @@
-import { collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
-import { AlertCircle, CheckCircle2, ShieldCheck, UserX } from 'lucide-react';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
+import { AlertCircle, CheckCircle2, KeyRound, RefreshCw, ShieldCheck, UserX } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { SUBJECTS, pickText } from '../data/subjects';
 import {
@@ -23,14 +33,34 @@ interface StudentAssignmentRecord {
   subjectId: SubjectId;
   difficulty: DifficultyLevel;
   variant: number;
+  attemptsAllowed: number;
+  attemptsUsed: number;
+  retakeCodePending: boolean;
   assignedByUid: string;
   assignedByName: string;
+}
+
+interface RetakeCodeRecord {
+  id: string;
+  assignmentId: string;
+  studentUid: string;
+  studentName: string;
+  subjectId: SubjectId;
+  difficulty: DifficultyLevel;
+  variant: number;
+  code: string;
+  status: 'pending' | 'used';
 }
 
 interface AssignViewProps {
   lang: UILanguage;
   userProfile: UserProfile;
   teacherScope?: TeacherScope;
+}
+
+function generateSixDigitCode(): string {
+  const num = Math.floor(100000 + Math.random() * 900000);
+  return String(num);
 }
 
 export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignViewProps) {
@@ -43,6 +73,7 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
 
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
   const [assignments, setAssignments] = useState<StudentAssignmentRecord[]>([]);
+  const [retakeCodes, setRetakeCodes] = useState<RetakeCodeRecord[]>([]);
   const [selectedStudentUid, setSelectedStudentUid] = useState<string>('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<SubjectId>(
     () => allowedSubjects[0]?.id ?? 'math'
@@ -143,6 +174,9 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
             subjectId: (raw.subjectId as SubjectId) || 'math',
             difficulty: raw.difficulty || 'easy',
             variant: raw.variant || 1,
+            attemptsAllowed: typeof raw.attemptsAllowed === 'number' ? raw.attemptsAllowed : 1,
+            attemptsUsed: typeof raw.attemptsUsed === 'number' ? raw.attemptsUsed : 0,
+            retakeCodePending: raw.retakeCodePending === true,
             assignedByUid: raw.assignedByUid || '',
             assignedByName: raw.assignedByName || '',
           };
@@ -154,11 +188,41 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
       }
     );
 
+    const retakeQuery =
+      teacherScope === 'all' || teacherScope === 'none'
+        ? collection(db, 'retakeCodes')
+        : query(collection(db, 'retakeCodes'), where('subjectId', '==', teacherScope));
+
+    const unsubRetakeCodes = onSnapshot(
+      retakeQuery,
+      (snap) => {
+        const list = snap.docs.map((d) => {
+          const raw = d.data() as Partial<RetakeCodeRecord>;
+          return {
+            id: raw.id || d.id,
+            assignmentId: raw.assignmentId || d.id,
+            studentUid: raw.studentUid || '',
+            studentName: raw.studentName || 'Student',
+            subjectId: (raw.subjectId as SubjectId) || 'math',
+            difficulty: raw.difficulty || 'easy',
+            variant: typeof raw.variant === 'number' ? raw.variant : 1,
+            code: raw.code || '',
+            status: (raw.status === 'used' ? 'used' : 'pending') as 'pending' | 'used',
+          };
+        });
+        setRetakeCodes(list);
+      },
+      (err) => {
+        console.error('Failed to load retake codes:', err);
+      }
+    );
+
     return () => {
       unsubUsers();
       unsubAssignments();
+      unsubRetakeCodes();
     };
-  }, []);
+  }, [teacherScope]);
 
   const maxVariants = selectedSubjectId === 'math' ? 20 : 5;
 
@@ -185,16 +249,20 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
           subjectId: selectedSubjectId,
           difficulty,
           variant: clampedVariant,
+          attemptsAllowed: 1,
+          attemptsUsed: 0,
+          retakeCodePending: false,
           assignedByUid: userProfile.uid,
           assignedByName: sanitizeDisplayName(userProfile.displayName, userProfile.username),
           updatedAt: serverTimestamp(),
         });
+        void deleteDoc(doc(db, 'retakeCodes', assignmentId)).catch(() => {});
         const student = usersList.find((u) => u.uid === selectedStudentUid);
         setFeedback({
           type: 'success',
           text: uz
-            ? `${student ? student.displayName : 'O‘quvchi'} uchun ${getVariantLabel(clampedVariant, lang)} muvaffaqiyatli biriktirildi.`
-            : `Assigned ${getVariantLabel(clampedVariant, lang)} to ${student ? student.displayName : 'student'}.`,
+            ? `${student ? student.displayName : 'O‘quvchi'} uchun ${getVariantLabel(clampedVariant, lang)} (1 marta urinish) muvaffaqiyatli biriktirildi.`
+            : `Assigned ${getVariantLabel(clampedVariant, lang)} (1 attempt) to ${student ? student.displayName : 'student'}.`,
         });
       } catch (err) {
         console.error('Failed to assign variant:', err);
@@ -210,11 +278,75 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
     })();
   };
 
+  const handleIssueRetakeCode = (asg: StudentAssignmentRecord) => {
+    setFeedback(null);
+    const newCode = generateSixDigitCode();
+    const st = usersList.find((u) => u.uid === asg.studentUid);
+    const studentName = sanitizeDisplayName(
+      st?.displayName ||
+        (asg.studentUid === 'student_ibrohimbek_profile' ? 'Ibrohimbek Xujanazarov' : 'Student'),
+      'Student'
+    );
+    const existingCode = retakeCodes.find((rc) => rc.id === asg.id);
+
+    void (async () => {
+      try {
+        const batch = writeBatch(db);
+        const codeRef = doc(db, 'retakeCodes', asg.id);
+        if (existingCode) {
+          batch.update(codeRef, {
+            code: newCode,
+            status: 'pending',
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          batch.set(codeRef, {
+            id: asg.id,
+            assignmentId: asg.id,
+            studentUid: asg.studentUid,
+            studentName,
+            subjectId: asg.subjectId,
+            difficulty: asg.difficulty,
+            variant: asg.variant,
+            code: newCode,
+            status: 'pending',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+
+        batch.update(doc(db, 'studentAssignments', asg.id), {
+          retakeCodePending: true,
+          assignedByUid: userProfile.uid,
+          assignedByName: sanitizeDisplayName(userProfile.displayName, userProfile.username),
+          updatedAt: serverTimestamp(),
+        });
+
+        await batch.commit();
+        setFeedback({
+          type: 'success',
+          text: uz
+            ? `${studentName} uchun 2-urinish kodi yaratildi: ${newCode}`
+            : `Generated 2nd-attempt unlock code for ${studentName}: ${newCode}`,
+        });
+      } catch (err) {
+        console.error('Failed to issue retake code:', err);
+        setFeedback({
+          type: 'error',
+          text: uz
+            ? 'Qayta ishlash kodini yaratishda xatolik yuz berdi.'
+            : 'Failed to generate retake code.',
+        });
+      }
+    })();
+  };
+
   const handleRemoveAssignment = (assignmentId: string) => {
     setFeedback(null);
     void (async () => {
       try {
         await deleteDoc(doc(db, 'studentAssignments', assignmentId));
+        void deleteDoc(doc(db, 'retakeCodes', assignmentId)).catch(() => {});
         setFeedback({
           type: 'success',
           text: uz ? 'Biriktirish o‘chirildi.' : 'Assignment removed.',
@@ -377,6 +509,7 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
                   <th className="px-4 py-3">{uz ? 'Fan' : 'Subject'}</th>
                   <th className="px-4 py-3">{uz ? 'Daraja' : 'Difficulty'}</th>
                   <th className="px-4 py-3">{uz ? 'Variant' : 'Variant'}</th>
+                  <th className="px-4 py-3">{uz ? 'Urinish / 2-kod' : 'Attempts / Code'}</th>
                   <th className="px-4 py-3">{uz ? 'Biriktirgan' : 'Assigned By'}</th>
                   <th className="px-4 py-3 text-right">{uz ? 'Amal' : 'Action'}</th>
                 </tr>
@@ -385,6 +518,7 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
                 {visibleAssignments.map((asg) => {
                   const st = usersList.find((u) => u.uid === asg.studentUid);
                   const sub = SUBJECTS.find((s) => s.id === asg.subjectId);
+                  const rc = retakeCodes.find((item) => item.id === asg.id);
                   const studentLabel = st
                     ? `${st.displayName} (${st.email || `@${st.username}`})`
                     : asg.studentUid === 'student_ibrohimbek_profile'
@@ -402,6 +536,32 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
                       </td>
                       <td className="px-4 py-3 font-bold text-teal-700">
                         {getVariantLabel(asg.variant, lang)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-mono-num rounded bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                            {asg.attemptsUsed}/{asg.attemptsAllowed}
+                          </span>
+                          {rc?.status === 'pending' && rc.code ? (
+                            <span className="font-mono-num inline-flex items-center gap-1 rounded bg-indigo-50 px-2 py-0.5 text-xs font-extrabold text-indigo-800 ring-1 ring-indigo-200">
+                              <KeyRound className="h-3 w-3" aria-hidden="true" />
+                              <span>{rc.code}</span>
+                            </span>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => handleIssueRetakeCode(asg)}
+                            title={
+                              uz
+                                ? '2-urinish uchun yangi 6 xonali kod yaratish'
+                                : 'Generate fresh 6-digit retake code'
+                            }
+                            className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
+                          >
+                            <RefreshCw className="h-3 w-3" aria-hidden="true" />
+                            <span>{rc?.status === 'pending' ? (uz ? 'Yangilash' : 'Rotate') : (uz ? 'Kod berish' : 'Issue Code')}</span>
+                          </button>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500">{asg.assignedByName}</td>
                       <td className="px-4 py-3 text-right">

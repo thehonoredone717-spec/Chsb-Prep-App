@@ -55,6 +55,21 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
+    function isIbrohimUser() {
+      return isSignedIn()
+        && 'email' in request.auth.token
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'ibrohimbekxujanazarov@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isAssignedStudent(studentUid) {
+      return isSignedIn() && (
+        studentUid == request.auth.uid
+        || (isIbrohimUser() && studentUid == 'student_ibrohimbek_profile')
+      );
+    }
+
     function isValidId(id) {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -182,6 +197,7 @@ service cloud.firestore {
         ])
         && data.keys().hasOnly([
           'id', 'studentUid', 'subjectId', 'difficulty', 'variant',
+          'attemptsAllowed', 'attemptsUsed', 'retakeCodePending',
           'assignedByUid', 'assignedByName', 'updatedAt'
         ])
         && data.id is string
@@ -198,15 +214,58 @@ service cloud.firestore {
         && data.variant is int
         && data.variant >= 1
         && data.variant <= 20
+        && (!('attemptsAllowed' in data) || (data.attemptsAllowed is int && data.attemptsAllowed >= 1 && data.attemptsAllowed <= 10))
+        && (!('attemptsUsed' in data) || (data.attemptsUsed is int && data.attemptsUsed >= 0 && data.attemptsUsed <= 10))
+        && (!('retakeCodePending' in data) || data.retakeCodePending is bool)
         && data.assignedByUid is string
         && data.assignedByUid.size() >= 1
         && data.assignedByUid.size() <= 128
-        && data.assignedByUid == request.auth.uid
         && data.assignedByName is string
         && data.assignedByName.size() >= 1
         && data.assignedByName.size() <= 60
         && data.updatedAt is timestamp
         && data.updatedAt == request.time;
+    }
+
+    function isValidRetakeCode(data, codeId) {
+      return data.keys().hasAll([
+          'id', 'assignmentId', 'studentUid', 'studentName',
+          'subjectId', 'difficulty', 'variant', 'code', 'status',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'assignmentId', 'studentUid', 'studentName',
+          'subjectId', 'difficulty', 'variant', 'code', 'status',
+          'createdAt', 'updatedAt'
+        ])
+        && data.id is string
+        && data.id.size() >= 1
+        && data.id.size() <= 128
+        && data.id == codeId
+        && data.assignmentId is string
+        && data.assignmentId.size() >= 1
+        && data.assignmentId.size() <= 128
+        && data.assignmentId == codeId
+        && data.studentUid is string
+        && data.studentUid.size() >= 1
+        && data.studentUid.size() <= 128
+        && data.studentName is string
+        && data.studentName.size() >= 1
+        && data.studentName.size() <= 60
+        && data.subjectId is string
+        && isValidSubjectId(data.subjectId)
+        && data.difficulty is string
+        && data.difficulty in ['easy', 'medium', 'hard']
+        && data.variant is int
+        && data.variant >= 1
+        && data.variant <= 20
+        && data.code is string
+        && data.code.size() == 6
+        && data.code.matches('^[0-9]{6}$')
+        && data.status is string
+        && data.status in ['pending', 'used']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
     }
 
     // 4. Collection Match Blocks
@@ -303,18 +362,83 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && isValidId(assignmentId)
         && canManageSubjectPermission(incoming().subjectId)
-        && isValidStudentAssignment(incoming(), assignmentId);
+        && isValidStudentAssignment(incoming(), assignmentId)
+        && incoming().assignedByUid == request.auth.uid;
 
       allow update: if isSignedIn()
         && isValidId(assignmentId)
-        && canManageSubjectPermission(existing().subjectId)
         && isValidStudentAssignment(incoming(), assignmentId)
+        && incoming().id == existing().id
         && incoming().subjectId == existing().subjectId
         && incoming().studentUid == existing().studentUid
         && incoming().difficulty == existing().difficulty
-        && incoming().diff(existing()).affectedKeys().hasOnly([
-          'variant', 'assignedByUid', 'assignedByName', 'updatedAt'
-        ]);
+        && (
+          // Action 1: Teacher/Owner updates assignment or resets/grants attempts
+          (canManageSubjectPermission(existing().subjectId)
+            && incoming().assignedByUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'variant', 'attemptsAllowed', 'attemptsUsed', 'retakeCodePending',
+              'assignedByUid', 'assignedByName', 'updatedAt'
+            ]))
+          ||
+          // Action 2: Assigned student starts test and consumes 1 attempt
+          (isAssignedStudent(existing().studentUid)
+            && incoming().variant == existing().variant
+            && incoming().assignedByUid == existing().assignedByUid
+            && incoming().assignedByName == existing().assignedByName
+            && 'attemptsUsed' in incoming()
+            && 'attemptsAllowed' in incoming()
+            && incoming().attemptsUsed >= 1
+            && incoming().attemptsUsed <= incoming().attemptsAllowed
+            && (
+              (!('attemptsUsed' in existing())
+                && !('attemptsAllowed' in existing())
+                && incoming().attemptsUsed == 1
+                && incoming().attemptsAllowed == 1
+                && incoming().diff(existing()).affectedKeys().hasOnly(['attemptsUsed', 'attemptsAllowed', 'updatedAt']))
+              || ('attemptsUsed' in existing()
+                && 'attemptsAllowed' in existing()
+                && incoming().attemptsAllowed == existing().attemptsAllowed
+                && incoming().attemptsUsed == existing().attemptsUsed + 1
+                && incoming().diff(existing()).affectedKeys().hasOnly(['attemptsUsed', 'updatedAt']))
+            ))
+          ||
+          // Action 3: Assigned student marks retakeCodePending atomically while creating retakeCodes doc
+          (isAssignedStudent(existing().studentUid)
+            && incoming().variant == existing().variant
+            && incoming().assignedByUid == existing().assignedByUid
+            && incoming().assignedByName == existing().assignedByName
+            && incoming().retakeCodePending == true
+            && getAfter(/databases/$(database)/documents/retakeCodes/$(assignmentId)).data.status == 'pending'
+            && (
+              incoming().diff(existing()).affectedKeys().hasOnly(['retakeCodePending', 'updatedAt'])
+              || (!('attemptsUsed' in existing())
+                && !('attemptsAllowed' in existing())
+                && incoming().attemptsUsed == 1
+                && incoming().attemptsAllowed == 1
+                && incoming().diff(existing()).affectedKeys().hasOnly([
+                  'attemptsUsed', 'attemptsAllowed', 'retakeCodePending', 'updatedAt'
+                ]))
+            ))
+          ||
+          // Action 4: Assigned student redeems matching teacher code atomically for 2nd attempt
+          (isAssignedStudent(existing().studentUid)
+            && incoming().variant == existing().variant
+            && incoming().assignedByUid == existing().assignedByUid
+            && incoming().assignedByName == existing().assignedByName
+            && incoming().retakeCodePending == false
+            && 'attemptsAllowed' in incoming()
+            && incoming().attemptsAllowed <= 5
+            && (
+              ('attemptsAllowed' in existing() && incoming().attemptsAllowed == existing().attemptsAllowed + 1)
+              || (!('attemptsAllowed' in existing()) && incoming().attemptsAllowed == 2)
+            )
+            && get(/databases/$(database)/documents/retakeCodes/$(assignmentId)).data.status == 'pending'
+            && getAfter(/databases/$(database)/documents/retakeCodes/$(assignmentId)).data.status == 'used'
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'attemptsAllowed', 'retakeCodePending', 'updatedAt'
+            ]))
+        );
 
       allow delete: if isSignedIn() && (
         isAdmin()
@@ -323,6 +447,65 @@ service cloud.firestore {
         || (isScienceTeacher() && resource.data.subjectId == 'science')
         || (isEnglishTeacher() && resource.data.subjectId == 'english')
       );
+    }
+
+    match /retakeCodes/{codeId} {
+      // Strictly teachers/owner only — students can NEVER read or list the secret code
+      allow get: if isValidId(codeId) && (
+        isAdmin()
+        || (isComputingTeacher() && existing().subjectId == 'computing')
+        || (isMathTeacher() && existing().subjectId == 'math')
+        || (isScienceTeacher() && existing().subjectId == 'science')
+        || (isEnglishTeacher() && existing().subjectId == 'english')
+      );
+      allow list: if isAdmin()
+        || (isComputingTeacher() && resource.data.subjectId == 'computing')
+        || (isMathTeacher() && resource.data.subjectId == 'math')
+        || (isScienceTeacher() && resource.data.subjectId == 'science')
+        || (isEnglishTeacher() && resource.data.subjectId == 'english');
+
+      allow create: if isSignedIn()
+        && isValidId(codeId)
+        && isValidRetakeCode(incoming(), codeId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && incoming().status == 'pending'
+        && exists(/databases/$(database)/documents/studentAssignments/$(codeId))
+        && (
+          canManageSubjectPermission(incoming().subjectId)
+          || (isAssignedStudent(incoming().studentUid)
+            && get(/databases/$(database)/documents/studentAssignments/$(codeId)).data.studentUid == incoming().studentUid
+            && get(/databases/$(database)/documents/studentAssignments/$(codeId)).data.subjectId == incoming().subjectId
+            && get(/databases/$(database)/documents/studentAssignments/$(codeId)).data.difficulty == incoming().difficulty
+            && get(/databases/$(database)/documents/studentAssignments/$(codeId)).data.variant == incoming().variant)
+        );
+
+      allow update: if isSignedIn()
+        && isValidId(codeId)
+        && isValidRetakeCode(incoming(), codeId)
+        && incoming().id == existing().id
+        && incoming().assignmentId == existing().assignmentId
+        && incoming().studentUid == existing().studentUid
+        && incoming().subjectId == existing().subjectId
+        && incoming().difficulty == existing().difficulty
+        && incoming().variant == existing().variant
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Teacher issues/rotates a fresh pending code
+          (canManageSubjectPermission(existing().subjectId)
+            && incoming().status == 'pending'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['code', 'status', 'updatedAt']))
+          ||
+          // Action 2: Student enters exact matching 6-digit code to redeem 2nd attempt
+          (isAssignedStudent(existing().studentUid)
+            && existing().status == 'pending'
+            && incoming().status == 'used'
+            && incoming().code == existing().code
+            && incoming().diff(existing()).affectedKeys().hasOnly(['code', 'status', 'updatedAt']))
+        );
+
+      allow delete: if isSignedIn() && isValidId(codeId) && canManageSubjectPermission(existing().subjectId);
     }
   }
 }
