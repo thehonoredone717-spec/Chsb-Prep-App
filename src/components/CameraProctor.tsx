@@ -85,6 +85,9 @@ export function CameraProctor({
   const nativeFaceDetectorRef = useRef<unknown>(null);
   const nativeSupportedRef = useRef<boolean | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastFaceCenterRef = useRef<{ x: number; y: number } | null>(null);
+  const recentRawStatusesRef = useRef<ProctorStatus[]>([]);
+  const smoothedStatusRef = useRef<ProctorStatus>('camera_off');
 
   const attachVideoElement = useCallback(
     (node: HTMLVideoElement | null) => {
@@ -167,17 +170,20 @@ export function CameraProctor({
         }
 
         const face = faces[0];
+        const vidW = video.videoWidth || 640;
+        const boxW = face.boundingBox?.width ?? 0;
+        const isFarFace = boxW > 0 && boxW < vidW * 0.14;
         const landmarks = face.landmarks || [];
         const eyeLandmarks = landmarks.filter((l) => l.type === 'eye');
         const noseLandmark = landmarks.find((l) => l.type === 'nose');
 
-        // If only 1 eye landmark is visible while user is facing camera, face is turned sideways (profile)
-        if (eyeLandmarks.length === 1 && !noseLandmark) {
+        // Only trust missing-landmark profile heuristic when face is close enough for reliable landmarks
+        if (!isFarFace && eyeLandmarks.length === 1 && !noseLandmark && boxW > 0) {
           return 'looking_away';
         }
 
-        // If two eyes and nose are present, calculate head yaw offset
-        if (eyeLandmarks.length >= 2 && noseLandmark) {
+        // If two eyes and nose are present and face is large enough, calculate head yaw offset
+        if (!isFarFace && eyeLandmarks.length >= 2 && noseLandmark) {
           const e1 = eyeLandmarks[0].locations?.[0] || eyeLandmarks[0].location;
           const e2 = eyeLandmarks[1].locations?.[0] || eyeLandmarks[1].location;
           const nose = noseLandmark.locations?.[0] || noseLandmark.location;
@@ -189,22 +195,21 @@ export function CameraProctor({
             const midX = (leftEye.x + rightEye.x) / 2;
             const yawOffset = (nose.x - midX) / eyeDist;
 
-            // When facing forward, |yawOffset| < 0.22. When turned sideways, |yawOffset| >= 0.25
-            if (Math.abs(yawOffset) > 0.24) {
+            // Allow natural monitor-scanning gaze angles across screen edges
+            if (Math.abs(yawOffset) > 0.34) {
               return 'looking_away';
             }
           }
         }
 
-        // Check if face bounding box is pushed too far to the edges
+        // Check if face bounding box is pushed completely to the frame edge or severely profile
         if (face.boundingBox) {
-          const vidW = video.videoWidth || 320;
           const faceCenterX = face.boundingBox.x + face.boundingBox.width / 2;
-          if (faceCenterX < vidW * 0.18 || faceCenterX > vidW * 0.82) {
+          if (faceCenterX < vidW * 0.06 || faceCenterX > vidW * 0.94) {
             return 'looking_away';
           }
           const aspect = face.boundingBox.width / Math.max(1, face.boundingBox.height);
-          if (aspect < 0.45) {
+          if (aspect < 0.42) {
             return 'looking_away';
           }
         }
@@ -215,153 +220,372 @@ export function CameraProctor({
       }
     }
 
-    // 2. High-performance Canvas Computer Vision Fallback (160x120 resolution)
+    // 2. Multi-scale Canvas Computer Vision Fallback (320px wide, preserving aspect ratio for far faces)
+    const vidW = video.videoWidth || 640;
+    const vidH = video.videoHeight || 480;
+    const analysisW = 320;
+    const analysisH = Math.max(
+      160,
+      Math.min(240, Math.round((analysisW * vidH) / Math.max(1, vidW)))
+    );
+
     let canvas = canvasRef.current;
     if (!canvas) {
       canvas = document.createElement('canvas');
-      canvas.width = 160;
-      canvas.height = 120;
       canvasRef.current = canvas;
+    }
+    if (canvas.width !== analysisW || canvas.height !== analysisH) {
+      canvas.width = analysisW;
+      canvas.height = analysisH;
     }
 
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return 'facing';
 
-    ctx.drawImage(video, 0, 0, 160, 120);
-    const imgData = ctx.getImageData(0, 0, 160, 120);
+    ctx.drawImage(video, 0, 0, analysisW, analysisH);
+    const imgData = ctx.getImageData(0, 0, analysisW, analysisH);
     const data = imgData.data;
 
-    let skinCount = 0;
-    let sumX = 0;
-    let minX = 160;
-    let maxX = 0;
-    let minY = 120;
-    let maxY = 0;
+    // Classify skin pixels using lighting-tolerant YCbCr bounds (handles cool monitor light, warm rooms, and dim lighting)
+    const skinMask = new Uint8Array(analysisW * analysisH);
+    const lumaArr = new Uint8Array(analysisW * analysisH);
 
-    // Scan central/upper region for skin pixels
-    for (let y = 6; y < 108; y++) {
-      for (let x = 8; x < 152; x++) {
-        const idx = (y * 160 + x) * 4;
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
+    const CELL = 6;
+    const cols = Math.ceil(analysisW / CELL);
+    const rows = Math.ceil(analysisH / CELL);
+    const cellSkinCounts = new Uint16Array(cols * rows);
 
-        // Normalized YCbCr skin chrominance test
+    const yStart = Math.floor(analysisH * 0.02);
+    const yEnd = Math.floor(analysisH * 0.95);
+    const xStart = Math.floor(analysisW * 0.03);
+    const xEnd = Math.floor(analysisW * 0.97);
+
+    for (let y = yStart; y < yEnd; y++) {
+      const rowOffset = y * analysisW;
+      const cellRowOffset = Math.floor(y / CELL) * cols;
+      for (let x = xStart; x < xEnd; x++) {
+        const pIdx = rowOffset + x;
+        const dIdx = pIdx * 4;
+        const r = data[dIdx];
+        const g = data[dIdx + 1];
+        const b = data[dIdx + 2];
+
+        const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+        lumaArr[pIdx] = luma;
+
         const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
         const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
 
         const isSkin =
-          cb >= 77 &&
-          cb <= 127 &&
-          cr >= 133 &&
-          cr <= 173 &&
-          r > 42 &&
-          r > g &&
-          g > b;
+          luma >= 20 &&
+          cb >= 68 &&
+          cb <= 136 &&
+          cr >= 128 &&
+          cr <= 182 &&
+          r >= 24 &&
+          r >= g - 6 &&
+          r - Math.min(g, b) >= 7;
 
         if (isSkin) {
-          skinCount++;
-          sumX += x;
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
+          skinMask[pIdx] = 1;
+          cellSkinCounts[cellRowOffset + Math.floor(x / CELL)]++;
         }
       }
     }
 
-    // If skin area is too small, no face is looking at the camera
-    if (skinCount < 260) {
+    // Connected-component clustering over 6x6 cells (supports very far faces down to ~10x12 px)
+    const visited = new Uint8Array(cols * rows);
+    const queue = new Int32Array(cols * rows);
+
+    interface FaceCandidate {
+      minX: number;
+      maxX: number;
+      minY: number;
+      maxY: number;
+      skinCount: number;
+      sumX: number;
+      score: number;
+    }
+
+    let bestCandidate: FaceCandidate | null = null;
+
+    for (let cy = 0; cy < rows; cy++) {
+      for (let cx = 0; cx < cols; cx++) {
+        const startCell = cy * cols + cx;
+        if (visited[startCell] || cellSkinCounts[startCell] < 4) continue;
+
+        let head = 0;
+        let tail = 0;
+        queue[tail++] = startCell;
+        visited[startCell] = 1;
+
+        let cMinX = analysisW;
+        let cMaxX = 0;
+        let cMinY = analysisH;
+        let cMaxY = 0;
+        let cSkin = 0;
+        let cSumX = 0;
+        let cSumY = 0;
+        let cLumaSum = 0;
+        let cLumaSqSum = 0;
+
+        while (head < tail) {
+          const cur = queue[head++];
+          const curY = Math.floor(cur / cols);
+          const curX = cur % cols;
+
+          const pxStartX = curX * CELL;
+          const pxEndX = Math.min(analysisW, pxStartX + CELL);
+          const pxStartY = curY * CELL;
+          const pxEndY = Math.min(analysisH, pxStartY + CELL);
+
+          for (let py = pxStartY; py < pxEndY; py++) {
+            const pRow = py * analysisW;
+            for (let px = pxStartX; px < pxEndX; px++) {
+              const pIdx = pRow + px;
+              if (skinMask[pIdx]) {
+                cSkin++;
+                cSumX += px;
+                cSumY += py;
+                const l = lumaArr[pIdx];
+                cLumaSum += l;
+                cLumaSqSum += l * l;
+                if (px < cMinX) cMinX = px;
+                if (px > cMaxX) cMaxX = px;
+                if (py < cMinY) cMinY = py;
+                if (py > cMaxY) cMaxY = py;
+              }
+            }
+          }
+
+          // 8-connected neighbors
+          for (let dy = -1; dy <= 1; dy++) {
+            const ny = curY + dy;
+            if (ny < 0 || ny >= rows) continue;
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              const nx = curX + dx;
+              if (nx < 0 || nx >= cols) continue;
+              const nCell = ny * cols + nx;
+              if (!visited[nCell] && cellSkinCounts[nCell] >= 4) {
+                visited[nCell] = 1;
+                queue[tail++] = nCell;
+              }
+            }
+          }
+        }
+
+        // Minimum 28 skin pixels allows detection even 3–4.5m away (~6x7 px face on 320x240)
+        if (cSkin < 28) continue;
+
+        const rawW = cMaxX - cMinX + 1;
+        let rawH = cMaxY - cMinY + 1;
+
+        // Reject giant uniform background walls/doors
+        if (rawW > analysisW * 0.72 || (rawW > analysisW * 0.62 && rawH > analysisH * 0.85)) {
+          continue;
+        }
+
+        // If neck/collar is attached below head, focus on upper head slice
+        let headMaxY = cMaxY;
+        if (rawH / Math.max(1, rawW) > 1.75 && rawH > 40) {
+          headMaxY = Math.min(cMaxY, Math.round(cMinY + rawW * 1.45));
+          rawH = headMaxY - cMinY + 1;
+        }
+
+        const aspect = rawH / Math.max(1, rawW);
+        if (aspect < 0.55 || aspect > 2.6) continue;
+
+        const fillRatio = cSkin / Math.max(1, rawW * (cMaxY - cMinY + 1));
+        if (fillRatio < 0.22) continue;
+
+        const lumaMean = cLumaSum / cSkin;
+        const lumaStd = Math.sqrt(Math.max(0, cLumaSqSum / cSkin - lumaMean * lumaMean));
+        // Reject large completely flat wall regions
+        if (cSkin > 320 && lumaStd < 3.5) continue;
+
+        const candCenterX = cSumX / cSkin;
+        const candCenterY = cSumY / cSkin;
+        const upperBias = 1.25 - 0.5 * (candCenterY / analysisH);
+        const aspectIdealDiff = Math.abs(aspect - 1.28);
+        const aspectScore = Math.max(0.4, 1.3 - aspectIdealDiff * 0.5);
+
+        let continuityBonus = 1;
+        if (lastFaceCenterRef.current) {
+          const dist = Math.hypot(
+            candCenterX - lastFaceCenterRef.current.x,
+            candCenterY - lastFaceCenterRef.current.y
+          );
+          if (dist < analysisW * 0.25) continuityBonus = 1.35;
+        }
+
+        const score = Math.sqrt(cSkin) * upperBias * aspectScore * continuityBonus;
+        if (!bestCandidate || score > bestCandidate.score) {
+          bestCandidate = {
+            minX: cMinX,
+            maxX: cMaxX,
+            minY: cMinY,
+            maxY: headMaxY,
+            skinCount: cSkin,
+            sumX: cSumX,
+            score,
+          };
+        }
+      }
+    }
+
+    if (!bestCandidate) {
+      lastFaceCenterRef.current = null;
       return 'no_face';
     }
 
-    const avgX = sumX / skinCount;
-    const faceWidth = maxX - minX;
-    const faceHeight = maxY - minY;
-    const centerX = (minX + maxX) / 2;
+    const { minX, maxX, minY, maxY } = bestCandidate;
+    const faceWidth = Math.max(1, maxX - minX + 1);
+    const faceHeight = Math.max(1, maxY - minY + 1);
+    const boxCenterX = (minX + maxX) / 2;
+    const boxCenterY = (minY + maxY) / 2;
 
-    // If center of mass is severely shifted towards frame edge
-    if (avgX < 26 || avgX > 134) {
+    lastFaceCenterRef.current = { x: boxCenterX, y: boxCenterY };
+
+    // Only flag looking_away if head moved completely to the outer edges of the frame
+    if (boxCenterX < analysisW * 0.06 || boxCenterX > analysisW * 0.94) {
       return 'looking_away';
     }
 
-    // Bilateral horizontal symmetry check:
-    // Split face region into Left half and Right half
+    // Recompute horizontal balance strictly inside the head bounding box
+    let headSkin = 0;
+    let headSumX = 0;
     let leftSkin = 0;
     let rightSkin = 0;
-    let leftDark = 0;
-    let rightDark = 0;
-    const eyeZoneLimitY = Math.floor(minY + faceHeight * 0.48);
+    let leftSkinLumaSum = 0;
+    let rightSkinLumaSum = 0;
 
     for (let y = minY; y <= maxY; y++) {
+      const rowOffset = y * analysisW;
       for (let x = minX; x <= maxX; x++) {
-        const idx = (y * 160 + x) * 4;
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
-
-        const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
-        const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
-
-        const isSkin =
-          cb >= 77 &&
-          cb <= 127 &&
-          cr >= 133 &&
-          cr <= 173 &&
-          r > 42 &&
-          r > g &&
-          g > b;
-
-        if (isSkin) {
-          if (x < centerX) leftSkin++;
-          else rightSkin++;
-        }
-
-        // Dark features (eyes/pupils/brows) in upper eye zone
-        if (y <= eyeZoneLimitY) {
-          const brightness = (r + g + b) / 3;
-          if (brightness < 68) {
-            if (x < centerX) leftDark++;
-            else rightDark++;
+        const pIdx = rowOffset + x;
+        if (skinMask[pIdx]) {
+          headSkin++;
+          headSumX += x;
+          if (x < boxCenterX) {
+            leftSkin++;
+            leftSkinLumaSum += lumaArr[pIdx];
+          } else {
+            rightSkin++;
+            rightSkinLumaSum += lumaArr[pIdx];
           }
         }
       }
     }
 
+    if (headSkin < 24) {
+      return 'no_face';
+    }
+
+    const avgX = headSumX / headSkin;
     const skinRatio =
       Math.max(leftSkin, rightSkin) / (Math.min(leftSkin, rightSkin) + 1);
-    const centroidOffset = Math.abs(avgX - centerX) / Math.max(1, faceWidth);
-    const darkRatio =
-      Math.max(leftDark, rightDark) / (Math.min(leftDark, rightDark) + 1);
+    const centroidOffset = Math.abs(avgX - boxCenterX) / faceWidth;
 
-    // Turned head produces significant bilateral skin asymmetry (> 1.76),
-    // shifts face centroid (> 0.16), or hides one eye feature (> 2.6)
-    if (
-      skinRatio > 1.76 ||
-      centroidOffset > 0.16 ||
-      (darkRatio > 2.6 && leftDark + rightDark > 18)
-    ) {
+    // Far faces (< 28px wide on 320px canvas) have natural pixel quantization variance, so scale tolerances
+    const isFarFace = faceWidth < 28;
+    const maxSkinRatio = isFarFace ? 2.9 : 2.35;
+    const maxCentroidOffset = isFarFace ? 0.28 : 0.23;
+
+    if (skinRatio > maxSkinRatio || centroidOffset > maxCentroidOffset) {
       return 'looking_away';
+    }
+
+    // For medium/close faces, also check relative eye darkness asymmetry (cancels out one-sided room lighting)
+    if (faceWidth >= 36 && faceHeight >= 40) {
+      const leftMeanLuma = leftSkin > 0 ? leftSkinLumaSum / leftSkin : 120;
+      const rightMeanLuma = rightSkin > 0 ? rightSkinLumaSum / rightSkin : 120;
+      const leftDarkThreshold = Math.max(18, leftMeanLuma * 0.72);
+      const rightDarkThreshold = Math.max(18, rightMeanLuma * 0.72);
+
+      const eyeStartY = Math.floor(minY + faceHeight * 0.16);
+      const eyeEndY = Math.floor(minY + faceHeight * 0.52);
+      let leftDark = 0;
+      let rightDark = 0;
+
+      for (let y = eyeStartY; y <= eyeEndY; y++) {
+        const rowOffset = y * analysisW;
+        for (let x = minX; x <= maxX; x++) {
+          const l = lumaArr[rowOffset + x];
+          if (x < boxCenterX) {
+            if (l < leftDarkThreshold) leftDark++;
+          } else {
+            if (l < rightDarkThreshold) rightDark++;
+          }
+        }
+      }
+
+      const darkRatio =
+        Math.max(leftDark, rightDark) / (Math.min(leftDark, rightDark) + 1);
+      if (
+        darkRatio > 3.2 &&
+        leftDark + rightDark > 24 &&
+        (skinRatio > 1.65 || centroidOffset > 0.15)
+      ) {
+        return 'looking_away';
+      }
     }
 
     return 'facing';
   }, []);
 
-  // Proctoring loop: runs detection every SCAN_INTERVAL_MS
+  // Proctoring loop: runs detection every SCAN_INTERVAL_MS with temporal smoothing
   useEffect(() => {
     if (!stream || cameraStatus !== 'active') {
       setProctorStatus('camera_off');
       setSecondsRemaining(null);
       awayStartTimeRef.current = null;
+      recentRawStatusesRef.current = [];
+      smoothedStatusRef.current = 'camera_off';
+      lastFaceCenterRef.current = null;
       return;
     }
 
     let isMounted = true;
 
     const intervalId = window.setInterval(async () => {
-      const status = await analyzeFrame();
+      const rawStatus = await analyzeFrame();
       if (!isMounted) return;
 
+      if (rawStatus === 'camera_off') {
+        setProctorStatus('camera_off');
+        smoothedStatusRef.current = 'camera_off';
+        return;
+      }
+
+      const buf = recentRawStatusesRef.current;
+      buf.push(rawStatus);
+      if (buf.length > 4) buf.shift();
+
+      let status = smoothedStatusRef.current;
+      if (status === 'camera_off') {
+        status = rawStatus;
+      } else if (status === 'facing') {
+        // Require 3 out of last 4 frames non-facing before leaving 'facing' (prevents single-frame flicker)
+        const nonFacingCount = buf.filter((s) => s !== 'facing').length;
+        if (buf.length >= 3 && nonFacingCount >= 3) {
+          const noFaceCount = buf.filter((s) => s === 'no_face').length;
+          const awayCount = buf.filter((s) => s === 'looking_away').length;
+          status = noFaceCount > awayCount ? 'no_face' : 'looking_away';
+        }
+      } else {
+        // Recover swiftly back to 'facing' as soon as 2 of last 3 frames (or last 2 frames) show facing
+        const lastTwoFacing =
+          buf.length >= 2 && buf[buf.length - 1] === 'facing' && buf[buf.length - 2] === 'facing';
+        const recentFacingCount = buf.slice(-3).filter((s) => s === 'facing').length;
+        if (lastTwoFacing || recentFacingCount >= 2) {
+          status = 'facing';
+        } else {
+          status = rawStatus;
+        }
+      }
+
+      smoothedStatusRef.current = status;
       setProctorStatus(status);
 
       // In active quiz mode, enforce looking-away / no-face grace countdown & violation penalties
@@ -684,34 +908,39 @@ export function CameraProctor({
           </div>
         </div>
 
-        {/* Video feed (hidden when minimized) */}
-        {!isMinimized && (
-          <div className="relative aspect-4/3 w-full bg-black">
-            <video
-              ref={attachVideoElement}
-              autoPlay
-              playsInline
-              muted
-              className="h-full w-full object-cover scale-x-[-1]"
-            />
+        {/* Video feed (kept mounted when minimized so proctor detection stays active) */}
+        <div
+          className={
+            isMinimized
+              ? 'pointer-events-none absolute h-1 w-1 overflow-hidden opacity-0'
+              : 'relative aspect-4/3 w-full bg-black'
+          }
+          aria-hidden={isMinimized}
+        >
+          <video
+            ref={attachVideoElement}
+            autoPlay
+            playsInline
+            muted
+            className="h-full w-full object-cover scale-x-[-1]"
+          />
 
-            {/* Look-away warning banner overlay right on video */}
-            {isAwayAlert && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-rose-950/80 p-2 text-center text-white backdrop-blur-xs">
-                <AlertTriangle className="h-6 w-6 animate-bounce text-amber-400" />
-                <p className="mt-1 text-xs font-black tracking-wide text-white">
-                  {lang === 'uz' ? 'EKRANGA QARANG!' : 'FACE THE SCREEN!'}
-                </p>
-                <div className="font-mono-num mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-rose-600 text-sm font-extrabold text-white shadow-md">
-                  {secondsRemaining ?? 2}s
-                </div>
-                <p className="mt-0.5 text-[10px] text-rose-200">
-                  {lang === 'uz' ? 'Ogohlantirish beriladi' : 'Warning deduction'}
-                </p>
+          {/* Look-away warning banner overlay right on video */}
+          {!isMinimized && isAwayAlert && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-rose-950/80 p-2 text-center text-white backdrop-blur-xs">
+              <AlertTriangle className="h-6 w-6 animate-bounce text-amber-400" />
+              <p className="mt-1 text-xs font-black tracking-wide text-white">
+                {lang === 'uz' ? 'EKRANGA QARANG!' : 'FACE THE SCREEN!'}
+              </p>
+              <div className="font-mono-num mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-rose-600 text-sm font-extrabold text-white shadow-md">
+                {secondsRemaining ?? 2}s
               </div>
-            )}
-          </div>
-        )}
+              <p className="mt-0.5 text-[10px] text-rose-200">
+                {lang === 'uz' ? 'Ogohlantirish beriladi' : 'Warning deduction'}
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Status Pill Footer */}
         <div

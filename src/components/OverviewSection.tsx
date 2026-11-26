@@ -88,7 +88,7 @@ export function OverviewSection({
                       ? lang === 'uz'
                         ? 'Taqiqlangan (Prohibited)'
                         : 'Prohibited'
-                      : `${subject.questions.length} ${lang === 'uz' ? 'savol' : 'questions'} · 3×5 ${lang === 'uz' ? 'variant' : 'variants'}`}
+                      : `${subject.questions.length} ${lang === 'uz' ? 'savol' : 'questions'} · ${subject.id === 'math' ? '3×20' : '3×5'} ${lang === 'uz' ? 'variant' : 'variants'}`}
                   </span>
                 </div>
 

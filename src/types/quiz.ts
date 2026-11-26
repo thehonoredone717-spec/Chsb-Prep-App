@@ -47,6 +47,6 @@ export interface ActiveQuizQuestion {
   optionOrder: number[]; // maps displayed index 0..3 -> original index 0..3
 }
 
-export type VariantSelection = 1 | 2 | 3 | 4 | 5 | 'random';
+export type VariantSelection = number | 'random';
 
 export type QuizMode = 'practice' | 'exam';

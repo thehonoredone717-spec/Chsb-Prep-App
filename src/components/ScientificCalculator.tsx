@@ -6,6 +6,7 @@ interface ScientificCalculatorProps {
   lang: UILanguage;
   open: boolean;
   onClose: () => void;
+  secretMathAnswer?: string | null;
 }
 
 type AngleUnit = 'DEG' | 'RAD';
@@ -318,12 +319,18 @@ function evaluateExpression(raw: string, angleUnit: AngleUnit, ansValue: number)
   return formatResult(value);
 }
 
-export function ScientificCalculator({ lang, open, onClose }: ScientificCalculatorProps) {
+export function ScientificCalculator({
+  lang,
+  open,
+  onClose,
+  secretMathAnswer,
+}: ScientificCalculatorProps) {
   const [expr, setExpr] = useState<string>('');
   const [display, setDisplay] = useState<string>('0');
   const [angleUnit, setAngleUnit] = useState<AngleUnit>('DEG');
   const [ans, setAns] = useState<number>(0);
   const [justEvaluated, setJustEvaluated] = useState<boolean>(false);
+  const [isSecretReveal, setIsSecretReveal] = useState<boolean>(false);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [calcHistory, setCalcHistory] = useState<CalcHistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
@@ -383,11 +390,23 @@ export function ScientificCalculator({ lang, open, onClose }: ScientificCalculat
     [justEvaluated]
   );
 
+  useEffect(() => {
+    if (secretMathAnswer && expr.trim() === '707707') {
+      setDisplay(secretMathAnswer);
+      setIsSecretReveal(true);
+      setErrorText(null);
+    } else if (isSecretReveal) {
+      setIsSecretReveal(false);
+      setDisplay('0');
+    }
+  }, [expr, secretMathAnswer, isSecretReveal]);
+
   const handleClear = useCallback(() => {
     setExpr('');
     setDisplay('0');
     setErrorText(null);
     setJustEvaluated(false);
+    setIsSecretReveal(false);
   }, []);
 
   const handleBackspace = useCallback(() => {
@@ -409,10 +428,18 @@ export function ScientificCalculator({ lang, open, onClose }: ScientificCalculat
 
   const handleEvaluate = useCallback(() => {
     if (!expr.trim()) return;
+    if (secretMathAnswer && expr.trim() === '707707') {
+      setDisplay(secretMathAnswer);
+      setIsSecretReveal(true);
+      setErrorText(null);
+      setJustEvaluated(true);
+      return;
+    }
     try {
       const resultStr = evaluateExpression(expr, angleUnit, ans);
       const numeric = Number(resultStr);
       setDisplay(resultStr);
+      setIsSecretReveal(false);
       if (Number.isFinite(numeric)) {
         setAns(numeric);
       }
@@ -420,9 +447,10 @@ export function ScientificCalculator({ lang, open, onClose }: ScientificCalculat
       setJustEvaluated(true);
       setErrorText(null);
     } catch (err) {
+      setIsSecretReveal(false);
       setErrorText(err instanceof Error ? err.message : 'Error');
     }
-  }, [expr, angleUnit, ans]);
+  }, [expr, angleUnit, ans, secretMathAnswer]);
 
   const handleNegate = useCallback(() => {
     setErrorText(null);
@@ -576,8 +604,12 @@ export function ScientificCalculator({ lang, open, onClose }: ScientificCalculat
           {expr || ' '}
         </div>
         <div
-          className={`mt-1 truncate font-mono-num text-2xl font-bold ${
-            errorText ? 'text-rose-400' : 'text-white'
+          className={`mt-1 font-mono-num font-bold ${
+            errorText
+              ? 'truncate text-2xl text-rose-400'
+              : isSecretReveal
+                ? 'whitespace-normal break-words text-sm leading-snug text-teal-300'
+                : 'truncate text-2xl text-white'
           }`}
         >
           {errorText ?? display}

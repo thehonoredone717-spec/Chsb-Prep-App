@@ -1257,7 +1257,7 @@ function renderSubjectsView() {
     html += '<div>';
     html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">';
     html += '<div class="icon-box">' + (ICONS[s.id] || '') + '</div>';
-    html += '<span class="font-mono-num" style="font-size:12px;font-weight:500;color:#64748b">' + s.questions.length + ' ' + (lang === 'uz' ? 'savol' : 'questions') + ' · 3×5 ' + (lang === 'uz' ? 'variant' : 'variants') + '</span>';
+    html += '<span class="font-mono-num" style="font-size:12px;font-weight:500;color:#64748b">' + s.questions.length + ' ' + (lang === 'uz' ? 'savol' : 'questions') + ' · ' + (s.id === 'math' ? '3×20' : '3×5') + ' ' + (lang === 'uz' ? 'variant' : 'variants') + '</span>';
     html += '</div>';
     html += '<h2 class="font-display" style="margin-top:16px;font-size:20px;font-weight:700">' + esc(loc(s.title)) + '</h2>';
     html += '<p style="margin-top:6px;font-size:14px;color:#475569">' + esc(loc(s.subtitle)) + '</p>';

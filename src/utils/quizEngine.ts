@@ -4,12 +4,27 @@ import {
   DifficultyLevel,
   QuestionItem,
   SubjectConfig,
+  SubjectId,
   UILanguage,
   VariantSelection,
 } from '../types/quiz';
 
 export const QUESTIONS_PER_TEST = 25;
 export const DIFFICULTY_LEVELS: DifficultyLevel[] = ['easy', 'medium', 'hard'];
+
+export function getVariantCountForSubject(subjectId: SubjectId): number {
+  return subjectId === 'math' ? 20 : 5;
+}
+
+export function getVariantChoices(subjectId: SubjectId): VariantSelection[] {
+  const count = getVariantCountForSubject(subjectId);
+  const nums: VariantSelection[] = [];
+  for (let i = 1; i <= count; i++) {
+    nums.push(i);
+  }
+  nums.push('random');
+  return nums;
+}
 
 export function getDifficultyLabel(difficulty: DifficultyLevel, lang: UILanguage): string {
   if (difficulty === 'easy') return lang === 'uz' ? 'Oson' : 'Easy';
@@ -26,12 +41,31 @@ export function shuffleArray<T>(items: readonly T[]): T[] {
   return arr;
 }
 
-export function getNextVariant(current: VariantSelection): VariantSelection {
-  if (current === 1) return 2;
-  if (current === 2) return 3;
-  if (current === 3) return 4;
-  if (current === 4) return 5;
-  if (current === 5) return 'random';
+function seededShuffle<T>(items: readonly T[], seed: number): T[] {
+  const arr = [...items];
+  let s = seed >>> 0;
+  const rand = () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+export function getNextVariant(
+  current: VariantSelection,
+  subjectId: SubjectId = 'math'
+): VariantSelection {
+  const maxVariant = getVariantCountForSubject(subjectId);
+  if (typeof current === 'number') {
+    if (current < maxVariant) return current + 1;
+    return 'random';
+  }
   return 1;
 }
 
@@ -71,13 +105,9 @@ function interleaveByTopic(items: QuestionItem[]): QuestionItem[] {
 
 /**
  * Builds a 25-question session for the chosen subject, difficulty, and variant.
- * Each difficulty tier ('easy', 'medium', 'hard') has 50 questions and 5 variants:
- *   Variant 1: items 0..24 (0 overlap with Variant 2)
- *   Variant 2: items 25..49 (0 overlap with Variant 1)
- *   Variant 3: even indices 0,2,4..48 (0 overlap with Variant 4)
- *   Variant 4: odd indices 1,3,5..49 (0 overlap with Variant 3)
- *   Variant 5: cross-strided indices (i*3 mod len)
- *   'random': topic-balanced 25 items prioritizing unseen IDs
+ * Math supports 20 deterministic variants per difficulty level; other subjects support 5.
+ * Variants 1..5 preserve fixed non-overlapping/strided slices, Variants 6..20 generate
+ * deterministic topic-balanced subsets per variant number, and 'random' mixes unseen IDs.
  * Both question order and 4 option positions are Fisher-Yates shuffled every run.
  */
 export function buildVariantQuestions(
@@ -112,6 +142,38 @@ export function buildVariantQuestions(
       if (!seen.has(idx)) {
         seen.add(idx);
         picked.push(pool[idx]);
+      }
+    }
+    chosen = picked;
+  } else if (typeof variant === 'number' && variant >= 6) {
+    const diffSeed = difficulty === 'easy' ? 101 : difficulty === 'medium' ? 202 : 303;
+    const baseSeed = variant * 7919 + diffSeed;
+    const byTopic = new Map<string, QuestionItem[]>();
+    for (const q of basePool) {
+      const list = byTopic.get(q.topic) ?? [];
+      list.push(q);
+      byTopic.set(q.topic, list);
+    }
+
+    const topicEntries = Array.from(byTopic.entries()).map(([topic, items], idx) => {
+      const rotated = seededShuffle(items, baseSeed + idx * 131 + topic.length);
+      return rotated;
+    });
+    const orderedQueues = seededShuffle(topicEntries, baseSeed + 997);
+
+    const picked: QuestionItem[] = [];
+    const pickedIds = new Set<string>();
+    let addedInRound = true;
+    while (picked.length < QUESTIONS_PER_TEST && addedInRound) {
+      addedInRound = false;
+      for (const queue of orderedQueues) {
+        if (picked.length >= QUESTIONS_PER_TEST) break;
+        const nextItem = queue.shift();
+        if (nextItem && !pickedIds.has(nextItem.id)) {
+          picked.push(nextItem);
+          pickedIds.add(nextItem.id);
+          addedInRound = true;
+        }
       }
     }
     chosen = picked;

@@ -222,9 +222,9 @@ export const UI_COPY: Record<
     downloadHtml: 'HTML Yuklash',
     heroTitle: '7-Sinf ChSB Tayyorlov Platformasi',
     heroSubtitle:
-      "6 ta asosiy fan, har bir fanda Oson, O'rta va Qiyin darajalari bo'yicha 5 tadan (jami 15 ta) 25 talik variant hamda qayta boshlanganda savollar almashadigan ChSB imtihon muhiti.",
+      "6 ta asosiy fan, Matematika fanida Oson, O'rta va Qiyin darajalari bo'yicha 20 tadan (boshqa fanlarda 5 tadan) 25 talik variant hamda qayta boshlanganda savollar almashadigan ChSB imtihon muhiti.",
     questionsPerTest: '25 ta savol / test',
-    variantsCount: '3 daraja × 5 variant + Tasodifiy 25',
+    variantsCount: '3 daraja × 20 (Matematika) / 5 variant + Tasodifiy 25',
     totalBank: `${TOTAL_QUESTION_COUNT} ta savol bazasi`,
     startTest: 'Testni boshlash',
     openGuide: "Mavzular va qo'llanma",
@@ -305,9 +305,9 @@ export const UI_COPY: Record<
     downloadHtml: 'Download HTML',
     heroTitle: 'Grade 7 ChSB Exam Prep Platform',
     heroSubtitle:
-      'Dedicated sections for 6 core subjects, 3 difficulty levels (Easy, Medium, Hard) with 5 distinct 25-question variants each plus Random Mix and guaranteed shuffle on Start over.',
+      'Dedicated sections for 6 core subjects, 3 difficulty levels (Easy, Medium, Hard) with 20 distinct 25-question variants per tier in Math (5 in other subjects) plus Random Mix and guaranteed shuffle on Start over.',
     questionsPerTest: '25 questions / test',
-    variantsCount: '3 tiers × 5 variants + Random Mix',
+    variantsCount: '3 tiers × 20 (Math) / 5 variants + Random Mix',
     totalBank: `${TOTAL_QUESTION_COUNT} total questions`,
     startTest: 'Start Test',
     openGuide: 'Topics & Study Guide',

@@ -26,10 +26,14 @@ export async function lockSystemKeys(): Promise<void> {
   const nav = navigator as KeyboardNavigator;
   try {
     if (nav.keyboard?.lock) {
-      await nav.keyboard.lock(['Escape', 'F11', 'MetaLeft', 'MetaRight']);
+      await nav.keyboard.lock();
     }
   } catch {
-    // Keyboard Lock API is only available in supported browsers / top-level fullscreen
+    try {
+      await nav.keyboard?.lock?.(['Escape', 'F11', 'MetaLeft', 'MetaRight', 'Tab']);
+    } catch {
+      // Keyboard Lock API is only available in supported browsers / top-level fullscreen
+    }
   }
 }
 

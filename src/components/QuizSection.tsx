@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRecord, UI_COPY, pickText } from '../data/subjects';
 import { CameraProctor } from './CameraProctor';
 import { FormattedMathText } from './FormattedMathText';
+import { MathShapeDiagram } from './MathShapeDiagram';
 import { ScientificCalculator } from './ScientificCalculator';
 import {
   ActiveQuizQuestion,
@@ -34,6 +35,7 @@ import {
   getLocalizedField,
   getLocalizedOptions,
   getNextVariant,
+  getVariantChoices,
   getVariantLabel,
   gradeOf,
   isChoiceCorrect,
@@ -54,7 +56,6 @@ interface QuizSectionProps {
 }
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const;
-const VARIANT_CHOICES: VariantSelection[] = [1, 2, 3, 4, 5, 'random'];
 const MAX_WARNINGS = 3;
 const GRACE_SECONDS = 3;
 
@@ -122,10 +123,13 @@ export function QuizSection({
 
   const awayStartedAtRef = useRef<number | null>(null);
   const deductedThisAwayRef = useRef<number>(0);
+  const basePenaltyThisAwayRef = useRef<number>(0);
   const warningsLeftRef = useRef<number>(MAX_WARNINGS);
   const submittedRef = useRef<boolean>(false);
   const blurConfirmTimerRef = useRef<number | null>(null);
   const wasFullscreenInTestRef = useRef<boolean>(false);
+  const guardArmedAtRef = useRef<number>(0);
+  const lastAwayPenaltyAtRef = useRef<number>(0);
   const lastScreenshotPenaltyRef = useRef<number>(0);
   const originalTitleRef = useRef<string>(
     typeof document !== 'undefined' ? document.title : 'Grade 7 ChSB'
@@ -160,8 +164,8 @@ export function QuizSection({
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
-          width: { ideal: 480 },
-          height: { ideal: 360 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
         audio: false,
       });
@@ -209,6 +213,7 @@ export function QuizSection({
     }
     awayStartedAtRef.current = null;
     deductedThisAwayRef.current = 0;
+    basePenaltyThisAwayRef.current = 0;
     warningsLeftRef.current = MAX_WARNINGS;
     submittedRef.current = false;
     setWarningsLeft(MAX_WARNINGS);
@@ -281,7 +286,7 @@ export function QuizSection({
   // Mandatory requirement: Every time "Start over" is clicked, questions swap/shuffle
   const handleStartOver = () => {
     guardSwitch(() => {
-      const nextVar = getNextVariant(variant);
+      const nextVar = getNextVariant(variant, subject.id);
       const prevIds = questions.map((q) => q.source.id);
       startSession(difficulty, nextVar, prevIds);
     });
@@ -309,11 +314,13 @@ export function QuizSection({
       if (!ok) return;
     }
     resetFocusGuard();
+    guardArmedAtRef.current = Date.now() + 700;
     setElapsedSeconds(0);
     setStarted(true);
     void requestAppFullscreen(true).then((entered) => {
       if (entered) {
         wasFullscreenInTestRef.current = true;
+        guardArmedAtRef.current = Date.now() + 700;
         setFullscreenLost(false);
       }
     });
@@ -410,8 +417,10 @@ export function QuizSection({
     (reasonUz: string, reasonEn: string) => {
       if (submittedRef.current) return;
       const now = Date.now();
-      if (now - lastScreenshotPenaltyRef.current < 1500) return;
+      if (now - lastScreenshotPenaltyRef.current < 1000) return;
+      if (now - lastAwayPenaltyAtRef.current < 800) return;
       lastScreenshotPenaltyRef.current = now;
+      lastAwayPenaltyAtRef.current = now;
 
       try {
         void navigator.clipboard?.writeText?.('').catch(() => {});
@@ -478,8 +487,25 @@ export function QuizSection({
     const startAwayTracking = (backdateMs = 0) => {
       if (submittedRef.current) return;
       if (awayStartedAtRef.current !== null) return;
-      awayStartedAtRef.current = Date.now() - Math.max(0, backdateMs);
-      deductedThisAwayRef.current = 0;
+      const now = Date.now();
+      awayStartedAtRef.current = now - Math.max(0, backdateMs);
+
+      if (now >= guardArmedAtRef.current && now - lastAwayPenaltyAtRef.current > 800) {
+        lastAwayPenaltyAtRef.current = now;
+        const nextWarnings = Math.max(0, warningsLeftRef.current - 1);
+        warningsLeftRef.current = nextWarnings;
+        setWarningsLeft(nextWarnings);
+        if (nextWarnings <= 0) {
+          forceZeroSubmitRef.current();
+          return;
+        }
+        basePenaltyThisAwayRef.current = 1;
+        deductedThisAwayRef.current = 1;
+      } else {
+        basePenaltyThisAwayRef.current = 0;
+        deductedThisAwayRef.current = 0;
+      }
+
       setIsAway(true);
       setGraceSecondsLeft(GRACE_SECONDS);
       playWarningBeep(false);
@@ -493,10 +519,11 @@ export function QuizSection({
       if (awayStartedAtRef.current === null) return;
 
       const elapsedMs = Date.now() - awayStartedAtRef.current;
-      const stepsPassed = Math.floor(elapsedMs / (GRACE_SECONDS * 1000));
-      if (stepsPassed > deductedThisAwayRef.current) {
-        const delta = stepsPassed - deductedThisAwayRef.current;
-        deductedThisAwayRef.current = stepsPassed;
+      const totalStepsNeeded =
+        basePenaltyThisAwayRef.current + Math.floor(elapsedMs / (GRACE_SECONDS * 1000));
+      if (totalStepsNeeded > deductedThisAwayRef.current) {
+        const delta = totalStepsNeeded - deductedThisAwayRef.current;
+        deductedThisAwayRef.current = totalStepsNeeded;
         const nextWarnings = Math.max(0, warningsLeftRef.current - delta);
         warningsLeftRef.current = nextWarnings;
         setWarningsLeft(nextWarnings);
@@ -510,6 +537,7 @@ export function QuizSection({
       const lostCount = deductedThisAwayRef.current;
       awayStartedAtRef.current = null;
       deductedThisAwayRef.current = 0;
+      basePenaltyThisAwayRef.current = 0;
       setIsAway(false);
       setGraceSecondsLeft(GRACE_SECONDS);
       document.title = originalTitleRef.current;
@@ -530,11 +558,11 @@ export function QuizSection({
         document.visibilityState !== 'visible' ||
         !document.hasFocus();
       const rafGapMs = performance.now() - lastRafAtRef.current;
-      const rafStalled = rafGapMs > 1200;
+      const rafStalled = rafGapMs > 800;
 
       if (hiddenOrUnfocused || rafStalled) {
         if (awayStartedAtRef.current === null) {
-          startAwayTracking(rafStalled ? Math.min(1000, Math.floor(rafGapMs)) : 0);
+          startAwayTracking(rafStalled ? Math.min(800, Math.floor(rafGapMs)) : 0);
         }
       } else if (
         awayStartedAtRef.current !== null &&
@@ -546,11 +574,12 @@ export function QuizSection({
 
       if (awayStartedAtRef.current === null) return;
       const elapsedMs = Date.now() - awayStartedAtRef.current;
-      const stepsPassed = Math.floor(elapsedMs / (GRACE_SECONDS * 1000));
+      const timerSteps = Math.floor(elapsedMs / (GRACE_SECONDS * 1000));
+      const totalStepsNeeded = basePenaltyThisAwayRef.current + timerSteps;
 
-      if (stepsPassed > deductedThisAwayRef.current) {
-        const delta = stepsPassed - deductedThisAwayRef.current;
-        deductedThisAwayRef.current = stepsPassed;
+      if (totalStepsNeeded > deductedThisAwayRef.current) {
+        const delta = totalStepsNeeded - deductedThisAwayRef.current;
+        deductedThisAwayRef.current = totalStepsNeeded;
         const nextWarnings = Math.max(0, warningsLeftRef.current - delta);
         warningsLeftRef.current = nextWarnings;
         setWarningsLeft(nextWarnings);
@@ -562,7 +591,7 @@ export function QuizSection({
         playWarningBeep(false);
       }
 
-      const nextBoundaryMs = (stepsPassed + 1) * GRACE_SECONDS * 1000;
+      const nextBoundaryMs = (timerSteps + 1) * GRACE_SECONDS * 1000;
       const secLeft = Math.max(1, Math.ceil((nextBoundaryMs - elapsedMs) / 1000));
       setGraceSecondsLeft(secLeft);
       document.title =
@@ -586,7 +615,7 @@ export function QuizSection({
       if (blurConfirmTimerRef.current !== null) {
         window.clearTimeout(blurConfirmTimerRef.current);
       }
-      // Immediate cover when losing focus (blocks virtual desktop switches, Ask Gemini, Snipping Tool, etc.)
+      // Immediate cover and penalty when losing focus (blocks virtual desktop switches, Ask Gemini, Snipping Tool, etc.)
       startAwayTracking();
       tickAwayProgress();
     };
@@ -598,7 +627,7 @@ export function QuizSection({
           startAwayTracking();
           tickAwayProgress();
         }
-      }, 60);
+      }, 40);
     };
 
     const handleWindowFocus = () => {
@@ -613,6 +642,7 @@ export function QuizSection({
       if (submittedRef.current) return;
       if (isFullscreenActive()) {
         wasFullscreenInTestRef.current = true;
+        guardArmedAtRef.current = Date.now() + 500;
         setFullscreenLost(false);
         lastRafAtRef.current = performance.now();
         if (!document.hidden && document.hasFocus()) {
@@ -636,14 +666,24 @@ export function QuizSection({
         e.code === 'MetaLeft' ||
         e.code === 'MetaRight' ||
         e.metaKey;
-      const isAltTab = e.altKey && e.key === 'Tab';
+      const isAltTab = e.altKey && (e.key === 'Tab' || e.code === 'Tab');
+      const isVirtualDesktopCombo =
+        (isMetaOrWin && (e.ctrlKey || e.key === 'Tab' || e.code === 'Tab' || keyLower === 'd')) ||
+        (e.ctrlKey && e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight'));
       const isBlockedCtrlCombo =
         e.ctrlKey &&
         (['p', 's', 'u', 'c', 'x', 'a', 'g'].includes(keyLower) ||
           (e.shiftKey && ['i', 'j', 'c', 's'].includes(keyLower)));
       const isSystemNavKey = e.key === 'Escape' || e.key === 'F11' || e.key === 'F12';
 
-      if (isPrintScreen || isMetaOrWin || isAltTab || isBlockedCtrlCombo || isSystemNavKey) {
+      if (
+        isPrintScreen ||
+        isMetaOrWin ||
+        isAltTab ||
+        isVirtualDesktopCombo ||
+        isBlockedCtrlCombo ||
+        isSystemNavKey
+      ) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -652,14 +692,15 @@ export function QuizSection({
         isPrintScreen ||
         isMetaOrWin ||
         isAltTab ||
+        isVirtualDesktopCombo ||
         (e.ctrlKey && e.shiftKey && keyLower === 's') ||
         (e.ctrlKey && keyLower === 'p') ||
         (isMetaOrWin && e.shiftKey && ['3', '4', '5', 's'].includes(keyLower));
 
       if (isScreenshotOrSystemCombo) {
         triggerInstantPenalty(
-          'Skrinshot olish, boshqa desktop/oynaga o‘tish yoki Win / Win+G tugmalarini bosish taqiqlanadi! 1 ta ogohlantirish olib tashlandi.',
-          'Screenshots, switching desktops/windows, Start (Win), and Win+G are prohibited! 1 warning was deducted.'
+          'Skrinshot olish, boshqa desktop/oynaga o‘tish (Win+Ctrl+Arrow, Win+Tab, Alt+Tab) yoki Win tugmalarini bosish taqiqlanadi! 1 ta ogohlantirish olib tashlandi.',
+          'Screenshots, switching desktops/windows (Win+Ctrl+Arrow, Win+Tab, Alt+Tab), and Win keys are prohibited! 1 warning was deducted.'
         );
       }
     };
@@ -714,6 +755,17 @@ export function QuizSection({
 
   const answeredCount = Object.keys(answers).length;
   const activeQuestion = questions[currentIndex];
+  const variantChoices = useMemo(() => getVariantChoices(subject.id), [subject.id]);
+
+  const secretMathAnswer = useMemo(() => {
+    if (subject.id !== 'math' || !started || submitted || !activeQuestion) {
+      return null;
+    }
+    const opts = getLocalizedOptions(activeQuestion.source.opts, lang);
+    const correctDisp = getCorrectDisplayIndex(activeQuestion);
+    const correctText = opts[activeQuestion.optionOrder[correctDisp]];
+    return `${OPTION_LETTERS[correctDisp]}. ${correctText}`;
+  }, [subject.id, started, submitted, activeQuestion, lang]);
 
   const resultsSummary = useMemo(() => {
     if (!submitted) return null;
@@ -857,21 +909,21 @@ export function QuizSection({
           </div>
         </div>
 
-        {/* 5 Variants per Difficulty + Random 25 */}
+        {/* 5 (or 20 for Math) Variants per Difficulty + Random 25 */}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
           <div
             role="group"
             aria-label={lang === 'uz' ? 'Variant tanlash' : 'Select Variant'}
             className="flex flex-wrap items-center gap-1.5"
           >
-            {VARIANT_CHOICES.map((v) => {
+            {variantChoices.map((v) => {
               const active = variant === v;
               return (
                 <button
                   key={String(v)}
                   type="button"
                   onClick={() => handleSelectVariant(v)}
-                  className={`min-h-[36px] rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 sm:text-sm ${
+                  className={`min-h-[34px] rounded-lg px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
                     active
                       ? 'bg-slate-900 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
@@ -901,8 +953,8 @@ export function QuizSection({
               }`}
               title={
                 lang === 'uz'
-                  ? 'Boshqa oyna, sayt yoki desktopga 3 soniyadan ortiq o‘tsangiz 1 ta ogohlantirish kamayadi'
-                  : 'Leaving the test window, tab, or desktop for over 3 seconds removes 1 warning'
+                  ? 'Boshqa oyna, sayt yoki desktopga o‘tsangiz darhol 1 ta ogohlantirish kamayadi'
+                  : 'Switching windows, tabs, or desktops immediately deducts 1 warning'
               }
             >
               {warningsLeft === MAX_WARNINGS ? (
@@ -944,8 +996,8 @@ export function QuizSection({
 
             <p className="mt-8 max-w-xl text-lg font-semibold leading-relaxed text-rose-50 sm:text-xl">
               {lang === 'uz'
-                ? `${graceSecondsLeft} soniya ichida testga qaytmasangiz 1 ta ogohlantirish olib tashlanadi!`
-                : `Return to the quiz within ${graceSecondsLeft} seconds or 1 warning will be deducted!`}
+                ? `Test oynasidan chiqish taqiqlanadi! ${graceSecondsLeft} soniya ichida qaytmasangiz yana 1 ta ogohlantirish olib tashlanadi!`
+                : `Leaving the quiz window is prohibited! Return within ${graceSecondsLeft} seconds or another warning will be deducted!`}
             </p>
 
             <div className="font-mono-num mt-5 rounded-xl border border-white/30 bg-rose-900/60 px-5 py-2.5 text-base font-bold text-white">
@@ -974,8 +1026,8 @@ export function QuizSection({
 
             <p className="mt-4 text-base font-medium leading-relaxed text-rose-100 sm:text-lg">
               {lang === 'uz'
-                ? `Boshqa sayt, oyna yoki desktopga 3 soniyadan ortiq chiqqaningiz uchun ${warningModal.deductedCount} ta ogohlantirish olib tashlandi.`
-                : `You left the test tab, window, or desktop for over 3 seconds, so ${warningModal.deductedCount} warning was deducted.`}
+                ? `Boshqa sayt, oyna yoki desktopga o‘tganingiz uchun ${warningModal.deductedCount} ta ogohlantirish olib tashlandi.`
+                : `You switched away from the test tab, window, or desktop, so ${warningModal.deductedCount} warning was deducted.`}
             </p>
 
             <div className="mt-6 rounded-xl border border-rose-400/50 bg-rose-900/70 p-4">
@@ -995,9 +1047,11 @@ export function QuizSection({
               type="button"
               onClick={() => {
                 setWarningModal(null);
+                guardArmedAtRef.current = Date.now() + 700;
                 void requestAppFullscreen(true).then((entered) => {
                   if (entered) {
                     wasFullscreenInTestRef.current = true;
+                    guardArmedAtRef.current = Date.now() + 700;
                     setFullscreenLost(false);
                   }
                 });
@@ -1035,6 +1089,7 @@ export function QuizSection({
               type="button"
               onClick={() => {
                 setSecurityViolationMsg(null);
+                guardArmedAtRef.current = Date.now() + 700;
                 void requestAppFullscreen(true);
               }}
               className="mt-7 inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-white px-6 text-base font-extrabold text-rose-900 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -1069,8 +1124,10 @@ export function QuizSection({
             <button
               type="button"
               onClick={() => {
+                guardArmedAtRef.current = Date.now() + 700;
                 void requestAppFullscreen(true).then((entered) => {
                   if (entered) {
+                    guardArmedAtRef.current = Date.now() + 700;
                     setFullscreenLost(false);
                   }
                 });
@@ -1104,8 +1161,8 @@ export function QuizSection({
             </h2>
             <p className="mt-4 text-base leading-relaxed text-rose-100">
               {lang === 'uz'
-                ? '3 ta ogohlantirish ham sarflandi (3 soniyadan ortiq boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
-                : 'All 3 warnings were used (you stayed outside the test tab, window, or desktop for over 3 seconds). Your score was recorded as 0 / 25 (0%).'}
+                ? '3 ta ogohlantirish ham sarflandi (boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
+                : 'All 3 warnings were used (you switched outside the test tab, window, or desktop). Your score was recorded as 0 / 25 (0%).'}
             </p>
             <button
               type="button"
@@ -1171,8 +1228,8 @@ export function QuizSection({
           </h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
             {lang === 'uz'
-              ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Test paytida veb-kamera nazorati faol bo‘ladi — boshqa tarafga 2.5 soniyadan ortiq burilib qarash, yuzni berkitish yoki boshqa oyna/desktopga o‘tish ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
-              : `This variant contains ${QUESTIONS_PER_TEST} questions (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Webcam proctoring is active during the test — turning your head away for over 2.5 seconds, obscuring face, or leaving the quiz window removes 1 warning (3 warnings max; exhausting all 3 gives 0).`}
+              ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Test paytida veb-kamera va to‘liq ekran nazorati faol bo‘ladi — boshqa desktop yoki oynaga o‘tish darhol, yuzni burish/berkitish esa 2.5 soniyada ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
+              : `This variant contains ${QUESTIONS_PER_TEST} questions (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Webcam and fullscreen proctoring are active — switching desktops or windows immediately deducts 1 warning, and looking away/obscuring face for over 2.5s deducts 1 warning (3 warnings max; exhausting all 3 gives 0).`}
           </p>
 
           <CameraProctor
@@ -1219,8 +1276,8 @@ export function QuizSection({
                 </h2>
                 <p className="mt-1 text-sm text-rose-800">
                   {lang === 'uz'
-                    ? '3 ta ogohlantirish ham sarflandi (3 soniyadan ortiq boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
-                    : 'All 3 warnings were used (you stayed outside the test tab, window, or desktop for over 3 seconds). Your score for this test was recorded as 0 / 25 (0%).'}
+                    ? '3 ta ogohlantirish ham sarflandi (boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
+                    : 'All 3 warnings were used (you switched outside the test tab, window, or desktop). Your score for this test was recorded as 0 / 25 (0%).'}
                 </p>
               </div>
             </div>
@@ -1399,6 +1456,10 @@ export function QuizSection({
                       {getLocalizedField(q.source.q, lang)}
                     </p>
 
+                    {subject.id === 'math' && (
+                      <MathShapeDiagram questionId={q.source.id} lang={lang} compact />
+                    )}
+
                     <div className="mt-2.5 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                       <p className="text-slate-700">
                         <span className="font-semibold text-slate-900">{copy.yourAnswer}: </span>
@@ -1511,6 +1572,10 @@ export function QuizSection({
               <h2 className="mt-3 whitespace-pre-line font-display text-xl font-bold leading-snug text-slate-900 sm:text-2xl">
                 {getLocalizedField(activeQuestion.source.q, lang)}
               </h2>
+
+              {subject.id === 'math' && (
+                <MathShapeDiagram questionId={activeQuestion.source.id} lang={lang} />
+              )}
 
               <div className="mt-6 space-y-3">
                 {activeQuestion.optionOrder.map((origIdx, dispIdx) => {
@@ -1657,6 +1722,7 @@ export function QuizSection({
         lang={lang}
         open={calculatorOpen}
         onClose={() => setCalculatorOpen(false)}
+        secretMathAnswer={secretMathAnswer}
       />
     </section>
   );

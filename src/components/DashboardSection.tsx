@@ -409,8 +409,8 @@ export function DashboardSection({
               </li>
               <li>
                 {uz
-                  ? "• Test paytida boshqa tab/oynaga o'tish (3s+), skrinshot olish yoki Win / Win+G bosish ogohlantirish beradi (3 ogohlantirishdan keyin 0 ball / Cheated)."
-                  : '• Switching tabs/windows (>3s), screenshots, or Win / Win+G triggers warnings (3 warnings = 0 score / Cheated).'}
+                  ? "• Test paytida boshqa desktop, tab yoki oynaga o'tish, skrinshot olish yoki Win / Win+Tab / Win+G bosish darhol ogohlantirish kamaytiradi (3 ogohlantirishdan keyin 0 ball / Cheated)."
+                  : '• Switching desktops, tabs, or windows, screenshots, or pressing Win / Win+Tab / Win+G immediately deducts a warning (3 warnings = 0 score / Cheated).'}
               </li>
               <li>
                 {uz
