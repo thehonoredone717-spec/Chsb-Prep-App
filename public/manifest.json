@@ -3,6 +3,7 @@
   "name": "Prep App For 7 Graders",
   "short_name": "CHSB Prep",
   "description": "7-sinf Matematika, Tarix, Science, Informatika, Ingliz tili va Ona tili va Adabiyot fanlaridan 25 talik ChSB testlari va 5 ta variant.",
+  "lang": "uz",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -17,6 +18,9 @@
   "categories": [
     "education"
   ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
       "src": "/pwa-192x192.png",
@@ -36,5 +40,69 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Matematika ChSB",
+      "short_name": "Math",
+      "description": "7-sinf Matematika fanidan 25 talik testlar",
+      "url": "/?subject=math",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Natijalar",
+      "short_name": "Natija",
+      "description": "O'quvchilar va shaxsiy test natijalari",
+      "url": "/?view=results",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/aistudio/chsb-prep-app___Workers___Pages___Thehonoredone.717_gmail.com_s_Account___Cloudflare_-_Google_Chrome_11_26_2026_4_44_59_PM_8830c829.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Subjects view of Grade 7 ChSB Prep Platform"
+    },
+    {
+      "src": "/assets/aistudio/chsb-prep-app___Workers___Pages___Thehonoredone.717_gmail.com_s_Account___Cloudflare_-_Google_Chrome_11_26_2026_4_45_05_PM_ab75763a.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Dashboard view of Grade 7 ChSB Prep Platform"
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "note_taking": {
+    "new_note_url": "/?view=quiz"
+  },
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "protocol_handlers": [],
+  "file_handlers": [],
+  "scope_extensions": [],
+  "widgets": [],
+  "iarc_rating_id": ""
 }
