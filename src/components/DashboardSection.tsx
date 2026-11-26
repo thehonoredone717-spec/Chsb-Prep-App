@@ -75,8 +75,8 @@ export function DashboardSection({
   const roleLabel =
     teacherScope === 'all'
       ? uz
-        ? 'Admin · Barcha fanlar'
-        : 'Admin · All Subjects'
+        ? 'Owner · Barcha fanlar'
+        : 'Owner · All Subjects'
       : teacherScope === 'computing'
         ? copy.computingTeacherBadge
         : teacherScope === 'math'

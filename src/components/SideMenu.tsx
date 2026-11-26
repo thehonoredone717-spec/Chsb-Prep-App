@@ -61,7 +61,7 @@ export function SideMenu({
 
   const badgeText =
     teacherScope === 'all'
-      ? copy.teacherBadge
+      ? copy.ownerBadge
       : teacherScope === 'computing'
         ? copy.computingTeacherBadge
         : teacherScope === 'math'
@@ -158,9 +158,16 @@ export function SideMenu({
           />
           <aside className="relative z-10 flex w-72 max-w-[85vw] flex-col border-r border-slate-200 bg-white p-4 shadow-xl">
             <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-              <span className="font-display text-base font-bold text-slate-900">
-                {copy.brand}
-              </span>
+              <div className="flex items-center gap-2.5">
+                <img
+                  src="/assets/aistudio/Gemini_Generated_Image_cp4xjscp4xjscp4x_f257542a.jpg"
+                  alt="NavPS_ChSB Logo"
+                  className="h-7 w-7 rounded-lg object-cover shadow-xs ring-1 ring-slate-900/10"
+                />
+                <span className="font-display text-base font-bold text-slate-900">
+                  {copy.brand}
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={onCloseMobile}

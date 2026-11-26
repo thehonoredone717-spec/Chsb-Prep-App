@@ -8,13 +8,15 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export const TEACHER_EMAIL = 'thehonoredone.717@gmail.com';
-export const OWNER_ADMIN_EMAIL = 'ibrohimbekxujanazarov@gmail.com';
-export const ADMIN_EMAILS = [TEACHER_EMAIL, OWNER_ADMIN_EMAIL] as const;
+export const OWNER_EMAIL = 'thehonoredone.717@gmail.com';
+export const ADMIN_EMAILS = [OWNER_EMAIL] as const;
+export const TEACHER_EMAIL = OWNER_EMAIL;
+export const OWNER_ADMIN_EMAIL = OWNER_EMAIL;
 export const COMPUTING_TEACHER_EMAIL = 'zarifa.xojiyeva2281@gmail.com';
 export const MATH_TEACHER_EMAIL = 'qoqonovtohir@gmail.com';
 export const SCIENCE_TEACHER_EMAIL = 'mohinurteshayeva19@gmail.com';
 export const ENGLISH_TEACHER_EMAIL = 'melbernard24@gmail.com';
+export const STUDENT_EMAIL = 'ibrohimbekxujanazarov@gmail.com';
 export const USERNAME_REGEX = /^[a-z0-9_.]{3,32}$/;
 export const DISPLAY_NAME_MAX_LEN = 60;
 export const VARIANT_MAX_LEN = 24;
@@ -23,7 +25,8 @@ export interface UserProfile {
   uid: string;
   username: string;
   displayName: string;
-  role: 'student' | 'teacher';
+  email?: string;
+  role: 'student' | 'teacher' | 'owner';
 }
 
 export enum OperationType {
@@ -89,9 +92,13 @@ async function testConnection() {
 }
 void testConnection();
 
-export function isTeacherAdmin(user: User | null): boolean {
+export function isAppOwner(user: User | null): boolean {
   const email = user?.email?.toLowerCase();
-  return Boolean(user && email && ADMIN_EMAILS.some((adminEmail) => adminEmail === email) && user.emailVerified);
+  return Boolean(user && email && email === OWNER_EMAIL && user.emailVerified);
+}
+
+export function isTeacherAdmin(user: User | null): boolean {
+  return isAppOwner(user);
 }
 
 export function isComputingTeacher(user: User | null): boolean {

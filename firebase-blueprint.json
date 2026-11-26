@@ -26,8 +26,13 @@
         },
         "role": {
           "type": "string",
-          "enum": ["student", "teacher"],
-          "description": "Access role in the platform"
+          "enum": ["student", "teacher", "owner"],
+          "description": "Access role in the platform: student, subject teacher, or platform owner"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "maxLength": 128
         },
         "createdAt": {
           "type": "string",

@@ -95,7 +95,7 @@ export function ResultsHistoryView({
 
   const headingTitle =
     teacherScope === 'all'
-      ? copy.teacherResultsTitle
+      ? copy.ownerResultsTitle
       : teacherScope === 'computing'
         ? copy.computingResultsTitle
         : teacherScope === 'math'

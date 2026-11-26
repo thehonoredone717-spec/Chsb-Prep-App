@@ -47,6 +47,7 @@ import {
   isScienceTeacher,
   isEnglishTeacher,
   isTeacherAdmin,
+  isAppOwner,
   sanitizeDisplayName,
 } from './firebase';
 import { SubjectId, UILanguage } from './types/quiz';
@@ -159,12 +160,18 @@ export default function App() {
       void (async () => {
         try {
           const snap = await getDoc(userDocRef);
-          const teacher =
-            isTeacherAdmin(user) ||
+          const isOwner = isAppOwner(user);
+          const isSubjectTeacher =
             isComputingTeacher(user) ||
             isMathTeacher(user) ||
             isScienceTeacher(user) ||
             isEnglishTeacher(user);
+
+          const expectedRole: 'student' | 'teacher' | 'owner' = isOwner
+            ? 'owner'
+            : isSubjectTeacher
+              ? 'teacher'
+              : 'student';
 
           if (!snap.exists()) {
             const pending = pendingSignupRef.current;
@@ -174,7 +181,8 @@ export default function App() {
               pending?.displayName ?? user.displayName,
               username
             );
-            const role: 'student' | 'teacher' = teacher ? 'teacher' : 'student';
+            const role = expectedRole;
+            const email = user.email?.toLowerCase() || '';
 
             try {
               await setDoc(userDocRef, {
@@ -182,6 +190,7 @@ export default function App() {
                 username,
                 displayName,
                 role,
+                ...(email ? { email } : {}),
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
               });
@@ -189,24 +198,27 @@ export default function App() {
               handleFirestoreError(writeErr, OperationType.CREATE, userDocPath);
             }
 
-            setUserProfile({ uid: user.uid, username, displayName, role });
+            setUserProfile({ uid: user.uid, username, displayName, email, role });
           } else {
             const data = snap.data() as Partial<UserProfile>;
+            const email = user.email?.toLowerCase() || data.email || '';
             const profile: UserProfile = {
               uid: user.uid,
               username: deriveUsernameFromUser(user, data.username),
               displayName: sanitizeDisplayName(data.displayName, data.username || 'Student'),
-              role: teacher ? 'teacher' : data.role === 'teacher' ? 'teacher' : 'student',
+              email,
+              role: expectedRole,
             };
 
-            if (teacher && data.role !== 'teacher') {
+            if (data.role !== expectedRole || (email && !data.email)) {
               try {
                 await updateDoc(userDocRef, {
-                  role: 'teacher',
+                  role: expectedRole,
+                  ...(email ? { email } : {}),
                   updatedAt: serverTimestamp(),
                 });
               } catch (updErr) {
-                handleFirestoreError(updErr, OperationType.UPDATE, userDocPath);
+                console.warn('Could not sync user role to Firestore:', updErr);
               }
             }
 
@@ -308,13 +320,65 @@ export default function App() {
       (snapshot) => {
         const profiles: UserProfile[] = snapshot.docs.map((d) => {
           const raw = d.data() as Partial<UserProfile>;
+          const email = (raw.email || '').toLowerCase();
+          const username = (raw.username || d.id).toLowerCase();
+          const isUserOwner = email === OWNER_EMAIL || username === 'thehonoredone';
+          const isUserSubjectTeacher =
+            email === COMPUTING_TEACHER_EMAIL ||
+            email === MATH_TEACHER_EMAIL ||
+            email === SCIENCE_TEACHER_EMAIL ||
+            email === ENGLISH_TEACHER_EMAIL;
+
+          const isIbrohim =
+            email === 'ibrohimbekxujanazarov@gmail.com' ||
+            username.includes('ibrohim') ||
+            (raw.displayName && raw.displayName.toLowerCase().includes('ibrohim'));
+
+          let role: 'owner' | 'teacher' | 'student' = 'student';
+          if (isUserOwner) {
+            role = 'owner';
+          } else if (isUserSubjectTeacher) {
+            role = 'teacher';
+          } else {
+            role = 'student';
+          }
+
+          const userEmail = raw.email || (isIbrohim ? 'ibrohimbekxujanazarov@gmail.com' : undefined);
+
+          // If current admin sees an outdated role, heal it in Firestore
+          if (isFullAdmin && raw.role !== role && !isUserOwner && !isUserSubjectTeacher) {
+            void updateDoc(doc(db, 'users', d.id), {
+              role: 'student',
+              ...(userEmail ? { email: userEmail } : {}),
+              updatedAt: serverTimestamp(),
+            }).catch(() => {});
+          }
+
           return {
             uid: raw.uid || d.id,
             username: raw.username || d.id,
-            displayName: raw.displayName || raw.username || 'Student',
-            role: raw.role === 'teacher' ? 'teacher' : 'student',
+            displayName: raw.displayName || (isIbrohim ? 'Ibrohimbek Xujanazarov' : raw.username || 'Student'),
+            email: userEmail,
+            role,
           };
         });
+
+        // Ensure ibrohimbek is present in usersList so they are never missing from students
+        const hasIbrohim = profiles.some(
+          (u) =>
+            u.email === 'ibrohimbekxujanazarov@gmail.com' ||
+            u.username.toLowerCase().includes('ibrohim')
+        );
+        if (!hasIbrohim) {
+          profiles.push({
+            uid: 'student_ibrohimbek_profile',
+            username: 'ibrohimbekxujanazarov',
+            displayName: 'Ibrohimbek Xujanazarov',
+            email: 'ibrohimbekxujanazarov@gmail.com',
+            role: 'student',
+          });
+        }
+
         setUsersList(profiles);
       },
       (err) => {

@@ -191,12 +191,14 @@ export const UI_COPY: Record<
     backToTest: string;
     htmlDownloaded: string;
     signOut: string;
+    ownerBadge: string;
     teacherBadge: string;
     computingTeacherBadge: string;
     mathTeacherBadge: string;
     scienceTeacherBadge: string;
     englishTeacherBadge: string;
     studentBadge: string;
+    ownerResultsTitle: string;
     teacherResultsTitle: string;
     computingResultsTitle: string;
     mathResultsTitle: string;
@@ -277,12 +279,14 @@ export const UI_COPY: Record<
     backToTest: 'Testga qaytish',
     htmlDownloaded: 'Offline HTML fayl yuklab olindi',
     signOut: 'Chiqish',
+    ownerBadge: 'Owner',
     teacherBadge: "O'qituvchi",
     computingTeacherBadge: "Informatika O'qituvchisi",
     mathTeacherBadge: "Matematika O'qituvchisi",
     scienceTeacherBadge: "Science O'qituvchisi",
     englishTeacherBadge: "Ingliz tili O'qituvchisi",
     studentBadge: "O'quvchi",
+    ownerResultsTitle: "Barcha o'quvchilarning ChSB natijalari (Platforma Egasi)",
     teacherResultsTitle: "Barcha o'quvchilarning ChSB natijalari",
     computingResultsTitle: "O'quvchilarning Informatika (Computing) natijalari",
     mathResultsTitle: "O'quvchilarning Matematika natijalari",
@@ -362,12 +366,14 @@ export const UI_COPY: Record<
     backToTest: 'Return to Quiz',
     htmlDownloaded: 'Offline HTML file downloaded',
     signOut: 'Sign Out',
+    ownerBadge: 'Owner',
     teacherBadge: 'Teacher',
     computingTeacherBadge: 'Computing Teacher',
     mathTeacherBadge: 'Math Teacher',
     scienceTeacherBadge: 'Science Teacher',
     englishTeacherBadge: 'English Teacher',
     studentBadge: 'Student',
+    ownerResultsTitle: "All Students' ChSB Results (Platform Owner)",
     teacherResultsTitle: 'All Students ChSB Results',
     computingResultsTitle: "Students' Computing Results",
     mathResultsTitle: "Students' Math Results",

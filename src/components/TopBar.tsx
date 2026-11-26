@@ -54,7 +54,7 @@ export function TopBar({
 
   const badgeText =
     teacherScope === 'all'
-      ? copy.teacherBadge
+      ? copy.ownerBadge
       : teacherScope === 'computing'
         ? copy.computingTeacherBadge
         : teacherScope === 'math'
@@ -114,7 +114,11 @@ export function TopBar({
             onClick={() => onSelectView('dashboard')}
             className="flex shrink-0 items-center gap-2.5 whitespace-nowrap text-left font-display text-lg font-bold tracking-tight text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
           >
-            <GraduationCap className="h-5 w-5 text-teal-700" aria-hidden="true" />
+            <img
+              src="/assets/aistudio/Gemini_Generated_Image_cp4xjscp4xjscp4x_f257542a.jpg"
+              alt="NavPS ChSB Logo"
+              className="h-8 w-8 rounded-lg object-cover shadow-xs ring-1 ring-slate-900/10"
+            />
             <span>{copy.brand}</span>
           </button>
         </div>

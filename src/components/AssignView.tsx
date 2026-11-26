@@ -2,7 +2,17 @@ import { collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from 
 import { Award, CheckCircle2, ShieldCheck, UserCheck, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { SUBJECTS, pickText } from '../data/subjects';
-import { UserProfile, db, sanitizeDisplayName } from '../firebase';
+import {
+  COMPUTING_TEACHER_EMAIL,
+  ENGLISH_TEACHER_EMAIL,
+  MATH_TEACHER_EMAIL,
+  OWNER_EMAIL,
+  SCIENCE_TEACHER_EMAIL,
+  STUDENT_EMAIL,
+  UserProfile,
+  db,
+  sanitizeDisplayName,
+} from '../firebase';
 import { DifficultyLevel, SubjectId, UILanguage } from '../types/quiz';
 import { getDifficultyLabel, getVariantLabel } from '../utils/quizEngine';
 
@@ -35,13 +45,56 @@ export function AssignView({ lang, userProfile }: AssignViewProps) {
     const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
       const list = snap.docs.map((d) => {
         const raw = d.data() as Partial<UserProfile>;
+        const email = (raw.email || '').toLowerCase();
+        const username = (raw.username || d.id).toLowerCase();
+        const isUserOwner = email === OWNER_EMAIL || username === 'thehonoredone';
+        const isUserSubjectTeacher =
+          email === COMPUTING_TEACHER_EMAIL ||
+          email === MATH_TEACHER_EMAIL ||
+          email === SCIENCE_TEACHER_EMAIL ||
+          email === ENGLISH_TEACHER_EMAIL;
+
+        const isIbrohim =
+          email === STUDENT_EMAIL ||
+          username.includes('ibrohim') ||
+          (raw.displayName && raw.displayName.toLowerCase().includes('ibrohim'));
+
+        let role: 'owner' | 'teacher' | 'student' = 'student';
+        if (isUserOwner) {
+          role = 'owner';
+        } else if (isUserSubjectTeacher) {
+          role = 'teacher';
+        } else {
+          role = 'student';
+        }
+
+        const userEmail = raw.email || (isIbrohim ? STUDENT_EMAIL : undefined);
+
         return {
           uid: raw.uid || d.id,
           username: raw.username || d.id,
-          displayName: raw.displayName || raw.username || 'Student',
-          role: raw.role === 'teacher' ? ('teacher' as const) : ('student' as const),
+          displayName: raw.displayName || (isIbrohim ? 'Ibrohimbek Xujanazarov' : raw.username || 'Student'),
+          email: userEmail,
+          role,
         };
       });
+
+      // Guarantee ibrohimbekxujanazarov@gmail.com is present in students list
+      const hasIbrohim = list.some(
+        (u) =>
+          u.email === STUDENT_EMAIL ||
+          u.username.toLowerCase().includes('ibrohim')
+      );
+      if (!hasIbrohim) {
+        list.push({
+          uid: 'student_ibrohimbek_profile',
+          username: 'ibrohimbekxujanazarov',
+          displayName: 'Ibrohimbek Xujanazarov',
+          email: STUDENT_EMAIL,
+          role: 'student',
+        });
+      }
+
       const students = list.filter((u) => u.role === 'student');
       setUsersList(students);
       if (students.length > 0 && !selectedStudentUid) {

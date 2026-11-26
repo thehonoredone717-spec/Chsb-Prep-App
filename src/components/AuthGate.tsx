@@ -186,7 +186,11 @@ export function AuthGate({ lang, onChangeLang, onPrepareSignup }: AuthGateProps)
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-2.5 font-display text-lg font-bold tracking-tight text-slate-900">
-            <GraduationCap className="h-5 w-5 text-teal-700" aria-hidden="true" />
+            <img
+              src="/assets/aistudio/Gemini_Generated_Image_cp4xjscp4xjscp4x_f257542a.jpg"
+              alt="NavPS_ChSB Logo"
+              className="h-8 w-8 rounded-lg object-cover shadow-xs ring-1 ring-slate-900/10"
+            />
             <span>{uz ? '7-Sinf ChSB' : 'Grade 7 ChSB'}</span>
           </div>
 
@@ -220,6 +224,13 @@ export function AuthGate({ lang, onChangeLang, onPrepareSignup }: AuthGateProps)
       <main className="mx-auto flex max-w-6xl flex-col items-center justify-center px-4 py-12 sm:px-6">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
           <div className="text-center">
+            <div className="mx-auto mb-3 flex justify-center">
+              <img
+                src="/assets/aistudio/Gemini_Generated_Image_cp4xjscp4xjscp4x_f257542a.jpg"
+                alt="NavPS_ChSB Logo"
+                className="h-16 w-16 rounded-2xl object-cover shadow-md ring-2 ring-slate-900/10"
+              />
+            </div>
             <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900">
               {uz ? '7-Sinf ChSB Platformasi' : 'Grade 7 ChSB Portal'}
             </h1>

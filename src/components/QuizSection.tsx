@@ -102,7 +102,7 @@ export function QuizSection({
   const [assignedVariant, setAssignedVariant] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!userProfile || userProfile.role === 'teacher') {
+    if (!userProfile || userProfile.role === 'teacher' || userProfile.role === 'owner') {
       setAssignedVariant(null);
       return;
     }
