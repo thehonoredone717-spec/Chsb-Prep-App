@@ -59,6 +59,7 @@ import {
   requestAppFullscreen,
   unlockSystemKeys,
 } from '../utils/fullscreen';
+import { useWarningsPaused } from '../utils/warningPause';
 
 interface AssignedSlot {
   docId: string;
@@ -139,6 +140,9 @@ export function QuizSection({
   registerFinishQuiz,
 }: QuizSectionProps) {
   const copy = UI_COPY[lang];
+  const warningsPaused = useWarningsPaused();
+  const warningsPausedRef = useRef<boolean>(warningsPaused);
+  warningsPausedRef.current = warningsPaused;
 
   const isStudent = userProfile?.role !== 'teacher' && userProfile?.role !== 'owner';
 
@@ -842,7 +846,7 @@ export function QuizSection({
     if (isStudent && (!assignmentsLoaded || !activeAssignment || effectiveUsed >= effectiveAllowed)) {
       return;
     }
-    if (cameraStatus !== 'active') {
+    if (!warningsPausedRef.current && cameraStatus !== 'active') {
       const ok = await requestCamera();
       if (!ok) return;
     }
@@ -878,13 +882,15 @@ export function QuizSection({
     guardArmedAtRef.current = Date.now() + 700;
     setElapsedSeconds(0);
     setStarted(true);
-    void requestAppFullscreen(true).then((entered) => {
-      if (entered) {
-        wasFullscreenInTestRef.current = true;
-        guardArmedAtRef.current = Date.now() + 700;
-        setFullscreenLost(false);
-      }
-    });
+    if (!warningsPausedRef.current) {
+      void requestAppFullscreen(true).then((entered) => {
+        if (entered) {
+          wasFullscreenInTestRef.current = true;
+          guardArmedAtRef.current = Date.now() + 700;
+          setFullscreenLost(false);
+        }
+      });
+    }
   };
 
   const handleSelectOption = (displayIdx: number) => {
@@ -983,7 +989,7 @@ export function QuizSection({
 
   const triggerInstantPenalty = useCallback(
     (reasonUz: string, reasonEn: string) => {
-      if (submittedRef.current) return;
+      if (submittedRef.current || warningsPausedRef.current) return;
       const now = Date.now();
       if (now - lastScreenshotPenaltyRef.current < 1000) return;
       if (now - lastAwayPenaltyAtRef.current < 800) return;
@@ -1099,11 +1105,10 @@ export function QuizSection({
 
   // Monitor tab switching, window blur, virtual desktop, fullscreen exit, screenshots & system keys
   useEffect(() => {
-    if (!started || submitted) return;
+    if (!started || submitted || warningsPaused) return;
 
-    if (isFullscreenActive()) {
-      wasFullscreenInTestRef.current = true;
-    }
+    guardArmedAtRef.current = Date.now() + 700;
+    wasFullscreenInTestRef.current = isFullscreenActive();
 
     lastRafAtRef.current = performance.now();
     let rafId = 0;
@@ -1383,7 +1388,7 @@ export function QuizSection({
       document.removeEventListener('dragstart', preventAction, { capture: true });
       document.title = originalTitleRef.current;
     };
-  }, [started, submitted, lang, subject.id, difficulty, variant, rotationCount, triggerInstantPenalty]);
+  }, [started, submitted, warningsPaused, lang, subject.id, difficulty, variant, rotationCount, triggerInstantPenalty]);
 
   const answeredCount = Object.keys(answers).length;
   const activeQuestion = questions[currentIndex];
@@ -1739,29 +1744,31 @@ export function QuizSection({
               {SUBJECT_DURATION_MINUTES[subject.id]} {lang === 'uz' ? 'daq' : 'min'}
             </span>
             <div className="flex flex-wrap items-center gap-4">
-              <span
-                className={`inline-flex items-center gap-1.5 font-semibold ${
-                  warningsLeft === 3
-                    ? 'text-emerald-700'
-                    : warningsLeft === 2
-                      ? 'text-amber-700'
-                      : 'text-rose-700'
-                }`}
-                title={
-                  lang === 'uz'
-                    ? 'Boshqa oyna, sayt yoki desktopga o‘tsangiz darhol 1 ta ogohlantirish kamayadi'
-                    : 'Switching windows, tabs, or desktops immediately deducts 1 warning'
-                }
-              >
-                {warningsLeft === MAX_WARNINGS ? (
-                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-                )}
-                <span>
-                  {lang === 'uz' ? 'Ogohlantirish' : 'Warnings'}: {warningsLeft}/{MAX_WARNINGS}
+              {!warningsPaused && (
+                <span
+                  className={`inline-flex items-center gap-1.5 font-semibold ${
+                    warningsLeft === 3
+                      ? 'text-emerald-700'
+                      : warningsLeft === 2
+                        ? 'text-amber-700'
+                        : 'text-rose-700'
+                  }`}
+                  title={
+                    lang === 'uz'
+                      ? 'Boshqa oyna, sayt yoki desktopga o‘tsangiz darhol 1 ta ogohlantirish kamayadi'
+                      : 'Switching windows, tabs, or desktops immediately deducts 1 warning'
+                  }
+                >
+                  {warningsLeft === MAX_WARNINGS ? (
+                    <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  <span>
+                    {lang === 'uz' ? 'Ogohlantirish' : 'Warnings'}: {warningsLeft}/{MAX_WARNINGS}
+                  </span>
                 </span>
-              </span>
+              )}
               <span>
                 {copy.timeLabel}: {formatTime(submitted ? elapsedSeconds : totalDurationSeconds)}
               </span>
@@ -1771,7 +1778,7 @@ export function QuizSection({
       )}
 
       {/* Full-Screen Red Away Countdown Overlay */}
-      {started && !submitted && isAway && (
+      {started && !submitted && !warningsPaused && isAway && (
         <div
           role="alert"
           className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-rose-700 p-6 text-center text-white"
@@ -1806,7 +1813,7 @@ export function QuizSection({
       )}
 
       {/* Full-Screen Red Warning Deducted Overlay */}
-      {started && !submitted && warningModal && (
+      {started && !submitted && !warningsPaused && warningModal && (
         <div
           role="dialog"
           aria-modal="true"
@@ -1862,7 +1869,7 @@ export function QuizSection({
       )}
 
       {/* Full-Screen Red Security Shield (Screenshot / Win+G / Blocked Shortcut) */}
-      {started && !submitted && securityViolationMsg && !isAway && (
+      {started && !submitted && !warningsPaused && securityViolationMsg && !isAway && (
         <div
           role="alertdialog"
           aria-modal="true"
@@ -1898,7 +1905,7 @@ export function QuizSection({
       )}
 
       {/* Full-Screen Red Lock when user exits Fullscreen mid-test */}
-      {started && !submitted && fullscreenLost && !isAway && !securityViolationMsg && (
+      {started && !submitted && !warningsPaused && fullscreenLost && !isAway && !securityViolationMsg && (
         <div
           role="alertdialog"
           aria-modal="true"
@@ -2167,9 +2174,13 @@ export function QuizSection({
               {getVariantLabel(variant, lang)}
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
-              {lang === 'uz'
-                ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${SUBJECT_DURATION_MINUTES[subject.id]} daqiqa · ${mode === 'practice' ? copy.modePractice : copy.modeExam}). Test paytida veb-kamera va to‘liq ekran nazorati faol bo‘ladi — boshqa desktop yoki oynaga o‘tish darhol, yuzni burish/berkitish esa 3.5 soniyada ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
-                : `This variant contains ${QUESTIONS_PER_TEST} questions (${SUBJECT_DURATION_MINUTES[subject.id]} min · ${mode === 'practice' ? copy.modePractice : copy.modeExam}). Webcam and fullscreen proctoring are active — switching desktops or windows immediately deducts 1 warning, and looking away/obscuring face for over 3.5s deducts 1 warning (3 warnings max; exhausting all 3 gives 0).`}
+              {warningsPaused
+                ? lang === 'uz'
+                  ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${SUBJECT_DURATION_MINUTES[subject.id]} daqiqa · ${mode === 'practice' ? copy.modePractice : copy.modeExam}).`
+                  : `This variant contains ${QUESTIONS_PER_TEST} questions (${SUBJECT_DURATION_MINUTES[subject.id]} min · ${mode === 'practice' ? copy.modePractice : copy.modeExam}).`
+                : lang === 'uz'
+                  ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${SUBJECT_DURATION_MINUTES[subject.id]} daqiqa · ${mode === 'practice' ? copy.modePractice : copy.modeExam}). Test paytida veb-kamera va to‘liq ekran nazorati faol bo‘ladi — boshqa desktop yoki oynaga o‘tish darhol, yuzni burish/berkitish esa 3.5 soniyada ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
+                  : `This variant contains ${QUESTIONS_PER_TEST} questions (${SUBJECT_DURATION_MINUTES[subject.id]} min · ${mode === 'practice' ? copy.modePractice : copy.modeExam}). Webcam and fullscreen proctoring are active — switching desktops or windows immediately deducts 1 warning, and looking away/obscuring face for over 3.5s deducts 1 warning (3 warnings max; exhausting all 3 gives 0).`}
             </p>
 
             {retakeSuccess && (
@@ -2183,18 +2194,20 @@ export function QuizSection({
               </div>
             )}
 
-            <CameraProctor
-              lang={lang}
-              isActive={false}
-              warningsLeft={warningsLeft}
-              maxWarnings={MAX_WARNINGS}
-              onViolation={triggerInstantPenalty}
-              stream={cameraStream}
-              cameraStatus={cameraStatus}
-              cameraError={cameraError}
-              onRequestCamera={requestCamera}
-              variant="preview-card"
-            />
+            {!warningsPaused && (
+              <CameraProctor
+                lang={lang}
+                isActive={false}
+                warningsLeft={warningsLeft}
+                maxWarnings={MAX_WARNINGS}
+                onViolation={triggerInstantPenalty}
+                stream={cameraStream}
+                cameraStatus={cameraStatus}
+                cameraError={cameraError}
+                onRequestCamera={requestCamera}
+                variant="preview-card"
+              />
+            )}
 
             <button
               type="button"
@@ -2203,7 +2216,7 @@ export function QuizSection({
             >
               <Play className="h-4 w-4 fill-current" aria-hidden="true" />
               <span>
-                {cameraStatus === 'active'
+                {warningsPaused || cameraStatus === 'active'
                   ? 'Start Test'
                   : lang === 'uz'
                     ? 'Kamera bilan boshlash'
@@ -2786,7 +2799,7 @@ export function QuizSection({
       )}
 
       {/* Live Floating Corner Camera Proctor (active during test, movable to any corner) */}
-      {started && !submitted && (
+      {started && !submitted && !warningsPaused && (
         <CameraProctor
           lang={lang}
           isActive={true}

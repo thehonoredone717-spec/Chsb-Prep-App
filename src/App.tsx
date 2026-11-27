@@ -40,6 +40,7 @@ import {
 import {
   COMPUTING_TEACHER_EMAIL,
   ENGLISH_TEACHER_EMAIL,
+  HISTORY_TEACHER_EMAIL,
   MATH_TEACHER_EMAIL,
   OWNER_EMAIL,
   OperationType,
@@ -54,6 +55,7 @@ import {
   isAppOwner,
   isComputingTeacher,
   isEnglishTeacher,
+  isHistoryTeacher,
   isMathTeacher,
   isScienceTeacher,
   isTeacherAdmin,
@@ -66,6 +68,7 @@ import {
   isFullscreenActive,
   requestAppFullscreen,
 } from './utils/fullscreen';
+import { useWarningsPaused } from './utils/warningPause';
 
 const LANG_STORAGE_KEY = 'g7_chsb_lang_v1';
 
@@ -79,6 +82,7 @@ function loadLang(): UILanguage {
 }
 
 export default function App() {
+  const warningsPaused = useWarningsPaused();
   const [lang, setLang] = useState<UILanguage>(() => loadLang());
   const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [activeSubjectId, setActiveSubjectId] = useState<SubjectId>('math');
@@ -202,7 +206,8 @@ export default function App() {
             isComputingTeacher(user) ||
             isMathTeacher(user) ||
             isScienceTeacher(user) ||
-            isEnglishTeacher(user);
+            isEnglishTeacher(user) ||
+            isHistoryTeacher(user);
 
           const expectedRole: 'student' | 'teacher' | 'owner' = isOwner
             ? 'owner'
@@ -285,6 +290,7 @@ export default function App() {
   const isMathTch = isMathTeacher(authUser);
   const isScienceTch = isScienceTeacher(authUser);
   const isEnglishTch = isEnglishTeacher(authUser);
+  const isHistoryTch = isHistoryTeacher(authUser);
   const teacherScope: TeacherScope = isFullAdmin
     ? 'all'
     : isCompTeacher
@@ -295,7 +301,9 @@ export default function App() {
           ? 'science'
           : isEnglishTch
             ? 'english'
-            : 'none';
+            : isHistoryTch
+              ? 'history'
+              : 'none';
 
   // Subscribe to attempts only when auth and userProfile are ready
   useEffect(() => {
@@ -312,7 +320,9 @@ export default function App() {
             ? query(attemptsCollection, where('subjectId', '==', 'science'))
             : isEnglishTch
               ? query(attemptsCollection, where('subjectId', '==', 'english'))
-              : query(attemptsCollection, where('userId', '==', authUser.uid));
+              : isHistoryTch
+                ? query(attemptsCollection, where('subjectId', '==', 'history'))
+                : query(attemptsCollection, where('userId', '==', authUser.uid));
 
     const unsubscribeAttempts = onSnapshot(
       attemptsQuery,
@@ -364,7 +374,8 @@ export default function App() {
             email === COMPUTING_TEACHER_EMAIL ||
             email === MATH_TEACHER_EMAIL ||
             email === SCIENCE_TEACHER_EMAIL ||
-            email === ENGLISH_TEACHER_EMAIL;
+            email === ENGLISH_TEACHER_EMAIL ||
+            email === HISTORY_TEACHER_EMAIL;
 
           const isIbrohim =
             email === 'ibrohimbekxujanazarov@gmail.com' ||
@@ -590,6 +601,7 @@ export default function App() {
     isMathTch,
     isScienceTch,
     isEnglishTch,
+    isHistoryTch,
     teacherScope,
   ]);
 
@@ -1015,7 +1027,7 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F8FAFC] text-slate-900">
-      {!isQuizRunning && (
+      {!isQuizRunning && !warningsPaused && (
         <div
           role="alert"
           className="border-b border-rose-800 bg-rose-700 px-4 py-2 text-white sm:px-6"

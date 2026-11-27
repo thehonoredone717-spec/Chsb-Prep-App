@@ -55,6 +55,14 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
+    function isHistoryTeacher() {
+      return isSignedIn()
+        && 'email' in request.auth.token
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'kuziyevoybek84@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
     function isIbrohimUser() {
       return isSignedIn()
         && 'email' in request.auth.token
@@ -83,7 +91,8 @@ service cloud.firestore {
         || (isComputingTeacher() && subjectId == 'computing')
         || (isMathTeacher() && subjectId == 'math')
         || (isScienceTeacher() && subjectId == 'science')
-        || (isEnglishTeacher() && subjectId == 'english');
+        || (isEnglishTeacher() && subjectId == 'english')
+        || (isHistoryTeacher() && subjectId == 'history');
     }
 
     function incoming() {
@@ -282,7 +291,7 @@ service cloud.firestore {
         && (
           incoming().role == 'student'
           || (isAdmin() && incoming().role == 'owner')
-          || ((isComputingTeacher() || isMathTeacher() || isScienceTeacher() || isEnglishTeacher()) && incoming().role == 'teacher')
+          || ((isComputingTeacher() || isMathTeacher() || isScienceTeacher() || isEnglishTeacher() || isHistoryTeacher()) && incoming().role == 'teacher')
         );
 
       allow update: if isSignedIn()
@@ -299,7 +308,7 @@ service cloud.firestore {
             && incoming().role == existing().role
             && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'updatedAt']))
           || (isOwner(userId)
-            && (isComputingTeacher() || isMathTeacher() || isScienceTeacher() || isEnglishTeacher())
+            && (isComputingTeacher() || isMathTeacher() || isScienceTeacher() || isEnglishTeacher() || isHistoryTeacher())
             && incoming().role == 'teacher'
             && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'email', 'updatedAt']))
           || (isAdmin()
@@ -316,6 +325,7 @@ service cloud.firestore {
         || (isMathTeacher() && existing().subjectId == 'math')
         || (isScienceTeacher() && existing().subjectId == 'science')
         || (isEnglishTeacher() && existing().subjectId == 'english')
+        || (isHistoryTeacher() && existing().subjectId == 'history')
         || (isSignedIn() && existing().userId == request.auth.uid)
       );
       allow list: if isAdmin()
@@ -323,6 +333,7 @@ service cloud.firestore {
         || (isMathTeacher() && resource.data.subjectId == 'math')
         || (isScienceTeacher() && resource.data.subjectId == 'science')
         || (isEnglishTeacher() && resource.data.subjectId == 'english')
+        || (isHistoryTeacher() && resource.data.subjectId == 'history')
         || (isSignedIn() && resource.data.userId == request.auth.uid);
 
       allow create: if isSignedIn()
@@ -446,6 +457,7 @@ service cloud.firestore {
         || (isMathTeacher() && resource.data.subjectId == 'math')
         || (isScienceTeacher() && resource.data.subjectId == 'science')
         || (isEnglishTeacher() && resource.data.subjectId == 'english')
+        || (isHistoryTeacher() && resource.data.subjectId == 'history')
       );
     }
 
@@ -457,12 +469,14 @@ service cloud.firestore {
         || (isMathTeacher() && existing().subjectId == 'math')
         || (isScienceTeacher() && existing().subjectId == 'science')
         || (isEnglishTeacher() && existing().subjectId == 'english')
+        || (isHistoryTeacher() && existing().subjectId == 'history')
       );
       allow list: if isAdmin()
         || (isComputingTeacher() && resource.data.subjectId == 'computing')
         || (isMathTeacher() && resource.data.subjectId == 'math')
         || (isScienceTeacher() && resource.data.subjectId == 'science')
-        || (isEnglishTeacher() && resource.data.subjectId == 'english');
+        || (isEnglishTeacher() && resource.data.subjectId == 'english')
+        || (isHistoryTeacher() && resource.data.subjectId == 'history');
 
       allow create: if isSignedIn()
         && isValidId(codeId)

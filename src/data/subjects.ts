@@ -197,6 +197,7 @@ export const UI_COPY: Record<
     mathTeacherBadge: string;
     scienceTeacherBadge: string;
     englishTeacherBadge: string;
+    historyTeacherBadge: string;
     studentBadge: string;
     ownerResultsTitle: string;
     teacherResultsTitle: string;
@@ -204,6 +205,7 @@ export const UI_COPY: Record<
     mathResultsTitle: string;
     scienceResultsTitle: string;
     englishResultsTitle: string;
+    historyResultsTitle: string;
     studentCol: string;
     allStudents: string;
     allSubjects: string;
@@ -285,6 +287,7 @@ export const UI_COPY: Record<
     mathTeacherBadge: "Matematika O'qituvchisi",
     scienceTeacherBadge: "Science O'qituvchisi",
     englishTeacherBadge: "Ingliz tili O'qituvchisi",
+    historyTeacherBadge: "Tarix O'qituvchisi",
     studentBadge: "O'quvchi",
     ownerResultsTitle: "Barcha o'quvchilarning ChSB natijalari (Platforma Egasi)",
     teacherResultsTitle: "Barcha o'quvchilarning ChSB natijalari",
@@ -292,6 +295,7 @@ export const UI_COPY: Record<
     mathResultsTitle: "O'quvchilarning Matematika natijalari",
     scienceResultsTitle: "O'quvchilarning Science (Tabiiy fanlar) natijalari",
     englishResultsTitle: "O'quvchilarning Ingliz tili natijalari",
+    historyResultsTitle: "O'quvchilarning Tarix natijalari",
     studentCol: "O'quvchi",
     allStudents: "Barcha o'quvchilar",
     allSubjects: 'Barcha fanlar',
@@ -372,6 +376,7 @@ export const UI_COPY: Record<
     mathTeacherBadge: 'Math Teacher',
     scienceTeacherBadge: 'Science Teacher',
     englishTeacherBadge: 'English Teacher',
+    historyTeacherBadge: 'History Teacher',
     studentBadge: 'Student',
     ownerResultsTitle: "All Students' ChSB Results (Platform Owner)",
     teacherResultsTitle: 'All Students ChSB Results',
@@ -379,6 +384,7 @@ export const UI_COPY: Record<
     mathResultsTitle: "Students' Math Results",
     scienceResultsTitle: "Students' Science Results",
     englishResultsTitle: "Students' English Results",
+    historyResultsTitle: "Students' History Results",
     studentCol: 'Student',
     allStudents: 'All students',
     allSubjects: 'All subjects',

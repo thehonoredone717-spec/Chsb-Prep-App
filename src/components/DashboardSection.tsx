@@ -102,7 +102,9 @@ export function DashboardSection({
             ? copy.scienceTeacherBadge
             : teacherScope === 'english'
               ? copy.englishTeacherBadge
-              : copy.studentBadge;
+              : teacherScope === 'history'
+                ? copy.historyTeacherBadge
+                : copy.studentBadge;
 
   return (
     <section className="space-y-6">

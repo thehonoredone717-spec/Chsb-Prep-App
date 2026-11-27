@@ -73,7 +73,9 @@ export function SideMenu({
             ? copy.scienceTeacherBadge
             : teacherScope === 'english'
               ? copy.englishTeacherBadge
-              : `@${userProfile.username}`;
+              : teacherScope === 'history'
+                ? copy.historyTeacherBadge
+                : `@${userProfile.username}`;
 
   const renderLinks = (closeOnSelect: boolean, showDesktopCollapse: boolean) => (
     <nav aria-label={lang === 'uz' ? 'Asosiy menyu' : 'Main menu'} className="space-y-1">

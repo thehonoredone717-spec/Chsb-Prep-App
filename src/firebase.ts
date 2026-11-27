@@ -16,6 +16,7 @@ export const COMPUTING_TEACHER_EMAIL = 'zarifa.xojiyeva2281@gmail.com';
 export const MATH_TEACHER_EMAIL = 'qoqonovtohir@gmail.com';
 export const SCIENCE_TEACHER_EMAIL = 'mohinurteshayeva19@gmail.com';
 export const ENGLISH_TEACHER_EMAIL = 'melbernard24@gmail.com';
+export const HISTORY_TEACHER_EMAIL = 'kuziyevoybek84@gmail.com';
 export const STUDENT_EMAIL = 'ibrohimbekxujanazarov@gmail.com';
 export const USERNAME_REGEX = /^[a-z0-9_.]{3,32}$/;
 export const DISPLAY_NAME_MAX_LEN = 60;
@@ -122,6 +123,12 @@ export function isScienceTeacher(user: User | null): boolean {
 export function isEnglishTeacher(user: User | null): boolean {
   return Boolean(
     user && user.email?.toLowerCase() === ENGLISH_TEACHER_EMAIL && user.emailVerified
+  );
+}
+
+export function isHistoryTeacher(user: User | null): boolean {
+  return Boolean(
+    user && user.email?.toLowerCase() === HISTORY_TEACHER_EMAIL && user.emailVerified
   );
 }
 

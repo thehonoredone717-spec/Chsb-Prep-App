@@ -15,7 +15,7 @@ import { UILanguage } from '../types/quiz';
 import { AppNotification, NotificationBell } from './NotificationBell';
 
 export type AppView = 'dashboard' | 'subjects' | 'quiz' | 'guide' | 'results' | 'permission' | 'assign' | 'preview';
-export type TeacherScope = 'none' | 'computing' | 'math' | 'science' | 'english' | 'all';
+export type TeacherScope = 'none' | 'computing' | 'math' | 'science' | 'english' | 'history' | 'all';
 
 interface TopBarProps {
   lang: UILanguage;
@@ -66,7 +66,9 @@ export function TopBar({
             ? copy.scienceTeacherBadge
             : teacherScope === 'english'
               ? copy.englishTeacherBadge
-              : `@${userProfile.username}`;
+              : teacherScope === 'history'
+                ? copy.historyTeacherBadge
+                : `@${userProfile.username}`;
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200/90 bg-white/95 backdrop-blur-sm">

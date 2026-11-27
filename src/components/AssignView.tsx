@@ -15,6 +15,7 @@ import { SUBJECTS, pickText } from '../data/subjects';
 import {
   COMPUTING_TEACHER_EMAIL,
   ENGLISH_TEACHER_EMAIL,
+  HISTORY_TEACHER_EMAIL,
   MATH_TEACHER_EMAIL,
   OWNER_EMAIL,
   SCIENCE_TEACHER_EMAIL,
@@ -104,7 +105,8 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
             email === COMPUTING_TEACHER_EMAIL ||
             email === MATH_TEACHER_EMAIL ||
             email === SCIENCE_TEACHER_EMAIL ||
-            email === ENGLISH_TEACHER_EMAIL;
+            email === ENGLISH_TEACHER_EMAIL ||
+            email === HISTORY_TEACHER_EMAIL;
 
           const isIbrohim =
             email === STUDENT_EMAIL ||
