@@ -1015,59 +1015,67 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F8FAFC] text-slate-900">
-      <div
-        role="alert"
-        className="border-b border-rose-800 bg-rose-700 px-4 py-2 text-white sm:px-6"
-      >
-        <div className="mx-auto flex max-w-6xl items-center justify-center gap-2 text-center text-xs font-semibold leading-snug sm:text-sm">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-100" aria-hidden="true" />
-          <span>
-            {lang === 'uz'
-              ? 'OGOHLANTIRISH: Test paytida veb-kamera nazorati faol — boshqa tarafga burilib qarash, yuzni berkitish, boshqa oyna/desktopga 3 soniyadan ortiq o‘tish, skrinshot olish va Win / Win+G bosish taqiqlanadi (3 ta ogohlantirish tugasa, natija darhol 0 bo‘ladi).'
-              : 'WARNING: Real-time webcam proctoring is active — looking away/turning your head, obscuring face, leaving to another tab/window for over 3s, taking screenshots, or pressing Win / Win+G is prohibited (3 warnings = immediate 0 score).'}
-          </span>
+      {!isQuizRunning && (
+        <div
+          role="alert"
+          className="border-b border-rose-800 bg-rose-700 px-4 py-2 text-white sm:px-6"
+        >
+          <div className="mx-auto flex max-w-6xl items-center justify-center gap-2 text-center text-xs font-semibold leading-snug sm:text-sm">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-100" aria-hidden="true" />
+            <span>
+              {lang === 'uz'
+                ? 'OGOHLANTIRISH: Test paytida veb-kamera nazorati faol — boshqa tarafga burilib qarash, yuzni berkitish, boshqa oyna/desktopga 3 soniyadan ortiq o‘tish, skrinshot olish va Win / Win+G bosish taqiqlanadi (3 ta ogohlantirish tugasa, natija darhol 0 bo‘ladi).'
+                : 'WARNING: Real-time webcam proctoring is active — looking away/turning your head, obscuring face, leaving to another tab/window for over 3s, taking screenshots, or pressing Win / Win+G is prohibited (3 warnings = immediate 0 score).'}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
-      <TopBar
-        lang={lang}
-        onSelectView={handleSelectView}
-        userProfile={userProfile}
-        teacherScope={teacherScope}
-        onSignOut={handleSignOut}
-        isFullscreen={isFullscreen}
-        isQuizRunning={isQuizRunning}
-        onToggleFullscreen={handleToggleFullscreen}
-        desktopMenuOpen={desktopMenuOpen}
-        onToggleDesktopMenu={() => setDesktopMenuOpen((prev) => !prev)}
-        onOpenMobileMenu={() => setMobileMenuOpen(true)}
-        notifications={notifications}
-        readNotificationIds={readNotificationIds}
-        onMarkNotificationRead={handleMarkNotificationRead}
-        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
-      />
+      {!isQuizRunning && (
+        <TopBar
+          lang={lang}
+          onSelectView={handleSelectView}
+          userProfile={userProfile}
+          teacherScope={teacherScope}
+          onSignOut={handleSignOut}
+          isFullscreen={isFullscreen}
+          isQuizRunning={isQuizRunning}
+          onToggleFullscreen={handleToggleFullscreen}
+          desktopMenuOpen={desktopMenuOpen}
+          onToggleDesktopMenu={() => setDesktopMenuOpen((prev) => !prev)}
+          onOpenMobileMenu={() => setMobileMenuOpen(true)}
+          notifications={notifications}
+          readNotificationIds={readNotificationIds}
+          onMarkNotificationRead={handleMarkNotificationRead}
+          onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+        />
+      )}
 
       <div className="flex flex-1">
-        <SideMenu
-          lang={lang}
-          activeView={activeView}
-          teacherScope={teacherScope}
-          userProfile={userProfile}
-          desktopOpen={desktopMenuOpen}
-          mobileOpen={mobileMenuOpen}
-          onCloseDesktop={() => setDesktopMenuOpen(false)}
-          onCloseMobile={() => setMobileMenuOpen(false)}
-          onSelectView={handleSelectView}
-        />
-
-        <div className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
-          <SubjectBar
+        {!isQuizRunning && (
+          <SideMenu
             lang={lang}
-            onChangeLang={setLang}
-            activeSubjectId={activeSubjectId}
-            onSelectSubject={handleSelectSubjectFromBar}
-            prohibitedSubjects={prohibitedSubjects}
+            activeView={activeView}
+            teacherScope={teacherScope}
+            userProfile={userProfile}
+            desktopOpen={desktopMenuOpen}
+            mobileOpen={mobileMenuOpen}
+            onCloseDesktop={() => setDesktopMenuOpen(false)}
+            onCloseMobile={() => setMobileMenuOpen(false)}
+            onSelectView={handleSelectView}
           />
+        )}
+
+        <div className={`flex min-w-0 flex-1 flex-col ${isQuizRunning ? '' : 'pb-20 lg:pb-0'}`}>
+          {!isQuizRunning && (
+            <SubjectBar
+              lang={lang}
+              onChangeLang={setLang}
+              activeSubjectId={activeSubjectId}
+              onSelectSubject={handleSelectSubjectFromBar}
+              prohibitedSubjects={prohibitedSubjects}
+            />
+          )}
 
       {isCurrentSubjectProhibited && (
         <div
@@ -1198,7 +1206,11 @@ export default function App() {
         </div>
       )}
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+      <main
+        className={`mx-auto w-full flex-1 px-4 sm:px-6 ${
+          isQuizRunning ? 'max-w-5xl py-4 sm:py-6' : 'max-w-6xl py-8'
+        }`}
+      >
         {activeView === 'dashboard' && (
           <DashboardSection
             lang={lang}
@@ -1278,9 +1290,11 @@ export default function App() {
         )}
       </main>
 
-      <footer className="border-t border-slate-200/80 bg-white/60 py-4 text-center text-xs font-medium text-slate-500">
-        Developer: <span className="font-semibold text-slate-700">Ibrohimbek Xujanazarov</span>
-      </footer>
+      {!isQuizRunning && (
+        <footer className="border-t border-slate-200/80 bg-white/60 py-4 text-center text-xs font-medium text-slate-500">
+          Developer: <span className="font-semibold text-slate-700">Ibrohimbek Xujanazarov</span>
+        </footer>
+      )}
         </div>
       </div>
 
@@ -1291,7 +1305,7 @@ export default function App() {
         isQuizRunning={isQuizRunning}
       />
 
-      <OfflineIndicator lang={lang} />
+      {!isQuizRunning && <OfflineIndicator lang={lang} />}
     </div>
   );
 }

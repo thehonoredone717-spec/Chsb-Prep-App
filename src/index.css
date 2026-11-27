@@ -44,6 +44,635 @@
   }
 }
 
+/* Scoped Lamp Login Room Styles (Website Slate & Teal Palette) */
+.lamp-room {
+  font-family: var(--font-body);
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  overflow: hidden;
+  background: #090e1a;
+  color: #f8fafc;
+  transition: background-color 0.8s ease;
+}
+
+.lamp-room.on {
+  background: #0f172a;
+}
+
+.lamp-room-light {
+  position: absolute;
+  top: -30%;
+  left: 0;
+  width: 1000px;
+  height: 1000px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transform: scale(0.5);
+  background: radial-gradient(
+    circle,
+    rgba(20, 184, 166, 0.22) 0%,
+    rgba(15, 118, 110, 0.08) 35%,
+    transparent 70%
+  );
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.lamp-room.on .lamp-room-light {
+  opacity: 1;
+  transform: scale(1.5);
+}
+
+.lamp-fireflies {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+  overflow: hidden;
+}
+
+.lamp-firefly {
+  position: absolute;
+  border-radius: 50%;
+  background: #5eead4;
+  box-shadow: 0 0 10px 3px rgba(45, 212, 191, 0.85), 0 0 20px rgba(15, 118, 110, 0.6);
+  animation: lampFireflyMove var(--duration) ease-in-out var(--delay) infinite alternate;
+}
+
+@keyframes lampFireflyMove {
+  0% {
+    transform: translate(var(--x1), var(--y1));
+    opacity: 0.45;
+  }
+  25% {
+    transform: translate(var(--x2), var(--y2));
+    opacity: 1;
+  }
+  50% {
+    transform: translate(var(--x3), var(--y3));
+    opacity: 0.65;
+  }
+  75% {
+    transform: translate(var(--x4), var(--y4));
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--x5), var(--y5));
+    opacity: 0.5;
+  }
+}
+
+.lamp-side {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 5;
+  padding-top: 40px;
+}
+
+.lamp-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+  transform: scale(1.1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lamp-head {
+  width: 140px;
+  height: 50px;
+  background: #1e293b;
+  border-radius: 140px 140px 4px 4px;
+  box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.12), 0 10px 24px rgba(2, 6, 23, 0.85);
+  position: relative;
+  z-index: 6;
+  transition: box-shadow 0.4s ease;
+  border-bottom: 2px solid #090e1a;
+}
+
+.lamp-room.on .lamp-head {
+  box-shadow: inset 0 -3px 12px rgba(94, 234, 212, 0.45),
+    inset 0 2px 5px rgba(255, 255, 255, 0.14);
+}
+
+.lamp-glow {
+  position: absolute;
+  top: 40px;
+  width: 90px;
+  height: 20px;
+  background: #f0fdfa;
+  border-radius: 50%;
+  box-shadow: 0 0 40px 18px rgba(94, 234, 212, 0.85),
+    0 0 80px 38px rgba(20, 184, 166, 0.55);
+  opacity: 0;
+  transition: opacity 0.4s ease-in-out;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.lamp-room.on .lamp-glow {
+  opacity: 1;
+}
+
+.lamp-beam {
+  position: absolute;
+  top: 45px;
+  width: 500px;
+  height: 350px;
+  clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(94, 234, 212, 0.65) 0%,
+    rgba(20, 184, 166, 0.18) 60%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.4s ease-in-out;
+  z-index: 3;
+  pointer-events: none;
+  filter: blur(8px);
+}
+
+.lamp-room.on .lamp-beam {
+  opacity: 1;
+}
+
+.lamp-stem {
+  width: 6px;
+  height: 290px;
+  background: linear-gradient(to right, #090e1a 0%, #334155 50%, #090e1a 100%);
+  position: relative;
+  z-index: 4;
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+.lamp-room.on .lamp-stem {
+  background: linear-gradient(to right, #090e1a 0%, #115e59 50%, #090e1a 100%);
+  box-shadow: 0 0 12px rgba(20, 184, 166, 0.25);
+}
+
+.lamp-base {
+  width: 100px;
+  height: 16px;
+  background: #1e293b;
+  border-radius: 30px 30px 4px 4px;
+  box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.12), 0 10px 24px rgba(2, 6, 23, 0.85);
+  position: relative;
+  z-index: 5;
+  transition: box-shadow 0.4s ease;
+  border-bottom: 2px solid #090e1a;
+}
+
+.lamp-room.on .lamp-base {
+  box-shadow: inset 0 2px 6px rgba(94, 234, 212, 0.35), 0 10px 24px rgba(2, 6, 23, 0.85);
+}
+
+.lamp-desk-surface {
+  position: absolute;
+  bottom: -40px;
+  width: 550px;
+  height: 100px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(94, 234, 212, 0.22) 0%,
+    rgba(15, 118, 110, 0.06) 50%,
+    transparent 70%
+  );
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.4s ease-in-out;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.lamp-room.on .lamp-desk-surface {
+  opacity: 1;
+}
+
+.lamp-string-svg {
+  position: absolute;
+  top: 45px;
+  left: calc(50% + 55px);
+  width: 2px;
+  height: 2px;
+  overflow: visible;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.lamp-string-svg path {
+  stroke: #475569;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.lamp-string-handle {
+  position: absolute;
+  top: 125px;
+  left: calc(50% + 48px);
+  width: 14px;
+  height: 24px;
+  background: linear-gradient(to bottom, #5eead4, #0f766e);
+  border-radius: 7px;
+  box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.45), 0 3px 6px rgba(2, 6, 23, 0.75);
+  cursor: grab;
+  z-index: 8;
+  touch-action: none;
+  user-select: none;
+  border: none;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.lamp-string-handle.dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.lamp-prompt {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #94a3b8;
+  font-size: 16px;
+  font-weight: 500;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 1;
+  text-align: center;
+  white-space: nowrap;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.lamp-room.on .lamp-prompt {
+  opacity: 0;
+  transform: translate(-50%, -20px);
+}
+
+.lamp-prompt-arrow {
+  width: 2px;
+  height: 36px;
+  background: linear-gradient(to bottom, #5eead4, transparent);
+  animation: lampPromptArrow 2s infinite;
+}
+
+@keyframes lampPromptArrow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(10px);
+  }
+}
+
+.lamp-login-side {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  padding: 80px 8% 40px 24px;
+}
+
+.lamp-login-card {
+  padding: 34px 38px;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(50px);
+  filter: blur(10px);
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.97);
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 50px rgba(2, 6, 23, 0.45), 0 0 36px rgba(20, 184, 166, 0.16);
+  transition: opacity 0.6s ease 0s, transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.6s ease;
+}
+
+.lamp-room.on .lamp-login-card {
+  opacity: 1;
+  transform: translateX(0);
+  filter: blur(0);
+  pointer-events: auto;
+  transition-delay: 0.2s;
+}
+
+.lamp-glass-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #0f766e, #14b8a6, #0f766e);
+}
+
+.lamp-input {
+  width: 100%;
+  padding: 13px 14px 13px 42px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.lamp-input:focus {
+  border-color: #0f766e;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+}
+
+.lamp-input::placeholder {
+  color: #94a3b8;
+}
+
+.lamp-sign-in {
+  padding: 13px;
+  border-radius: 12px;
+  border: none;
+  background: #0f766e;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, background-color 0.2s, box-shadow 0.2s;
+}
+
+.lamp-sign-in:hover:not(:disabled) {
+  background: #115e59;
+  box-shadow: 0 8px 20px rgba(15, 118, 110, 0.25);
+}
+
+.lamp-sign-in:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.lamp-social-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.lamp-social-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.lamp-social-btn:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+@media (max-width: 900px) {
+  .lamp-room {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .lamp-side {
+    flex: 0 0 auto;
+    min-height: 410px;
+    padding-top: 64px;
+  }
+  .lamp-container {
+    transform: scale(0.92);
+  }
+  .lamp-login-side {
+    padding: 16px 20px 44px;
+    flex: 0 0 auto;
+  }
+  .lamp-login-card {
+    padding: 28px 24px;
+  }
+  .lamp-prompt {
+    top: 68px;
+    font-size: 14px;
+  }
+}
+
+@media (max-height: 680px) and (min-width: 901px) {
+  .lamp-container {
+    transform: scale(0.84);
+  }
+  .lamp-login-card {
+    padding: 28px 32px;
+    gap: 14px;
+  }
+}
+
+/* Scoped Deadline Timer Animation Styles */
+.deadline-timer-wrap {
+  position: relative;
+  width: 300px;
+  max-width: 100%;
+  user-select: none;
+}
+
+@media (min-width: 640px) {
+  .deadline-timer-wrap {
+    width: 360px;
+  }
+}
+
+.deadline-timer-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.deadline-death-group {
+  transition: transform 0.9s linear;
+}
+
+.deadline-death-arm {
+  animation: deadlineMoveArm 3s ease infinite;
+  transform-origin: -60px 74px;
+}
+
+.deadline-death-tool {
+  animation: deadlineMoveTool 3s ease infinite;
+  transform-origin: -48px center;
+}
+
+.deadline-designer-arm {
+  animation-name: deadlineWrite;
+  animation-timing-function: ease;
+  animation-iteration-count: infinite;
+  transform: translate(0, 0) rotate(0deg) scale(1, 1);
+  transform-origin: 90% top;
+}
+
+.deadline-progress-fill {
+  transition: x 0.9s linear;
+}
+
+.deadline-flame-red {
+  animation: deadlineRedFlame 120ms ease infinite;
+  transform-origin: center bottom;
+}
+
+.deadline-flame-yellow {
+  animation: deadlineYellowFlame 120ms ease infinite;
+  transform-origin: center bottom;
+}
+
+.deadline-flame-white {
+  animation: deadlineRedFlame 100ms ease infinite;
+  transform-origin: center bottom;
+}
+
+.deadline-countdown-box {
+  color: #0f172a;
+  text-align: center;
+  width: 120px;
+  margin: -4px auto 0;
+  position: relative;
+  height: 22px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: 0.04em;
+}
+
+.deadline-countdown-box .deadline-inner {
+  width: 120px;
+  position: relative;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+}
+
+.deadline-mask-red,
+.deadline-mask-white {
+  position: absolute;
+  top: 0;
+  overflow: hidden;
+  height: 100%;
+}
+
+.deadline-mask-red {
+  left: 0;
+  color: #d92f4b;
+  z-index: 2;
+  background: #ffffff;
+  transition: width 0.9s linear;
+}
+
+.deadline-mask-white {
+  right: 0;
+  width: 100%;
+}
+
+@keyframes deadlineMoveArm {
+  0%,
+  5% {
+    transform: rotate(0deg);
+  }
+  9% {
+    transform: rotate(40deg);
+  }
+  80%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes deadlineMoveTool {
+  0%,
+  5% {
+    transform: rotate(0deg);
+  }
+  9% {
+    transform: rotate(50deg);
+  }
+  80%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes deadlineWrite {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(1, 1);
+  }
+  16% {
+    transform: translate(0px, 0px) rotate(5deg) scale(0.8, 1);
+  }
+  32% {
+    transform: translate(0px, 0px) rotate(0deg) scale(1, 1);
+  }
+  48% {
+    transform: translate(0px, 0px) rotate(6deg) scale(0.8, 1);
+  }
+  65% {
+    transform: translate(0px, 0px) rotate(0deg) scale(1, 1);
+  }
+  83% {
+    transform: translate(0px, 0px) rotate(4deg) scale(0.8, 1);
+  }
+}
+
+@keyframes deadlineRedFlame {
+  0% {
+    transform: translateY(-30px) scale(1, 1);
+  }
+  25% {
+    transform: translateY(-30px) scale(1.1, 1.1);
+  }
+  75% {
+    transform: translateY(-30px) scale(0.8, 0.7);
+  }
+  100% {
+    transform: translateY(-30px) scale(1, 1);
+  }
+}
+
+@keyframes deadlineYellowFlame {
+  0% {
+    transform: translateY(-30px) scale(0.8, 0.7);
+  }
+  50% {
+    transform: translateY(-30px) scale(1.1, 1.2);
+  }
+  100% {
+    transform: translateY(-30px) scale(1, 1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

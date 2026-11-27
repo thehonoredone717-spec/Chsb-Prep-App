@@ -2,11 +2,15 @@ import { doc, onSnapshot, serverTimestamp, updateDoc, writeBatch } from 'firebas
 import {
   AlertTriangle,
   Award,
+  Battery,
+  BatteryCharging,
+  BatteryLow,
   BookOpen,
   Calculator,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock,
   KeyRound,
   Loader2,
   Lock,
@@ -20,6 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRecord, UI_COPY, pickText } from '../data/subjects';
 import { STUDENT_EMAIL, UserProfile, db, sanitizeDisplayName } from '../firebase';
 import { CertificateModal } from './CertificateModal';
+import { DeadlineTimer } from './DeadlineTimer';
 import { playSound } from '../utils/sound';
 import { CameraProctor } from './CameraProctor';
 import { FormattedMathText } from './FormattedMathText';
@@ -84,6 +89,20 @@ interface QuizSectionProps {
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const;
 const MAX_WARNINGS = 3;
 const GRACE_SECONDS = 3;
+
+const SUBJECT_DURATION_MINUTES: Record<SubjectId, number> = {
+  english: 30,
+  math: 40,
+  history: 35,
+  science: 35,
+  computing: 40,
+  uzbek: 30,
+};
+
+interface BatteryManagerLike extends EventTarget {
+  level: number;
+  charging: boolean;
+}
 
 function playWarningBeep(isFinalZero: boolean) {
   try {
@@ -620,6 +639,14 @@ export function QuizSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject, isStudent]);
 
+  const totalDurationSeconds = (SUBJECT_DURATION_MINUTES[subject.id] ?? 30) * 60;
+  const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds);
+
+  const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
+  const [batteryCharging, setBatteryCharging] = useState<boolean>(false);
+  const [batterySupported, setBatterySupported] = useState<boolean>(true);
+  const [nowTime, setNowTime] = useState<Date>(() => new Date());
+
   // Live exam timer (runs only after user clicks Start)
   useEffect(() => {
     if (!started || submitted) return;
@@ -628,6 +655,71 @@ export function QuizSection({
     }, 1000);
     return () => window.clearInterval(interval);
   }, [started, submitted, subject.id, difficulty, variant, rotationCount]);
+
+  // Live current clock (updates every second during active test)
+  useEffect(() => {
+    if (!started || submitted) return;
+    setNowTime(new Date());
+    const interval = window.setInterval(() => {
+      setNowTime(new Date());
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [started, submitted]);
+
+  // Live battery level & charging monitor (real Battery Status API, graceful fallback if unsupported)
+  useEffect(() => {
+    if (!started || submitted) return;
+    let cancelled = false;
+    let batteryRef: BatteryManagerLike | null = null;
+    const nav = navigator as Navigator & {
+      getBattery?: () => Promise<BatteryManagerLike>;
+    };
+
+    const syncBattery = () => {
+      if (!batteryRef || cancelled) return;
+      setBatteryLevel(Math.round(batteryRef.level * 100));
+      setBatteryCharging(Boolean(batteryRef.charging));
+    };
+
+    if (typeof nav.getBattery !== 'function') {
+      setBatterySupported(false);
+      setBatteryLevel(null);
+      return;
+    }
+
+    setBatterySupported(true);
+    nav
+      .getBattery()
+      .then((bat) => {
+        if (cancelled) return;
+        batteryRef = bat;
+        syncBattery();
+        bat.addEventListener('levelchange', syncBattery);
+        bat.addEventListener('chargingchange', syncBattery);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBatterySupported(false);
+          setBatteryLevel(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      if (batteryRef) {
+        batteryRef.removeEventListener('levelchange', syncBattery);
+        batteryRef.removeEventListener('chargingchange', syncBattery);
+      }
+    };
+  }, [started, submitted]);
+
+  // Auto-submit when countdown reaches 00:00
+  useEffect(() => {
+    if (!started || submitted) return;
+    if (elapsedSeconds >= totalDurationSeconds) {
+      finishHandlerRef.current();
+    }
+  }, [started, submitted, elapsedSeconds, totalDurationSeconds]);
 
   const startSession = (
     nextDiff: DifficultyLevel,
@@ -1356,239 +1448,327 @@ export function QuizSection({
 
   return (
     <section className="space-y-5">
-      {/* Subject Header & Variant / Mode Controls */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900">
-              {pickText(subject.title, lang)}
-            </h1>
-            <p className="mt-1 text-sm text-slate-600">
-              {pickText(subject.subtitle, lang)} · {pickText(subject.questionLangNote, lang)}
-            </p>
-          </div>
+      {/* Active Test Telemetry Bar (Battery, Clock, Animated Deadline Timer, Calculator) */}
+      {started && !submitted ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xs sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-4 sm:justify-start">
+            <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
+              {!batterySupported || batteryLevel === null ? (
+                <Battery className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              ) : batteryCharging ? (
+                <BatteryCharging className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+              ) : batteryLevel <= 20 ? (
+                <BatteryLow className="h-4 w-4 text-rose-600" aria-hidden="true" />
+              ) : (
+                <Battery className="h-4 w-4 text-teal-700" aria-hidden="true" />
+              )}
+              <span className="text-xs font-medium text-slate-500">
+                {lang === 'uz' ? 'Zaryad:' : 'Battery:'}
+              </span>
+              <span
+                className={`font-mono-num font-bold ${
+                  batteryLevel !== null && batteryLevel <= 20 && !batteryCharging
+                    ? 'text-rose-700'
+                    : batteryCharging
+                      ? 'text-emerald-700'
+                      : 'text-slate-900'
+                }`}
+              >
+                {batterySupported && batteryLevel !== null
+                  ? `${batteryLevel}%`
+                  : 'N/A'}
+              </span>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="hidden h-4 w-px bg-slate-200 sm:inline-block" aria-hidden="true" />
+
+            <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <Clock className="h-4 w-4 text-slate-600" aria-hidden="true" />
+              <span className="text-xs font-medium text-slate-500">
+                {lang === 'uz' ? 'Soat:' : 'Time:'}
+              </span>
+              <span className="font-mono-num font-bold text-slate-900">
+                {nowTime.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false,
+                })}
+              </span>
+            </div>
+
             <button
               type="button"
               onClick={() => setCalculatorOpen((open) => !open)}
-              className={`inline-flex min-h-[42px] items-center gap-2 rounded-lg border px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
+              className={`inline-flex min-h-[40px] items-center gap-2 rounded-lg border px-3.5 text-sm font-semibold whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 lg:hidden ${
                 calculatorOpen
                   ? 'border-teal-700 bg-teal-50 text-teal-800'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Calculator className="h-4 w-4 text-teal-700" aria-hidden="true" />
               <span>{lang === 'uz' ? 'Kalkulyator' : 'Calculator'}</span>
             </button>
+          </div>
 
+          <div className="flex justify-center">
+            <DeadlineTimer
+              totalSeconds={totalDurationSeconds}
+              remainingSeconds={remainingSeconds}
+              formattedTime={formatTime(remainingSeconds)}
+              lang={lang}
+            />
+          </div>
+
+          <div className="hidden lg:flex lg:items-center lg:justify-end">
             <button
               type="button"
-              onClick={onOpenGuide}
-              className="inline-flex min-h-[42px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+              onClick={() => setCalculatorOpen((open) => !open)}
+              className={`inline-flex min-h-[42px] items-center gap-2 rounded-lg border px-4 text-sm font-semibold whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
+                calculatorOpen
+                  ? 'border-teal-700 bg-teal-50 text-teal-800'
+                  : 'border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100'
+              }`}
             >
-              <BookOpen className="h-4 w-4 text-teal-700" aria-hidden="true" />
-              <span>{copy.navGuide}</span>
+              <Calculator className="h-4 w-4 text-teal-700" aria-hidden="true" />
+              <span>{lang === 'uz' ? 'Kalkulyator' : 'Calculator'}</span>
             </button>
-
-            {!isStudent && (
-              <button
-                type="button"
-                onClick={handleStartOver}
-                title={copy.startOverHint}
-                className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
-              >
-                <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                <span>{copy.startOver}</span>
-              </button>
-            )}
           </div>
         </div>
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900">
+                {pickText(subject.title, lang)}
+              </h1>
+              <p className="mt-1 text-sm text-slate-600">
+                {pickText(subject.subtitle, lang)} · {pickText(subject.questionLangNote, lang)}
+              </p>
+            </div>
 
-        {/* Difficulty Tier + Quiz Mode Bar */}
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              {copy.difficultyLabel}:
-            </span>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setCalculatorOpen((open) => !open)}
+                className={`inline-flex min-h-[42px] items-center gap-2 rounded-lg border px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
+                  calculatorOpen
+                    ? 'border-teal-700 bg-teal-50 text-teal-800'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <Calculator className="h-4 w-4 text-teal-700" aria-hidden="true" />
+                <span>{lang === 'uz' ? 'Kalkulyator' : 'Calculator'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onOpenGuide}
+                className="inline-flex min-h-[42px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+              >
+                <BookOpen className="h-4 w-4 text-teal-700" aria-hidden="true" />
+                <span>{copy.navGuide}</span>
+              </button>
+
+              {!isStudent && (
+                <button
+                  type="button"
+                  onClick={handleStartOver}
+                  title={copy.startOverHint}
+                  className="inline-flex min-h-[42px] items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                  <span>{copy.startOver}</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Difficulty Tier + Quiz Mode Bar */}
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                {copy.difficultyLabel}:
+              </span>
+              <div
+                role="group"
+                aria-label={copy.difficultyLabel}
+                className="inline-flex flex-wrap rounded-lg bg-slate-100 p-0.5"
+              >
+                {DIFFICULTY_LEVELS.map((lvl) => {
+                  const active = difficulty === lvl;
+                  const assignedForLvl = isStudent ? subjectAssignments[lvl] : undefined;
+                  const isLockedLvl = isStudent && assignmentsLoaded && assignedForLvl === undefined;
+                  const activeColor =
+                    lvl === 'easy'
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : lvl === 'medium'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'bg-rose-700 text-white shadow-xs';
+                  return (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => handleSelectDifficulty(lvl)}
+                      className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-md px-3.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 sm:text-sm ${
+                        active ? activeColor : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>{getDifficultyLabel(lvl, lang)}</span>
+                      {isStudent && assignedForLvl !== undefined && (
+                        <span className="rounded bg-black/15 px-1.5 py-0.5 text-[10px] font-bold">
+                          V{assignedForLvl.variant}
+                        </span>
+                      )}
+                      {isLockedLvl && (
+                        <Lock className="h-3 w-3 opacity-70" aria-hidden="true" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div
               role="group"
-              aria-label={copy.difficultyLabel}
-              className="inline-flex flex-wrap rounded-lg bg-slate-100 p-0.5"
+              aria-label={lang === 'uz' ? 'Test rejimi' : 'Quiz Mode'}
+              className="inline-flex rounded-lg bg-slate-100 p-0.5"
             >
-              {DIFFICULTY_LEVELS.map((lvl) => {
-                const active = difficulty === lvl;
-                const assignedForLvl = isStudent ? subjectAssignments[lvl] : undefined;
-                const isLockedLvl = isStudent && assignmentsLoaded && assignedForLvl === undefined;
-                const activeColor =
-                  lvl === 'easy'
-                    ? 'bg-emerald-700 text-white shadow-xs'
-                    : lvl === 'medium'
-                      ? 'bg-amber-600 text-white shadow-xs'
-                      : 'bg-rose-700 text-white shadow-xs';
+              <button
+                type="button"
+                onClick={() => setMode('practice')}
+                className={`min-h-[36px] rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
+                  mode === 'practice'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {copy.modePractice}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('exam')}
+                className={`min-h-[36px] rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
+                  mode === 'exam'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {copy.modeExam}
+              </button>
+            </div>
+          </div>
+
+          {/* 5 (or 20 for Math) Variants per Difficulty + Random 25 */}
+          <div className="mt-3 border-t border-slate-100 pt-3">
+            {isStudent && !assignmentsLoaded && (
+              <div className="mb-2.5 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-600">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                <span>
+                  {lang === 'uz'
+                    ? 'Biriktirilgan variantlar tekshirilmoqda...'
+                    : 'Checking assigned variants...'}
+                </span>
+              </div>
+            )}
+            {isStudent && assignmentsLoaded && assignedVariant === null && (
+              <div className="mb-2.5 rounded-lg border border-rose-300 bg-rose-50 p-2.5 text-xs font-semibold text-rose-900">
+                {lang === 'uz'
+                  ? `🔒 Sizga ${pickText(subject.shortLabel, lang)} fanidan "${getDifficultyLabel(difficulty, lang)}" darajasi uchun variant biriktirilmagan. Ustoz variant biriktirmagunicha test ishlab bo'lmaydi.`
+                  : `🔒 No variant is assigned to you for ${pickText(subject.shortLabel, lang)} (${getDifficultyLabel(difficulty, lang)}). You cannot take tests until a teacher assigns a variant.`}
+              </div>
+            )}
+            {isStudent && assignedVariant !== null && (
+              <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900">
+                <span>
+                  {lang === 'uz'
+                    ? `🔒 Ustozingiz sizga bu daraja uchun faqat ${getVariantLabel(assignedVariant, lang)}ni biriktirgan. Variantni o'zgartirib bo'lmaydi.`
+                    : `🔒 Your teacher assigned you ${getVariantLabel(assignedVariant, lang)} for this difficulty tier. Variant switching is locked.`}
+                </span>
+                <span
+                  className={`font-mono-num rounded px-2 py-0.5 text-[11px] font-bold ${
+                    hasAttemptsLeft
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-rose-100 text-rose-800'
+                  }`}
+                >
+                  {lang === 'uz'
+                    ? `Urinish: ${effectiveUsed}/${effectiveAllowed}`
+                    : `Attempts: ${effectiveUsed}/${effectiveAllowed}`}
+                </span>
+              </div>
+            )}
+            <div
+              role="group"
+              aria-label={lang === 'uz' ? 'Variant tanlash' : 'Select Variant'}
+              className="flex flex-wrap items-center gap-1.5"
+            >
+              {variantChoices.map((v) => {
+                const isAssigned = isStudent && assignedVariant !== null && assignedVariant === v;
+                const active = isStudent ? isAssigned : variant === v;
                 return (
                   <button
-                    key={lvl}
+                    key={String(v)}
                     type="button"
-                    onClick={() => handleSelectDifficulty(lvl)}
-                    className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-md px-3.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 sm:text-sm ${
-                      active ? activeColor : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    disabled={isStudent}
+                    onClick={() => handleSelectVariant(v)}
+                    className={`min-h-[34px] rounded-lg px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
+                      active
+                        ? isAssigned
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'bg-slate-900 text-white'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
+                    } ${isStudent ? 'cursor-not-allowed opacity-75' : ''}`}
                   >
-                    <span>{getDifficultyLabel(lvl, lang)}</span>
-                    {isStudent && assignedForLvl !== undefined && (
-                      <span className="rounded bg-black/15 px-1.5 py-0.5 text-[10px] font-bold">
-                        V{assignedForLvl.variant}
-                      </span>
-                    )}
-                    {isLockedLvl && (
-                      <Lock className="h-3 w-3 opacity-70" aria-hidden="true" />
-                    )}
+                    {getVariantLabel(v, lang)} {isAssigned ? '🔒' : ''}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          <div
-            role="group"
-            aria-label={lang === 'uz' ? 'Test rejimi' : 'Quiz Mode'}
-            className="inline-flex rounded-lg bg-slate-100 p-0.5"
-          >
-            <button
-              type="button"
-              onClick={() => setMode('practice')}
-              className={`min-h-[36px] rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
-                mode === 'practice'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {copy.modePractice}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('exam')}
-              className={`min-h-[36px] rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
-                mode === 'exam'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {copy.modeExam}
-            </button>
-          </div>
-        </div>
-
-        {/* 5 (or 20 for Math) Variants per Difficulty + Random 25 */}
-        <div className="mt-3 border-t border-slate-100 pt-3">
-          {isStudent && !assignmentsLoaded && (
-            <div className="mb-2.5 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-600">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-              <span>
-                {lang === 'uz'
-                  ? 'Biriktirilgan variantlar tekshirilmoqda...'
-                  : 'Checking assigned variants...'}
-              </span>
-            </div>
-          )}
-          {isStudent && assignmentsLoaded && assignedVariant === null && (
-            <div className="mb-2.5 rounded-lg border border-rose-300 bg-rose-50 p-2.5 text-xs font-semibold text-rose-900">
-              {lang === 'uz'
-                ? `🔒 Sizga ${pickText(subject.shortLabel, lang)} fanidan "${getDifficultyLabel(difficulty, lang)}" darajasi uchun variant biriktirilmagan. Ustoz variant biriktirmagunicha test ishlab bo'lmaydi.`
-                : `🔒 No variant is assigned to you for ${pickText(subject.shortLabel, lang)} (${getDifficultyLabel(difficulty, lang)}). You cannot take tests until a teacher assigns a variant.`}
-            </div>
-          )}
-          {isStudent && assignedVariant !== null && (
-            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900">
-              <span>
-                {lang === 'uz'
-                  ? `🔒 Ustozingiz sizga bu daraja uchun faqat ${getVariantLabel(assignedVariant, lang)}ni biriktirgan. Variantni o'zgartirib bo'lmaydi.`
-                  : `🔒 Your teacher assigned you ${getVariantLabel(assignedVariant, lang)} for this difficulty tier. Variant switching is locked.`}
-              </span>
-              <span
-                className={`font-mono-num rounded px-2 py-0.5 text-[11px] font-bold ${
-                  hasAttemptsLeft
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-rose-100 text-rose-800'
-                }`}
-              >
-                {lang === 'uz'
-                  ? `Urinish: ${effectiveUsed}/${effectiveAllowed}`
-                  : `Attempts: ${effectiveUsed}/${effectiveAllowed}`}
-              </span>
-            </div>
-          )}
-          <div
-            role="group"
-            aria-label={lang === 'uz' ? 'Variant tanlash' : 'Select Variant'}
-            className="flex flex-wrap items-center gap-1.5"
-          >
-            {variantChoices.map((v) => {
-              const isAssigned = isStudent && assignedVariant !== null && assignedVariant === v;
-              const active = isStudent ? isAssigned : variant === v;
-              return (
-                <button
-                  key={String(v)}
-                  type="button"
-                  disabled={isStudent}
-                  onClick={() => handleSelectVariant(v)}
-                  className={`min-h-[34px] rounded-lg px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
-                    active
-                      ? isAssigned
-                        ? 'bg-amber-600 text-white shadow-xs'
-                        : 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                  } ${isStudent ? 'cursor-not-allowed opacity-75' : ''}`}
-                >
-                  {getVariantLabel(v, lang)} {isAssigned ? '🔒' : ''}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="font-mono-num mt-4 flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-slate-500">
-          <span>
-            {getDifficultyLabel(difficulty, lang)} ·{' '}
-            {!isStudent || assignedVariant !== null
-              ? getVariantLabel(variant, lang)
-              : lang === 'uz'
-                ? 'Variant biriktirilmagan'
-                : 'No variant assigned'}{' '}
-            · {QUESTIONS_PER_TEST} {lang === 'uz' ? 'savol' : 'questions'} · {copy.answeredCount}:{' '}
-            {answeredCount}/{QUESTIONS_PER_TEST}
-          </span>
-          <div className="flex flex-wrap items-center gap-4">
-            <span
-              className={`inline-flex items-center gap-1.5 font-semibold ${
-                warningsLeft === 3
-                  ? 'text-emerald-700'
-                  : warningsLeft === 2
-                    ? 'text-amber-700'
-                    : 'text-rose-700'
-              }`}
-              title={
-                lang === 'uz'
-                  ? 'Boshqa oyna, sayt yoki desktopga o‘tsangiz darhol 1 ta ogohlantirish kamayadi'
-                  : 'Switching windows, tabs, or desktops immediately deducts 1 warning'
-              }
-            >
-              {warningsLeft === MAX_WARNINGS ? (
-                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-              ) : (
-                <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-              )}
-              <span>
-                {lang === 'uz' ? 'Ogohlantirish' : 'Warnings'}: {warningsLeft}/{MAX_WARNINGS}
-              </span>
-            </span>
+          <div className="font-mono-num mt-4 flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-slate-500">
             <span>
-              {copy.timeLabel}: {formatTime(elapsedSeconds)}
+              {getDifficultyLabel(difficulty, lang)} ·{' '}
+              {!isStudent || assignedVariant !== null
+                ? getVariantLabel(variant, lang)
+                : lang === 'uz'
+                  ? 'Variant biriktirilmagan'
+                  : 'No variant assigned'}{' '}
+              · {QUESTIONS_PER_TEST} {lang === 'uz' ? 'savol' : 'questions'} ·{' '}
+              {SUBJECT_DURATION_MINUTES[subject.id]} {lang === 'uz' ? 'daq' : 'min'}
             </span>
+            <div className="flex flex-wrap items-center gap-4">
+              <span
+                className={`inline-flex items-center gap-1.5 font-semibold ${
+                  warningsLeft === 3
+                    ? 'text-emerald-700'
+                    : warningsLeft === 2
+                      ? 'text-amber-700'
+                      : 'text-rose-700'
+                }`}
+                title={
+                  lang === 'uz'
+                    ? 'Boshqa oyna, sayt yoki desktopga o‘tsangiz darhol 1 ta ogohlantirish kamayadi'
+                    : 'Switching windows, tabs, or desktops immediately deducts 1 warning'
+                }
+              >
+                {warningsLeft === MAX_WARNINGS ? (
+                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+                )}
+                <span>
+                  {lang === 'uz' ? 'Ogohlantirish' : 'Warnings'}: {warningsLeft}/{MAX_WARNINGS}
+                </span>
+              </span>
+              <span>
+                {copy.timeLabel}: {formatTime(submitted ? elapsedSeconds : totalDurationSeconds)}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Full-Screen Red Away Countdown Overlay */}
       {started && !submitted && isAway && (
@@ -1988,8 +2168,8 @@ export function QuizSection({
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
               {lang === 'uz'
-                ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Test paytida veb-kamera va to‘liq ekran nazorati faol bo‘ladi — boshqa desktop yoki oynaga o‘tish darhol, yuzni burish/berkitish esa 3.5 soniyada ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
-                : `This variant contains ${QUESTIONS_PER_TEST} questions (${mode === 'practice' ? copy.modePractice : copy.modeExam}). Webcam and fullscreen proctoring are active — switching desktops or windows immediately deducts 1 warning, and looking away/obscuring face for over 3.5s deducts 1 warning (3 warnings max; exhausting all 3 gives 0).`}
+                ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${SUBJECT_DURATION_MINUTES[subject.id]} daqiqa · ${mode === 'practice' ? copy.modePractice : copy.modeExam}). Test paytida veb-kamera va to‘liq ekran nazorati faol bo‘ladi — boshqa desktop yoki oynaga o‘tish darhol, yuzni burish/berkitish esa 3.5 soniyada ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
+                : `This variant contains ${QUESTIONS_PER_TEST} questions (${SUBJECT_DURATION_MINUTES[subject.id]} min · ${mode === 'practice' ? copy.modePractice : copy.modeExam}). Webcam and fullscreen proctoring are active — switching desktops or windows immediately deducts 1 warning, and looking away/obscuring face for over 3.5s deducts 1 warning (3 warnings max; exhausting all 3 gives 0).`}
             </p>
 
             {retakeSuccess && (
