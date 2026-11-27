@@ -6,6 +6,7 @@ import {
   Crown,
   Eye,
   Flame,
+  Gift,
   Lock,
   RotateCcw,
   ShoppingBag,
@@ -30,6 +31,7 @@ import {
 } from '../utils/xpAndStore';
 import { AppView } from './TopBar';
 import { UserAvatarFrame, UserTitleLabel } from './UserAvatarFrame';
+import { MysteryBoxModal } from './MysteryBoxModal';
 
 interface StoreViewProps {
   lang: UILanguage;
@@ -67,6 +69,7 @@ export function StoreView({
   const [previewTitleId, setPreviewTitleId] = useState<string | null>(null);
   const [previewFrameId, setPreviewFrameId] = useState<string | null>(null);
   const [statusNotice, setStatusNotice] = useState<string | null>(null);
+  const [showMysteryBox, setShowMysteryBox] = useState(false);
 
   const availableXp = Math.max(0, earnedXp - cosmetics.spentXp);
 
@@ -79,13 +82,13 @@ export function StoreView({
 
   const visibleTitles = useMemo(() => {
     if (activeTab === 'frames') return [];
-    if (activeTab === 'owned') return STORE_TITLES.filter((t) => ownedTitleSet.has(t.id));
+    if (activeTab === 'owned') return STORE_TITLES.filter((t: StoreTitleItem) => ownedTitleSet.has(t.id));
     return STORE_TITLES;
   }, [activeTab, ownedTitleSet]);
 
   const visibleFrames = useMemo(() => {
     if (activeTab === 'titles') return [];
-    if (activeTab === 'owned') return STORE_FRAMES.filter((f) => ownedFrameSet.has(f.id));
+    if (activeTab === 'owned') return STORE_FRAMES.filter((f: StoreFrameItem) => ownedFrameSet.has(f.id));
     return STORE_FRAMES;
   }, [activeTab, ownedFrameSet]);
 
@@ -122,6 +125,17 @@ export function StoreView({
           : `Unlocked and equipped "${item.label.en}"!`
       );
     }
+  };
+
+  const handleUnlockCosmetic = async (type: 'title' | 'frame', id: string) => {
+    if (type === 'title') {
+      const item = STORE_TITLE_MAP[id];
+      if (item) return await onBuyTitle(item);
+    } else {
+      const item = STORE_FRAME_MAP[id];
+      if (item) return await onBuyFrame(item);
+    }
+    return false;
   };
 
   const handleEquipTitleClick = async (titleId: string) => {
@@ -234,34 +248,48 @@ export function StoreView({
             </div>
           </div>
 
-          {/* Right: XP Wallet Summary */}
-          <div className="grid grid-cols-3 gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4 sm:min-w-[320px]">
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500">
-                {uz ? 'Mavjud XP' : 'Available XP'}
-              </p>
-              <p className="font-mono-num mt-1 flex items-center gap-1 text-xl font-extrabold text-teal-700">
-                <Coins className="h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
-                <span>{availableXp}</span>
-              </p>
+          {/* Right: XP Wallet Summary + Mystery Box Button */}
+          <div className="flex flex-col gap-3 sm:min-w-[320px]">
+            <div className="grid grid-cols-3 gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+              <div>
+                <p className="text-[11px] font-semibold text-slate-500">
+                  {uz ? 'Mavjud XP' : 'Available XP'}
+                </p>
+                <p className="font-mono-num mt-1 flex items-center gap-1 text-xl font-extrabold text-teal-700">
+                  <Coins className="h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
+                  <span>{availableXp}</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-slate-500">
+                  {uz ? 'Jami XP' : 'Earned XP'}
+                </p>
+                <p className="font-mono-num mt-1 text-xl font-extrabold text-slate-900">
+                  {earnedXp}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-slate-500">
+                  {uz ? 'Kolleksiya' : 'Owned'}
+                </p>
+                <p className="font-mono-num mt-1 text-xl font-extrabold text-slate-900">
+                  {cosmetics.ownedTitles.length + cosmetics.ownedFrames.length}/
+                  {STORE_TITLES.length + STORE_FRAMES.length}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500">
-                {uz ? 'Jami XP' : 'Earned XP'}
-              </p>
-              <p className="font-mono-num mt-1 text-xl font-extrabold text-slate-900">
-                {earnedXp}
-              </p>
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500">
-                {uz ? 'Kolleksiya' : 'Owned'}
-              </p>
-              <p className="font-mono-num mt-1 text-xl font-extrabold text-slate-900">
-                {cosmetics.ownedTitles.length + cosmetics.ownedFrames.length}/
-                {STORE_TITLES.length + STORE_FRAMES.length}
-              </p>
-            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                playSound('click');
+                setShowMysteryBox(true);
+              }}
+              className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 px-4 text-xs font-bold text-white shadow-md shadow-rose-600/25 transition-transform hover:scale-[1.01]"
+            >
+              <Gift className="h-4 w-4 animate-bounce" aria-hidden="true" />
+              <span>{uz ? '🎁 Sirli Sovg‘a Qutisi (3,000 XP)' : '🎁 Open Mystery Loot Box (3,000 XP)'}</span>
+            </button>
           </div>
         </div>
 
@@ -289,7 +317,7 @@ export function StoreView({
         >
           {(
             [
-              { id: 'all', label: uz ? 'Barchasi (16)' : 'All Items (16)' },
+              { id: 'all', label: uz ? `Barchasi (${STORE_TITLES.length + STORE_FRAMES.length})` : `All Items (${STORE_TITLES.length + STORE_FRAMES.length})` },
               {
                 id: 'titles',
                 label: uz
@@ -375,7 +403,7 @@ export function StoreView({
         </div>
       )}
 
-      {/* Section 1: Titles (Narxi darajaga qarab oshib boradi) */}
+      {/* Section 1: Titles */}
       {visibleTitles.length > 0 && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-2.5">
@@ -386,14 +414,14 @@ export function StoreView({
               </h2>
               <p className="text-xs text-slate-500">
                 {uz
-                  ? 'Oddiy darajadan Mifik darajagacha — titul nufuzi oshgani sari narxi ham ko‘tariladi (1,200 → 30,000 XP)'
-                  : 'Tiered progression from Common to Mythic — prices scale with prestige (1,200 → 30,000 XP)'}
+                  ? 'Oddiy darajadan Mifik darajagacha — titul nufuzi oshgani sari narxi ham ko‘tariladi'
+                  : 'Tiered progression from Common to Mythic — prices scale with prestige'}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {visibleTitles.map((item) => {
+            {visibleTitles.map((item: StoreTitleItem) => {
               const owned = ownedTitleSet.has(item.id);
               const equipped = cosmetics.equippedTitle === item.id;
               const previewed = previewTitleId === item.id;
@@ -424,7 +452,6 @@ export function StoreView({
                       </span>
                     </div>
 
-                    {/* Visual Title Preview Strip */}
                     <div className="mt-3 flex min-h-[64px] flex-col items-center justify-center rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-3 text-center">
                       <span className="text-[11px] font-semibold text-slate-500">
                         {userProfile.displayName}
@@ -528,7 +555,7 @@ export function StoreView({
         </div>
       )}
 
-      {/* Section 2: Frames (Ramkalar — narxi ramkaga qarab oshib boradi) */}
+      {/* Section 2: Frames */}
       {visibleFrames.length > 0 && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-2.5">
@@ -539,14 +566,14 @@ export function StoreView({
               </h2>
               <p className="text-xs text-slate-500">
                 {uz
-                  ? 'Oddiy halqadan tojli Mifik Imperator ramkasigacha — har bir darajada dizayn va narx oshadi (1,800 → 35,000 XP)'
-                  : 'From crisp Emerald Ring to animated Mythic Emperor — price rises with frame tier & effects (1,800 → 35,000 XP)'}
+                  ? 'Oddiy halqadan tojli Mifik Imperator ramkasigacha — har bir darajada dizayn va narx oshadi'
+                  : 'From crisp Emerald Ring to animated Mythic Emperor — price rises with frame tier'}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {visibleFrames.map((item) => {
+            {visibleFrames.map((item: StoreFrameItem) => {
               const owned = ownedFrameSet.has(item.id);
               const equipped = cosmetics.equippedFrame === item.id;
               const previewed = previewFrameId === item.id;
@@ -577,7 +604,6 @@ export function StoreView({
                       </span>
                     </div>
 
-                    {/* Visual Frame Preview Box */}
                     <div className="mt-3 flex min-h-[116px] items-center justify-center rounded-lg border border-slate-100 bg-slate-50/80 py-4">
                       <UserAvatarFrame
                         name={userProfile.displayName}
@@ -718,6 +744,16 @@ export function StoreView({
           </div>
         </div>
       </div>
+
+      {showMysteryBox && (
+        <MysteryBoxModal
+          lang={lang}
+          availableXp={availableXp}
+          cosmetics={cosmetics}
+          onUnlockCosmetic={handleUnlockCosmetic}
+          onClose={() => setShowMysteryBox(false)}
+        />
+      )}
     </section>
   );
 }
