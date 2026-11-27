@@ -1,15 +1,8 @@
 import { Lock } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { SUBJECTS, pickText } from '../data/subjects';
-import { QuizSectionKind, SubjectId, UILanguage } from '../types/quiz';
-import {
-  buildTopicVariantQuestions,
-  buildVariantQuestions,
-  getDifficultyLabel,
-  getLocalizedOptions,
-  getTopicVariantCount,
-  getVariantLabel,
-} from '../utils/quizEngine';
+import { DifficultyLevel, SubjectId, UILanguage } from '../types/quiz';
+import { buildVariantQuestions, getDifficultyLabel, getLocalizedOptions, getVariantLabel } from '../utils/quizEngine';
 import { FormattedMathText } from './FormattedMathText';
 import { MathShapeDiagram } from './MathShapeDiagram';
 import { TeacherScope } from './TopBar';
@@ -19,24 +12,11 @@ interface PreviewViewProps {
   teacherScope: TeacherScope;
 }
 
-type PreviewCategory = QuizSectionKind | 'topic';
-
 export function PreviewView({ lang, teacherScope }: PreviewViewProps) {
   const uz = lang === 'uz';
   const [selectedSubjectId, setSelectedSubjectId] = useState<SubjectId>('math');
-  const [category, setCategory] = useState<PreviewCategory>('test');
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('easy');
   const [variantNum, setVariantNum] = useState<number>(1);
-  const [selectedTopic, setSelectedTopic] = useState<string>('');
-  const [topicVariantNum, setTopicVariantNum] = useState<number>(1);
-
-  const subject = SUBJECTS.find((s) => s.id === selectedSubjectId) || SUBJECTS[0];
-
-  useEffect(() => {
-    if (!subject.topics.includes(selectedTopic)) {
-      setSelectedTopic(subject.topics[0] || '');
-      setTopicVariantNum(1);
-    }
-  }, [subject, selectedTopic]);
 
   if (teacherScope === 'none') {
     return (
@@ -56,16 +36,10 @@ export function PreviewView({ lang, teacherScope }: PreviewViewProps) {
     );
   }
 
-  const maxVariants = 20;
-  const activeTopic = subject.topics.includes(selectedTopic)
-    ? selectedTopic
-    : (subject.topics[0] ?? '');
-  const maxTopicVariants = activeTopic ? getTopicVariantCount(subject, activeTopic) : 3;
+  const subject = SUBJECTS.find((s) => s.id === selectedSubjectId) || SUBJECTS[0];
+  const maxVariants = subject.id === 'math' ? 20 : 5;
 
-  const activeQuestions =
-    category === 'topic' && activeTopic
-      ? buildTopicVariantQuestions(subject, activeTopic, topicVariantNum)
-      : buildVariantQuestions(subject, category === 'exam' ? 'exam' : 'test', variantNum);
+  const activeQuestions = buildVariantQuestions(subject, difficulty, variantNum);
 
   return (
     <section className="space-y-6">
@@ -75,8 +49,8 @@ export function PreviewView({ lang, teacherScope }: PreviewViewProps) {
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           {uz
-            ? 'Ustozlar Test (20 variant), Imtihon (20 alohida variant) va har bir mavzuning 3 ta variantidagi barcha savollar, javoblar hamda chizmalarni ko‘rib chiqishi mumkin.'
-            : 'Teachers can inspect all Test (20 variants), Imtihon (20 separate variants), and Topic (3 variants each) questions, correct answers, and diagrams.'}
+            ? 'Ustozlar barcha fanlar, darajalar va variantlardagi savollarni, to‘g‘ri javoblarni hamda chizmalarni to‘liq ko‘rib chiqishi mumkin.'
+            : 'Teachers can inspect all questions, correct answers, and diagrams across any subject, difficulty, and variant.'}
         </p>
       </div>
 
@@ -97,82 +71,36 @@ export function PreviewView({ lang, teacherScope }: PreviewViewProps) {
           </select>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-bold text-slate-700">{uz ? 'Bo‘lim:' : 'Section:'}</span>
-          {(
-            [
-              { id: 'test', label: uz ? 'Test (20 v.)' : 'Test (20 v.)' },
-              { id: 'exam', label: uz ? 'Imtihon (20 v.)' : 'Exam (20 v.)' },
-              { id: 'topic', label: uz ? 'Mavzu testlari' : 'Topic Drills' },
-            ] as const
-          ).map((tab) => (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-700">{uz ? 'Daraja:' : 'Difficulty:'}</span>
+          {(['easy', 'medium', 'hard'] as DifficultyLevel[]).map((d) => (
             <button
-              key={tab.id}
+              key={d}
               type="button"
-              onClick={() => setCategory(tab.id)}
+              onClick={() => setDifficulty(d)}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                category === tab.id
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                difficulty === d ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              {tab.label}
+              {getDifficultyLabel(d, lang)}
             </button>
           ))}
         </div>
 
-        {category !== 'topic' ? (
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-700">{uz ? 'Variant:' : 'Variant:'}</span>
-            <select
-              value={variantNum}
-              onChange={(e) => setVariantNum(Number(e.target.value))}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800"
-            >
-              {Array.from({ length: maxVariants }, (_, i) => i + 1).map((v) => (
-                <option key={v} value={v}>
-                  {getVariantLabel(v, lang)}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-700">{uz ? 'Mavzu:' : 'Topic:'}</span>
-              <select
-                value={activeTopic}
-                onChange={(e) => {
-                  setSelectedTopic(e.target.value);
-                  setTopicVariantNum(1);
-                }}
-                className="max-w-[260px] rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800"
-              >
-                {subject.topics.map((top) => (
-                  <option key={top} value={top}>
-                    {top}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {Array.from({ length: maxTopicVariants }, (_, i) => i + 1).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setTopicVariantNum(v)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    topicVariantNum === v
-                      ? 'bg-teal-700 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {getVariantLabel(v, lang)}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-700">{uz ? 'Variant:' : 'Variant:'}</span>
+          <select
+            value={variantNum}
+            onChange={(e) => setVariantNum(Number(e.target.value))}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800"
+          >
+            {Array.from({ length: maxVariants }, (_, i) => i + 1).map((v) => (
+              <option key={v} value={v}>
+                {getVariantLabel(v, lang)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Questions list */}
@@ -186,7 +114,7 @@ export function PreviewView({ lang, teacherScope }: PreviewViewProps) {
             <div key={q.id || idx} className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-xs font-semibold text-slate-500">
                 <span>
-                  #{idx + 1} · {q.topic} · {getDifficultyLabel(q.difficulty, lang)}
+                  #{idx + 1} · {q.topic}
                 </span>
                 <span className="rounded bg-teal-50 px-2 py-0.5 font-mono text-teal-800">
                   ID: {q.id}

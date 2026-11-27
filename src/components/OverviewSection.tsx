@@ -10,7 +10,7 @@ import {
   Languages,
 } from 'lucide-react';
 import { AttemptRecord, SUBJECTS, UI_COPY, pickText } from '../data/subjects';
-import { QuizSectionKind, SubjectId, UILanguage } from '../types/quiz';
+import { SubjectId, UILanguage } from '../types/quiz';
 import { SUBJECT_THEMES } from '../utils/subjectTheme';
 
 interface OverviewSectionProps {
@@ -18,7 +18,7 @@ interface OverviewSectionProps {
   activeSubjectId: SubjectId;
   history: AttemptRecord[];
   prohibitedSubjects?: ReadonlySet<SubjectId>;
-  onStartSubjectQuiz: (id: SubjectId, kind?: QuizSectionKind) => void;
+  onStartSubjectQuiz: (id: SubjectId) => void;
   onOpenSubjectGuide: (id: SubjectId) => void;
 }
 
@@ -103,7 +103,7 @@ export function OverviewSection({
                       ? lang === 'uz'
                         ? 'Taqiqlangan (Prohibited)'
                         : 'Prohibited'
-                      : `${subject.questions.length} ${lang === 'uz' ? 'savol' : 'questions'} · 20 ${lang === 'uz' ? 'Test' : 'Test'} + 20 ${lang === 'uz' ? 'Imtihon' : 'Exam'}`}
+                      : `${subject.questions.length} ${lang === 'uz' ? 'savol' : 'questions'} · ${subject.id === 'math' ? '3×20' : '3×5'} ${lang === 'uz' ? 'variant' : 'variants'}`}
                   </span>
                 </div>
 
@@ -116,7 +116,7 @@ export function OverviewSection({
 
                 <p className="mt-4 text-xs font-medium text-slate-500">
                   {pickText(subject.questionLangNote, lang)} · {subject.topics.length}{' '}
-                  {lang === 'uz' ? 'mavzu (3 variantdan)' : 'topics (3 variants each)'}
+                  {lang === 'uz' ? 'mavzu' : 'topics'}
                 </p>
               </div>
 
@@ -125,7 +125,7 @@ export function OverviewSection({
                   <span>{copy.bestScore}:</span>
                   {bestAttempt ? (
                     <span className="font-mono-num font-semibold text-slate-900">
-                      {bestAttempt.score}/{bestAttempt.total} ({bestAttempt.percentage}%) ·{' '}
+                      {bestAttempt.score}/25 ({bestAttempt.percentage}%) ·{' '}
                       {lang === 'uz' ? 'Baho' : 'Grade'} {bestAttempt.grade}
                     </span>
                   ) : (
@@ -142,36 +142,25 @@ export function OverviewSection({
                   />
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {isProhibited ? (
-                    <button
-                      type="button"
-                      onClick={() => onStartSubjectQuiz(subject.id, 'exam')}
-                      className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-lg bg-rose-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-700 focus-visible:ring-offset-2"
-                    >
-                      <span>{lang === 'uz' ? 'Yopiq (Prohibited)' : 'Prohibited'}</span>
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => onStartSubjectQuiz(subject.id, 'test')}
-                        className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-teal-700 px-3 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
-                      >
-                        <span>{copy.navTest}</span>
-                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onStartSubjectQuiz(subject.id, 'exam')}
-                        className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-                      >
-                        <span>{copy.navExam}</span>
-                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
-                    </>
-                  )}
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => onStartSubjectQuiz(subject.id)}
+                    className={`inline-flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                      isProhibited
+                        ? 'bg-rose-700 hover:bg-rose-800 focus-visible:ring-rose-700'
+                        : 'bg-teal-700 hover:bg-teal-800 focus-visible:ring-teal-700'
+                    }`}
+                  >
+                    <span>
+                      {isProhibited
+                        ? lang === 'uz'
+                          ? 'Yopiq (Prohibited)'
+                          : 'Prohibited'
+                        : copy.startTest}
+                    </span>
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => onOpenSubjectGuide(subject.id)}

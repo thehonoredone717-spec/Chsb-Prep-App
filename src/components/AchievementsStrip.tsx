@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { AttemptRecord, SUBJECTS, pickText } from '../data/subjects';
-import { QuizSectionKind, SubjectId, UILanguage } from '../types/quiz';
+import { SubjectId, UILanguage } from '../types/quiz';
 
 interface AchievementsStripProps {
   lang: UILanguage;
@@ -20,7 +20,7 @@ interface AchievementsStripProps {
   blitzBest: number;
   prohibitedSubjects: ReadonlySet<SubjectId>;
   onOpenSubjectGuide: (id: SubjectId) => void;
-  onStartSubjectQuiz: (id: SubjectId, kind?: QuizSectionKind) => void;
+  onStartSubjectQuiz: (id: SubjectId) => void;
 }
 
 interface RankTier {
@@ -302,7 +302,7 @@ export function AchievementsStrip({
             {!prohibitedSubjects.has(recommendedSubject.id) && (
               <button
                 type="button"
-                onClick={() => onStartSubjectQuiz(recommendedSubject.id, 'test')}
+                onClick={() => onStartSubjectQuiz(recommendedSubject.id)}
                 className="inline-flex min-h-[38px] flex-1 items-center justify-center rounded-lg bg-teal-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-teal-800"
               >
                 {uz ? 'Testni boshlash →' : 'Start Test →'}

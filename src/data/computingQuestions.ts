@@ -1,8 +1,4 @@
 import { QuestionItem, StudyGuideItem } from '../types/quiz';
-import {
-  buildComputingExamBank,
-  buildComputingTestBank,
-} from './computingBanks';
 
 export const computingTopics: string[] = [
   '1. Networks and topologies',
@@ -96,7 +92,7 @@ export const computingStudyGuide: StudyGuideItem[] = [
   },
 ];
 
-const computingBaseQuestions: QuestionItem[] = [
+export const computingQuestions: QuestionItem[] = [
   // ==================== 60 CORE BILINGUAL QUESTIONS FROM ATTACHED QUIZ_7 ====================
   {
     id: 'c1',
@@ -4115,18 +4111,4 @@ const computingBaseQuestions: QuestionItem[] = [
       uz: 'Industry 4.0 yuqori barqaror sifat va nosozliklarni oldindan aniqlash imkonini beradi, ammo texnologiya qimmat va ba’zi ish o‘rinlarini qisqartiradi.',
     },
   },
-];
-
-export const computingTestQuestions: QuestionItem[] = [
-  ...computingBaseQuestions,
-  ...buildComputingTestBank(computingBaseQuestions),
-];
-
-export const computingExamQuestions: QuestionItem[] = buildComputingExamBank(
-  computingTestQuestions
-);
-
-export const computingQuestions: QuestionItem[] = [
-  ...computingTestQuestions,
-  ...computingExamQuestions,
 ];

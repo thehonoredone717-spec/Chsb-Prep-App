@@ -1,5 +1,4 @@
 import { QuestionItem, StudyGuideItem } from '../types/quiz';
-import { buildHistoryExamBank, buildHistoryTestBank } from './historyBanks';
 
 export const historyTopics: string[] = [
   "1-Summativ · Qadimgi tarixdan o'rta asrlar sari",
@@ -52,7 +51,7 @@ export const historyStudyGuide: StudyGuideItem[] = [
   },
 ];
 
-const historyBaseQuestions: QuestionItem[] = [
+export const historyQuestions: QuestionItem[] = [
   // ==================== VARIANT 1 (Questions 1-25) ====================
   {
     id: 'h1',
@@ -1773,18 +1772,4 @@ const historyBaseQuestions: QuestionItem[] = [
     answer: 0,
     explain: "2022-yilgi darslik ma'lumotiga ko‘ra, yahudiylar qadimda Ossuriya quvg‘ini oqibatida Samarqand va Buxoroga kelib o‘rnashganlar.",
   },
-];
-
-export const historyTestQuestions: QuestionItem[] = [
-  ...historyBaseQuestions,
-  ...buildHistoryTestBank(historyBaseQuestions),
-];
-
-export const historyExamQuestions: QuestionItem[] = buildHistoryExamBank(
-  historyTestQuestions
-);
-
-export const historyQuestions: QuestionItem[] = [
-  ...historyTestQuestions,
-  ...historyExamQuestions,
 ];

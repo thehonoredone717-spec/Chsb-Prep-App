@@ -26,7 +26,7 @@ import {
 } from '../data/subjects';
 import { useEffect, useState } from 'react';
 import { UserProfile } from '../firebase';
-import { QuizSectionKind, SubjectId, UILanguage } from '../types/quiz';
+import { SubjectId, UILanguage } from '../types/quiz';
 import { SUBJECT_THEMES } from '../utils/subjectTheme';
 import { AchievementsStrip } from './AchievementsStrip';
 import { DailyWarmupCard } from './DailyWarmupCard';
@@ -39,7 +39,7 @@ interface DashboardSectionProps {
   history: AttemptRecord[];
   prohibitedSubjects: ReadonlySet<SubjectId>;
   onNavigate: (view: AppView) => void;
-  onStartSubjectQuiz: (id: SubjectId, kind?: QuizSectionKind) => void;
+  onStartSubjectQuiz: (id: SubjectId) => void;
   onOpenSubjectGuide: (id: SubjectId) => void;
 }
 
@@ -332,8 +332,8 @@ export function DashboardSection({
                       </div>
 
                       <p className="mt-0.5 text-xs text-slate-500">
-                        {subject.topics.length} {uz ? 'mavzu' : 'topics'} · 20 Test + 20{' '}
-                        {uz ? 'Imtihon' : 'Exam'} ({subject.questions.length} {uz ? 'savol' : 'q.'})
+                        {subject.topics.length} {uz ? 'mavzu' : 'topics'} ·{' '}
+                        {subject.questions.length} {uz ? 'savol' : 'questions'}
                         {best
                           ? ` · ${uz ? 'Eng yaxshi' : 'Best'}: ${best.percentage}% (${uz ? 'Baho' : 'Grade'} ${best.grade})`
                           : ''}
@@ -351,45 +351,28 @@ export function DashboardSection({
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap shrink-0 items-center gap-1.5">
+                  <div className="flex shrink-0 items-center gap-2">
                     <button
                       type="button"
                       onClick={() => onOpenSubjectGuide(subject.id)}
-                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
                     >
                       <BookOpen className={`h-3.5 w-3.5 ${theme.accentText}`} aria-hidden="true" />
                       <span>{copy.navGuide}</span>
                     </button>
 
-                    {isProhibited ? (
-                      <button
-                        type="button"
-                        onClick={() => onStartSubjectQuiz(subject.id, 'exam')}
-                        className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-rose-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-700"
-                      >
-                        <span>{uz ? 'Yopiq' : 'Locked'}</span>
-                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onStartSubjectQuiz(subject.id, 'test')}
-                          className="inline-flex min-h-[36px] items-center gap-1 rounded-lg bg-teal-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
-                        >
-                          <span>{copy.navTest}</span>
-                          <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onStartSubjectQuiz(subject.id, 'exam')}
-                          className="inline-flex min-h-[36px] items-center gap-1 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-                        >
-                          <span>{copy.navExam}</span>
-                          <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                        </button>
-                      </>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => onStartSubjectQuiz(subject.id)}
+                      className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+                        isProhibited
+                          ? 'bg-rose-700 hover:bg-rose-800 focus-visible:ring-rose-700'
+                          : 'bg-teal-700 hover:bg-teal-800 focus-visible:ring-teal-700'
+                      }`}
+                    >
+                      <span>{isProhibited ? (uz ? 'Yopiq' : 'Locked') : copy.navTest}</span>
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
                   </div>
                 </div>
               );

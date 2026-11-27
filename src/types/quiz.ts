@@ -10,8 +10,6 @@ export type UILanguage = 'uz' | 'en';
 
 export type DifficultyLevel = 'easy' | 'medium' | 'hard';
 
-export type QuizSectionKind = 'test' | 'exam';
-
 export interface BilingualText {
   uz: string;
   en: string;
@@ -67,8 +65,6 @@ export interface SubjectConfig {
   questionLangNote: BilingualText;
   topics: string[];
   studyGuide: StudyGuideItem[];
-  testQuestions: QuestionItem[];
-  examQuestions: QuestionItem[];
   questions: QuestionItem[];
 }
 
@@ -80,10 +76,3 @@ export interface ActiveQuizQuestion {
 export type VariantSelection = number | 'random';
 
 export type QuizMode = 'practice' | 'exam';
-
-export interface TopicDrillRequest {
-  subjectId: SubjectId;
-  topic: string;
-  variant: number;
-  nonce: number;
-}

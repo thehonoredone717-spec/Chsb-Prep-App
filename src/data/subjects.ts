@@ -1,46 +1,10 @@
 import { BilingualText, DifficultyLevel, SubjectConfig, SubjectId, UILanguage } from '../types/quiz';
-import {
-  computingExamQuestions,
-  computingQuestions,
-  computingStudyGuide,
-  computingTestQuestions,
-  computingTopics,
-} from './computingQuestions';
-import {
-  englishExamQuestions,
-  englishQuestions,
-  englishStudyGuide,
-  englishTestQuestions,
-  englishTopics,
-} from './englishQuestions';
-import {
-  historyExamQuestions,
-  historyQuestions,
-  historyStudyGuide,
-  historyTestQuestions,
-  historyTopics,
-} from './historyQuestions';
-import {
-  mathExamQuestions,
-  mathQuestions,
-  mathStudyGuide,
-  mathTestQuestions,
-  mathTopics,
-} from './mathQuestions';
-import {
-  scienceExamQuestions,
-  scienceQuestions,
-  scienceStudyGuide,
-  scienceTestQuestions,
-  scienceTopics,
-} from './scienceQuestions';
-import {
-  uzbekExamQuestions,
-  uzbekQuestions,
-  uzbekStudyGuide,
-  uzbekTestQuestions,
-  uzbekTopics,
-} from './uzbekQuestions';
+import { computingQuestions, computingStudyGuide, computingTopics } from './computingQuestions';
+import { englishQuestions, englishStudyGuide, englishTopics } from './englishQuestions';
+import { historyQuestions, historyStudyGuide, historyTopics } from './historyQuestions';
+import { mathQuestions, mathStudyGuide, mathTopics } from './mathQuestions';
+import { scienceQuestions, scienceStudyGuide, scienceTopics } from './scienceQuestions';
+import { uzbekQuestions, uzbekStudyGuide, uzbekTopics } from './uzbekQuestions';
 
 export interface AttemptRecord {
   id: string;
@@ -80,8 +44,6 @@ export const SUBJECTS: SubjectConfig[] = [
     questionLangNote: { uz: 'Savollar tili: Inglizcha', en: 'Question language: English' },
     topics: mathTopics,
     studyGuide: mathStudyGuide,
-    testQuestions: mathTestQuestions,
-    examQuestions: mathExamQuestions,
     questions: mathQuestions,
   },
   {
@@ -95,8 +57,6 @@ export const SUBJECTS: SubjectConfig[] = [
     questionLangNote: { uz: "Savollar tili: O'zbekcha", en: 'Question language: Uzbek' },
     topics: historyTopics,
     studyGuide: historyStudyGuide,
-    testQuestions: historyTestQuestions,
-    examQuestions: historyExamQuestions,
     questions: historyQuestions,
   },
   {
@@ -110,8 +70,6 @@ export const SUBJECTS: SubjectConfig[] = [
     questionLangNote: { uz: 'Savollar tili: Inglizcha', en: 'Question language: English' },
     topics: scienceTopics,
     studyGuide: scienceStudyGuide,
-    testQuestions: scienceTestQuestions,
-    examQuestions: scienceExamQuestions,
     questions: scienceQuestions,
   },
   {
@@ -125,8 +83,6 @@ export const SUBJECTS: SubjectConfig[] = [
     questionLangNote: { uz: "Savollar tili: O'zbekcha / Inglizcha", en: 'Question language: Bilingual (EN / UZ)' },
     topics: computingTopics,
     studyGuide: computingStudyGuide,
-    testQuestions: computingTestQuestions,
-    examQuestions: computingExamQuestions,
     questions: computingQuestions,
   },
   {
@@ -140,8 +96,6 @@ export const SUBJECTS: SubjectConfig[] = [
     questionLangNote: { uz: 'Savollar tili: Inglizcha', en: 'Question language: English' },
     topics: englishTopics,
     studyGuide: englishStudyGuide,
-    testQuestions: englishTestQuestions,
-    examQuestions: englishExamQuestions,
     questions: englishQuestions,
   },
   {
@@ -155,8 +109,6 @@ export const SUBJECTS: SubjectConfig[] = [
     questionLangNote: { uz: "Savollar tili: O'zbekcha", en: 'Question language: Uzbek' },
     topics: uzbekTopics,
     studyGuide: uzbekStudyGuide,
-    testQuestions: uzbekTestQuestions,
-    examQuestions: uzbekExamQuestions,
     questions: uzbekQuestions,
   },
 ];
@@ -181,7 +133,6 @@ export const UI_COPY: Record<
     navHome: string;
     navSubjects: string;
     navTest: string;
-    navExam: string;
     navGuide: string;
     navResults: string;
     navPermission: string;
@@ -194,7 +145,6 @@ export const UI_COPY: Record<
     variantsCount: string;
     totalBank: string;
     startTest: string;
-    startExam: string;
     openGuide: string;
     bestScore: string;
     notAttempted: string;
@@ -272,7 +222,6 @@ export const UI_COPY: Record<
     navHome: 'Dashboard',
     navSubjects: 'Fanlar',
     navTest: 'Test',
-    navExam: 'Imtihon',
     navGuide: "Qo'llanma",
     navResults: 'Natijalar',
     navPermission: 'Permission',
@@ -281,12 +230,11 @@ export const UI_COPY: Record<
     downloadHtml: 'HTML Yuklash',
     heroTitle: '7-Sinf ChSB Tayyorlov Platformasi',
     heroSubtitle:
-      "6 ta asosiy fan: Test bo'limida 20 ta noyob variant va har bir mavzu bo'yicha 3 tadan variant, Imtihon bo'limida esa mutlaqo alohida 20 ta ChSB imtihon varianti.",
-    questionsPerTest: '25 savol (variant) · 10 savol (mavzu)',
-    variantsCount: '20 ta Test + 20 ta Imtihon varianti · 3 tadan mavzu varianti',
+      "6 ta asosiy fan, Matematika fanida Oson, O'rta va Qiyin darajalari bo'yicha 20 tadan (boshqa fanlarda 5 tadan) 25 talik variant hamda qayta boshlanganda savollar almashadigan ChSB imtihon muhiti.",
+    questionsPerTest: '25 ta savol / test',
+    variantsCount: '3 daraja × 20 (Matematika) / 5 variant + Tasodifiy 25',
     totalBank: `${TOTAL_QUESTION_COUNT} ta savol bazasi`,
-    startTest: 'Test (Mashq)',
-    startExam: 'Imtihon (ChSB)',
+    startTest: 'Testni boshlash',
     openGuide: "Mavzular va qo'llanma",
     bestScore: 'Eng yaxshi natija',
     notAttempted: 'Hali topshirilmagan',
@@ -362,8 +310,7 @@ export const UI_COPY: Record<
     brand: 'Grade 7 ChSB',
     navHome: 'Dashboard',
     navSubjects: 'Subjects',
-    navTest: 'Test',
-    navExam: 'Exam',
+    navTest: 'Quiz',
     navGuide: 'Study Guide',
     navResults: 'Results',
     navPermission: 'Permission',
@@ -372,12 +319,11 @@ export const UI_COPY: Record<
     downloadHtml: 'Download HTML',
     heroTitle: 'Grade 7 ChSB Exam Prep Platform',
     heroSubtitle:
-      '6 core subjects with completely separate banks: 20 unique Test variants + 3 variants per syllabus topic in Test, and 20 distinct official ChSB variants in Exam.',
-    questionsPerTest: '25 questions / variant · 10 / topic',
-    variantsCount: '20 Test + 20 Exam variants · 3 variants per topic',
+      'Dedicated sections for 6 core subjects, 3 difficulty levels (Easy, Medium, Hard) with 20 distinct 25-question variants per tier in Math (5 in other subjects) plus Random Mix and guaranteed shuffle on Start over.',
+    questionsPerTest: '25 questions / test',
+    variantsCount: '3 tiers × 20 (Math) / 5 variants + Random Mix',
     totalBank: `${TOTAL_QUESTION_COUNT} total questions`,
-    startTest: 'Practice Test',
-    startExam: 'ChSB Exam',
+    startTest: 'Start Test',
     openGuide: 'Topics & Study Guide',
     bestScore: 'Best score',
     notAttempted: 'Not attempted yet',

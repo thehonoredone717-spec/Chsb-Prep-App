@@ -61,13 +61,7 @@ import {
   isTeacherAdmin,
   sanitizeDisplayName,
 } from './firebase';
-import {
-  DifficultyLevel,
-  QuizSectionKind,
-  SubjectId,
-  TopicDrillRequest,
-  UILanguage,
-} from './types/quiz';
+import { DifficultyLevel, SubjectId, UILanguage } from './types/quiz';
 import { getDifficultyLabel, getVariantLabel } from './utils/quizEngine';
 import {
   exitAppFullscreen,
@@ -100,7 +94,6 @@ export default function App() {
   const [fatalError, setFatalError] = useState<Error | null>(null);
   const [isQuizRunning, setIsQuizRunning] = useState<boolean>(false);
   const [pendingNavAction, setPendingNavAction] = useState<(() => void) | null>(null);
-  const [pendingTopicDrill, setPendingTopicDrill] = useState<TopicDrillRequest | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(() => isFullscreenActive());
   const [subjectPermissions, setSubjectPermissions] = useState<
     Partial<Record<SubjectId, SubjectPermission>>
@@ -706,7 +699,7 @@ export default function App() {
             requestSectionLeave(() => {
               hasManualSubjectSelectionRef.current = true;
               setActiveSubjectId(asg.subjectId);
-              setActiveView('exam');
+              setActiveView('quiz');
             });
           },
         });
@@ -860,14 +853,10 @@ export default function App() {
   const activeSubject = SUBJECT_MAP[activeSubjectId];
   const isCurrentSubjectProhibited =
     prohibitedSubjects.has(activeSubjectId) &&
-    (activeView === 'test' || activeView === 'exam');
+    activeView === 'quiz';
 
   const requestSectionLeave = (action: () => void) => {
-    if (
-      (activeView === 'test' || activeView === 'exam') &&
-      isQuizRunning &&
-      !prohibitedSubjects.has(activeSubjectId)
-    ) {
+    if (activeView === 'quiz' && isQuizRunning && !prohibitedSubjects.has(activeSubjectId)) {
       setPendingNavAction(() => action);
       return;
     }
@@ -881,7 +870,7 @@ export default function App() {
   };
 
   const handleSelectSubjectFromBar = (id: SubjectId) => {
-    if (id === activeSubjectId && (activeView === 'test' || activeView === 'exam')) return;
+    if (id === activeSubjectId && activeView === 'quiz') return;
     requestSectionLeave(() => {
       hasManualSubjectSelectionRef.current = true;
       setActiveSubjectId(id);
@@ -891,28 +880,15 @@ export default function App() {
         activeView === 'results' ||
         activeView === 'permission'
       ) {
-        setActiveView('test');
+        setActiveView('quiz');
       }
     });
   };
 
-  const handleStartSubjectQuiz = (id: SubjectId, kind: QuizSectionKind = 'test') => {
+  const handleStartSubjectQuiz = (id: SubjectId) => {
     hasManualSubjectSelectionRef.current = true;
     setActiveSubjectId(id);
-    setPendingTopicDrill(null);
-    setActiveView(kind);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleStartTopicVariant = (topic: string, variant: number) => {
-    hasManualSubjectSelectionRef.current = true;
-    setPendingTopicDrill({
-      subjectId: activeSubjectId,
-      topic,
-      variant,
-      nonce: Date.now(),
-    });
-    setActiveView('test');
+    setActiveView('quiz');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -954,7 +930,6 @@ export default function App() {
     if (!authUser || !userProfile) return;
 
     const safeId = record.id.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 128);
-    const safeTotal = Math.max(5, Math.min(25, Math.round(record.total || 25)));
     const attemptPath = `attempts/${safeId}`;
     const payload = {
       id: safeId,
@@ -965,8 +940,8 @@ export default function App() {
       difficulty: record.difficulty ?? 'easy',
       variant: record.variant.slice(0, VARIANT_MAX_LEN),
       mode: record.mode,
-      score: Math.max(0, Math.min(safeTotal, Math.round(record.score))),
-      total: safeTotal,
+      score: Math.max(0, Math.min(25, Math.round(record.score))),
+      total: 25,
       percentage: Math.max(0, Math.min(100, Math.round(record.percentage))),
       grade: record.grade,
       elapsedSeconds: Math.max(0, Math.min(86400, Math.round(record.elapsedSeconds))),
@@ -1272,11 +1247,9 @@ export default function App() {
           />
         )}
 
-        {(activeView === 'test' || activeView === 'exam') && !prohibitedSubjects.has(activeSubjectId) && (
+        {activeView === 'quiz' && !prohibitedSubjects.has(activeSubjectId) && (
           <QuizSection
             subject={activeSubject}
-            sectionKind={activeView === 'exam' ? 'exam' : 'test'}
-            initialTopicDrill={pendingTopicDrill}
             lang={lang}
             userProfile={userProfile}
             history={history}
@@ -1302,8 +1275,7 @@ export default function App() {
             subject={activeSubject}
             lang={lang}
             isProhibited={prohibitedSubjects.has(activeSubjectId)}
-            onStartQuiz={(kind = 'test') => handleStartSubjectQuiz(activeSubjectId, kind)}
-            onStartTopicVariant={handleStartTopicVariant}
+            onStartQuiz={() => setActiveView('quiz')}
           />
         )}
 

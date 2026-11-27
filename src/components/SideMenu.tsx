@@ -3,7 +3,6 @@ import {
   BookOpen,
   ClipboardCheck,
   Eye,
-  FileCheck2,
   GraduationCap,
   Layers,
   LayoutDashboard,
@@ -51,8 +50,7 @@ export function SideMenu({
   }[] = [
     { id: 'dashboard', label: copy.navHome, icon: LayoutDashboard },
     { id: 'subjects', label: copy.navSubjects, icon: Layers },
-    { id: 'test', label: copy.navTest, icon: ClipboardCheck },
-    { id: 'exam', label: copy.navExam, icon: FileCheck2 },
+    { id: 'quiz', label: copy.navTest, icon: ClipboardCheck },
     { id: 'guide', label: copy.navGuide, icon: BookOpen },
     { id: 'results', label: copy.navResults, icon: BarChart3 },
     ...(isAnyTeacher

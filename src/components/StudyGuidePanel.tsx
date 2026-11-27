@@ -13,8 +13,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { UI_COPY, pickText } from '../data/subjects';
-import { QuizSectionKind, SubjectConfig, UILanguage } from '../types/quiz';
-import { getTopicVariantCount } from '../utils/quizEngine';
+import { SubjectConfig, UILanguage } from '../types/quiz';
 import { SUBJECT_THEMES } from '../utils/subjectTheme';
 import { FormattedMathText } from './FormattedMathText';
 import { InteractiveFlashcards, SubjectInteractiveLab } from './InteractiveStudyLab';
@@ -23,8 +22,7 @@ interface StudyGuidePanelProps {
   subject: SubjectConfig;
   lang: UILanguage;
   isProhibited?: boolean;
-  onStartQuiz: (kind?: QuizSectionKind) => void;
-  onStartTopicVariant?: (topic: string, variant: number) => void;
+  onStartQuiz: () => void;
 }
 
 type GuideTab = 'guide' | 'flashcards' | 'lab';
@@ -34,7 +32,6 @@ export function StudyGuidePanel({
   lang,
   isProhibited = false,
   onStartQuiz,
-  onStartTopicVariant,
 }: StudyGuidePanelProps) {
   const copy = UI_COPY[lang];
   const uz = lang === 'uz';
@@ -100,8 +97,8 @@ export function StudyGuidePanel({
         <div>
           <p className={`text-xs font-semibold uppercase tracking-wider ${theme.accentText}`}>
             {pickText(subject.shortLabel, lang)} · {subject.topics.length}{' '}
-            {uz ? 'mavzu' : 'topics'} · {subject.testQuestions.length} Test + {subject.examQuestions.length}{' '}
-            {uz ? 'Imtihon savoli' : 'Exam Qs'}
+            {uz ? 'mavzu' : 'topics'} · {subject.questions.length}{' '}
+            {uz ? 'savol' : 'questions'}
           </p>
           <h1 className="mt-1.5 font-display text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
             {copy.studyGuideTitle}
@@ -124,35 +121,28 @@ export function StudyGuidePanel({
             </button>
           )}
 
-          {isProhibited ? (
-            <button
-              type="button"
-              disabled
-              className="inline-flex min-h-[42px] shrink-0 cursor-not-allowed items-center gap-2 rounded-lg bg-rose-700/90 px-4 text-sm font-semibold text-white opacity-90"
-            >
-              <Ban className="h-4 w-4" aria-hidden="true" />
-              <span>{uz ? 'Test yopiq (Prohibited)' : 'Test Prohibited'}</span>
-            </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => onStartQuiz('test')}
-                className="inline-flex min-h-[42px] shrink-0 items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
-              >
-                <span>{copy.startTest} (20 v.)</span>
+          <button
+            type="button"
+            disabled={isProhibited}
+            onClick={onStartQuiz}
+            className={`inline-flex min-h-[42px] shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+              isProhibited
+                ? 'cursor-not-allowed bg-rose-700/90 opacity-90 focus-visible:ring-rose-700'
+                : 'bg-teal-700 hover:bg-teal-800 focus-visible:ring-teal-700'
+            }`}
+          >
+            {isProhibited ? (
+              <>
+                <Ban className="h-4 w-4" aria-hidden="true" />
+                <span>{uz ? 'Test yopiq (Prohibited)' : 'Test Prohibited'}</span>
+              </>
+            ) : (
+              <>
+                <span>{copy.startTest} (25)</span>
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onStartQuiz('exam')}
-                className="inline-flex min-h-[42px] shrink-0 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-              >
-                <span>{copy.startExam} (20 v.)</span>
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </>
-          )}
+              </>
+            )}
+          </button>
         </div>
       </div>
 
@@ -191,7 +181,7 @@ export function StudyGuidePanel({
           >
             <FlipHorizontal className="h-4 w-4" aria-hidden="true" />
             <span>
-              {uz ? 'Interaktiv Kartochkalar' : 'Flashcards'} ({subject.testQuestions.length})
+              {uz ? 'Interaktiv Kartochkalar' : 'Flashcards'} ({subject.questions.length})
             </span>
           </button>
 
@@ -264,37 +254,17 @@ export function StudyGuidePanel({
                 <span>{copy.topicsCovered}</span>
               </h2>
               <ol className="mt-4 space-y-2.5 text-sm text-slate-700">
-                {filteredTopics.map((topic, idx) => {
-                  const tVariants = getTopicVariantCount(subject, topic);
-                  return (
-                    <li
-                      key={topic}
-                      className="flex flex-col gap-1.5 border-b border-slate-100 pb-2.5 last:border-b-0 last:pb-0"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <span className={`font-mono-num mt-0.5 text-xs font-semibold ${theme.accentText}`}>
-                          {String(idx + 1).padStart(2, '0')}
-                        </span>
-                        <span className="font-medium text-slate-800">{topic}</span>
-                      </div>
-                      {onStartTopicVariant && (
-                        <div className="flex flex-wrap items-center gap-1.5 pl-6 print:hidden">
-                          {Array.from({ length: tVariants }, (_, i) => i + 1).map((v) => (
-                            <button
-                              key={v}
-                              type="button"
-                              disabled={isProhibited}
-                              onClick={() => onStartTopicVariant(topic, v)}
-                              className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-teal-800 transition-colors hover:border-teal-300 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              V{v} (10)
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
+                {filteredTopics.map((topic, idx) => (
+                  <li
+                    key={topic}
+                    className="flex items-start gap-2.5 border-b border-slate-100 pb-2 last:border-b-0 last:pb-0"
+                  >
+                    <span className={`font-mono-num mt-0.5 text-xs font-semibold ${theme.accentText}`}>
+                      {String(idx + 1).padStart(2, '0')}
+                    </span>
+                    <span className="font-medium text-slate-800">{topic}</span>
+                  </li>
+                ))}
                 {filteredTopics.length === 0 && (
                   <li className="py-3 text-center text-xs text-slate-500">
                     {uz ? 'Mavzu topilmadi' : 'No matching topics'}

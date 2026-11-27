@@ -37,10 +37,10 @@ export function InteractiveFlashcards({ subject, lang }: InteractiveFlashcardsPr
   const deck = useMemo(() => {
     const base =
       diffFilter === 'all'
-        ? subject.testQuestions
-        : subject.testQuestions.filter((q) => q.difficulty === diffFilter);
+        ? subject.questions
+        : subject.questions.filter((q) => q.difficulty === diffFilter);
     return shuffleSeed === 0 ? base : shuffleArray(base);
-  }, [subject.testQuestions, diffFilter, shuffleSeed]);
+  }, [subject.questions, diffFilter, shuffleSeed]);
 
   useEffect(() => {
     setIndex(0);

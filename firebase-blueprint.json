@@ -49,7 +49,7 @@
     },
     "QuizAttempt": {
       "title": "QuizAttempt",
-      "description": "Immutable completed quiz attempt record (10-question topic drill or 25-question test/exam)",
+      "description": "Immutable completed 25-question ChSB quiz attempt record",
       "type": "object",
       "properties": {
         "id": {
@@ -91,14 +91,10 @@
           "enum": ["practice", "exam"]
         },
         "score": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 25
+          "type": "integer"
         },
         "total": {
-          "type": "integer",
-          "minimum": 5,
-          "maximum": 25
+          "type": "integer"
         },
         "percentage": {
           "type": "integer"
