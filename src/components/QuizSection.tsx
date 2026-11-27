@@ -20,28 +20,39 @@ import {
   ShieldCheck,
   XCircle,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttemptRecord, UI_COPY, pickText } from '../data/subjects';
 import { STUDENT_EMAIL, UserProfile, db, sanitizeDisplayName } from '../firebase';
-import { CertificateModal } from './CertificateModal';
 import { DeadlineTimer } from './DeadlineTimer';
 import { playSound } from '../utils/sound';
-import { CameraProctor } from './CameraProctor';
 import { FormattedMathText } from './FormattedMathText';
 import { MathShapeDiagram } from './MathShapeDiagram';
-import { ScientificCalculator } from './ScientificCalculator';
+
+const CameraProctor = lazy(() =>
+  import('./CameraProctor').then((m) => ({ default: m.CameraProctor }))
+);
+const CertificateModal = lazy(() =>
+  import('./CertificateModal').then((m) => ({ default: m.CertificateModal }))
+);
+const ScientificCalculator = lazy(() =>
+  import('./ScientificCalculator').then((m) => ({ default: m.ScientificCalculator }))
+);
 import {
   ActiveQuizQuestion,
   DifficultyLevel,
   QuizMode,
+  QuizSectionKind,
   SubjectConfig,
   SubjectId,
+  TopicDrillRequest,
   UILanguage,
   VariantSelection,
 } from '../types/quiz';
 import {
   DIFFICULTY_LEVELS,
-  QUESTIONS_PER_TEST,
+  QUESTIONS_PER_TOPIC_VARIANT,
+  VARIANTS_PER_SECTION,
+  buildTopicVariantQuestions,
   buildVariantQuestions,
   formatTime,
   getCorrectDisplayIndex,
@@ -49,6 +60,7 @@ import {
   getLocalizedField,
   getLocalizedOptions,
   getNextVariant,
+  getTopicVariantCount,
   getVariantChoices,
   getVariantLabel,
   gradeOf,
@@ -78,6 +90,8 @@ function generateSixDigitCode(): string {
 
 interface QuizSectionProps {
   subject: SubjectConfig;
+  sectionKind: QuizSectionKind;
+  initialTopicDrill?: TopicDrillRequest | null;
   lang: UILanguage;
   userProfile?: UserProfile | null;
   history?: AttemptRecord[];
@@ -131,6 +145,8 @@ function playWarningBeep(isFinalZero: boolean) {
 
 export function QuizSection({
   subject,
+  sectionKind,
+  initialTopicDrill = null,
   lang,
   userProfile,
   history = [],
@@ -140,18 +156,25 @@ export function QuizSection({
   registerFinishQuiz,
 }: QuizSectionProps) {
   const copy = UI_COPY[lang];
-  const warningsPaused = useWarningsPaused();
+  const isExamSection = sectionKind === 'exam';
+  const warningsPaused = useWarningsPaused() || !isExamSection;
   const warningsPausedRef = useRef<boolean>(warningsPaused);
   warningsPausedRef.current = warningsPaused;
 
   const isStudent = userProfile?.role !== 'teacher' && userProfile?.role !== 'owner';
+  const enforceAssignment = isExamSection && isStudent;
+
+  const [testScope, setTestScope] = useState<'variants' | 'topics'>('variants');
+  const [selectedTopic, setSelectedTopic] = useState<string>(() => subject.topics[0] ?? '');
+  const [topicVariant, setTopicVariant] = useState<number>(1);
+  const lastHandledDrillNonceRef = useRef<number>(0);
 
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('easy');
   const [variant, setVariant] = useState<VariantSelection>(1);
   const [subjectAssignments, setSubjectAssignments] = useState<
     Partial<Record<DifficultyLevel, AssignedSlot>>
   >({});
-  const [assignmentsLoaded, setAssignmentsLoaded] = useState<boolean>(!isStudent);
+  const [assignmentsLoaded, setAssignmentsLoaded] = useState<boolean>(!enforceAssignment);
 
   const [retakeInput, setRetakeInput] = useState<string>('');
   const [retakeBusy, setRetakeBusy] = useState<boolean>(false);
@@ -165,14 +188,14 @@ export function QuizSection({
     variant: number;
   } | null>(null);
 
-  const activeAssignment: AssignedSlot | null = isStudent
+  const activeAssignment: AssignedSlot | null = enforceAssignment
     ? (subjectAssignments[difficulty] ?? null)
     : null;
   const assignedVariant: number | null = activeAssignment?.variant ?? null;
 
   const effectiveAllowed = activeAssignment?.attemptsAllowed ?? 1;
   const effectiveUsed = useMemo(() => {
-    if (!isStudent || !activeAssignment) return 0;
+    if (!enforceAssignment || !activeAssignment) return 0;
     if (activeAssignment.hasExplicitCounters) {
       return activeAssignment.attemptsUsed;
     }
@@ -181,13 +204,15 @@ export function QuizSection({
     const hasLegacyAttempt = history.some(
       (rec) =>
         rec.subjectId === subject.id &&
+        rec.mode === 'exam' &&
         rec.difficulty === difficulty &&
         (rec.variant === vLabelUz || rec.variant === vLabelEn)
     );
     return hasLegacyAttempt ? Math.max(activeAssignment.attemptsUsed, 1) : activeAssignment.attemptsUsed;
-  }, [isStudent, activeAssignment, history, subject.id, difficulty]);
+  }, [enforceAssignment, activeAssignment, history, subject.id, difficulty]);
 
-  const hasAttemptsLeft = !isStudent || (activeAssignment !== null && effectiveUsed < effectiveAllowed);
+  const hasAttemptsLeft =
+    !enforceAssignment || (activeAssignment !== null && effectiveUsed < effectiveAllowed);
 
   const assignedDifficulties = useMemo(
     () => DIFFICULTY_LEVELS.filter((lvl) => subjectAssignments[lvl] !== undefined),
@@ -201,10 +226,10 @@ export function QuizSection({
     setRetakeInput('');
     setRetakeError(null);
     setRetakeSuccess(null);
-  }, [subject.id, difficulty]);
+  }, [subject.id, difficulty, sectionKind]);
 
   useEffect(() => {
-    if (!isStudent || !userProfile) {
+    if (!enforceAssignment || !userProfile) {
       setSubjectAssignments({});
       setAssignmentsLoaded(true);
       activeBuiltRef.current = null;
@@ -294,7 +319,7 @@ export function QuizSection({
             variant: resolvedSlot.variant,
           };
           setVariant(resolvedSlot.variant);
-          setQuestions(buildVariantQuestions(subject, targetDiff, resolvedSlot.variant));
+          setQuestions(buildVariantQuestions(subject, 'exam', resolvedSlot.variant));
           setAnswers({});
           setCurrentIndex(0);
           setStarted(false);
@@ -392,12 +417,12 @@ export function QuizSection({
     return () => {
       unsubs.forEach((unsub) => unsub());
     };
-  }, [isStudent, userProfile, subject]);
+  }, [enforceAssignment, userProfile, subject]);
 
-  const [mode, setMode] = useState<QuizMode>('practice');
   const [questions, setQuestions] = useState<ActiveQuizQuestion[]>(() =>
-    buildVariantQuestions(subject, 'easy', 1)
+    buildVariantQuestions(subject, sectionKind, 1)
   );
+  const mode: QuizMode = isExamSection ? 'exam' : 'practice';
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [started, setStarted] = useState<boolean>(false);
@@ -446,9 +471,9 @@ export function QuizSection({
     [userProfile, subject.id, difficulty]
   );
 
-  // Automatically send 6-digit unlock code to teachers once 1st attempt is finished or locked
+  // Automatically send 6-digit unlock code to teachers once 1st attempt is finished or locked in Imtihon
   useEffect(() => {
-    if (!isStudent || !assignmentsLoaded || !activeAssignment) return;
+    if (!enforceAssignment || !assignmentsLoaded || !activeAssignment) return;
     if (effectiveUsed < effectiveAllowed) {
       autoSentCodesRef.current.delete(activeAssignment.docId);
       return;
@@ -468,7 +493,7 @@ export function QuizSection({
       console.error('Failed to auto-dispatch retake code to teacher:', err);
     });
   }, [
-    isStudent,
+    enforceAssignment,
     assignmentsLoaded,
     activeAssignment,
     started,
@@ -614,9 +639,14 @@ export function QuizSection({
     }
   }, []);
 
-  // Reset quiz state whenever user switches to a different subject section
+  // Reset quiz state whenever user switches subject or Test/Exam section
   useEffect(() => {
-    if (isStudent) {
+    const firstTopic = subject.topics[0] ?? '';
+    setSelectedTopic(firstTopic);
+    setTopicVariant(1);
+    setTestScope('variants');
+
+    if (enforceAssignment) {
       setAnswers({});
       setCurrentIndex(0);
       setStarted(false);
@@ -628,7 +658,8 @@ export function QuizSection({
       resetFocusGuard();
       return;
     }
-    const fresh = buildVariantQuestions(subject, difficulty, 1);
+
+    const fresh = buildVariantQuestions(subject, sectionKind, 1);
     setVariant(1);
     setQuestions(fresh);
     setAnswers({});
@@ -641,9 +672,46 @@ export function QuizSection({
     setSecretUsedIds([]);
     resetFocusGuard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subject, isStudent]);
+  }, [subject.id, sectionKind, enforceAssignment]);
 
-  const totalDurationSeconds = (SUBJECT_DURATION_MINUTES[subject.id] ?? 30) * 60;
+  // Handle deep-link Topic Variant launch from StudyGuidePanel
+  useEffect(() => {
+    if (
+      !initialTopicDrill ||
+      sectionKind !== 'test' ||
+      initialTopicDrill.subjectId !== subject.id ||
+      initialTopicDrill.nonce === lastHandledDrillNonceRef.current
+    ) {
+      return;
+    }
+    lastHandledDrillNonceRef.current = initialTopicDrill.nonce;
+    const validTopic = subject.topics.includes(initialTopicDrill.topic)
+      ? initialTopicDrill.topic
+      : (subject.topics[0] ?? '');
+    if (!validTopic) return;
+    const maxV = getTopicVariantCount(subject, validTopic);
+    const safeV = Math.max(1, Math.min(maxV, initialTopicDrill.variant));
+
+    setTestScope('topics');
+    setSelectedTopic(validTopic);
+    setTopicVariant(safeV);
+    setQuestions(buildTopicVariantQuestions(subject, validTopic, safeV));
+    setAnswers({});
+    setCurrentIndex(0);
+    setStarted(false);
+    setSubmitted(false);
+    setElapsedSeconds(0);
+    setReviewFilter('all');
+    setRotationCount((c) => c + 1);
+    setSecretUsedIds([]);
+    resetFocusGuard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTopicDrill, subject.id, sectionKind]);
+
+  const isTopicDrillActive = !isExamSection && testScope === 'topics';
+  const totalDurationSeconds = isTopicDrillActive
+    ? 15 * 60
+    : (SUBJECT_DURATION_MINUTES[subject.id] ?? 30) * 60;
   const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds);
 
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
@@ -730,18 +798,40 @@ export function QuizSection({
     nextVar: VariantSelection,
     prevIds: string[]
   ) => {
-    const nextQuestions = buildVariantQuestions(subject, nextDiff, nextVar, prevIds);
-    if (isStudent && typeof nextVar === 'number') {
+    const nextQuestions = buildVariantQuestions(subject, sectionKind, nextVar, prevIds);
+    if (enforceAssignment && typeof nextVar === 'number') {
       activeBuiltRef.current = {
         subjectId: subject.id,
         diff: nextDiff,
         variant: nextVar,
       };
-    } else if (!isStudent) {
+    } else if (!enforceAssignment) {
       activeBuiltRef.current = null;
     }
+    setTestScope('variants');
     setDifficulty(nextDiff);
     setVariant(nextVar);
+    setQuestions(nextQuestions);
+    setAnswers({});
+    setCurrentIndex(0);
+    setStarted(false);
+    setSubmitted(false);
+    setElapsedSeconds(0);
+    setReviewFilter('all');
+    setRotationCount((c) => c + 1);
+    setSecretUsedIds([]);
+    setRetakeError(null);
+    setRetakeSuccess(null);
+    resetFocusGuard();
+  };
+
+  const startTopicSession = (topicName: string, tVariant: number) => {
+    if (isExamSection) return;
+    const nextQuestions = buildTopicVariantQuestions(subject, topicName, tVariant);
+    activeBuiltRef.current = null;
+    setTestScope('topics');
+    setSelectedTopic(topicName);
+    setTopicVariant(tVariant);
     setQuestions(nextQuestions);
     setAnswers({});
     setCurrentIndex(0);
@@ -764,10 +854,16 @@ export function QuizSection({
     action();
   };
 
-  // Mandatory requirement: Every time "Start over" is clicked, questions swap/shuffle
+  // Swap to next variant on Restart
   const handleStartOver = () => {
-    if (isStudent || assignedVariant !== null) return;
+    if (enforceAssignment) return;
     guardSwitch(() => {
+      if (isTopicDrillActive) {
+        const maxTv = getTopicVariantCount(subject, selectedTopic);
+        const nextTv = topicVariant < maxTv ? topicVariant + 1 : 1;
+        startTopicSession(selectedTopic, nextTv);
+        return;
+      }
       const nextVar = getNextVariant(variant, subject.id);
       const prevIds = questions.map((q) => q.source.id);
       startSession(difficulty, nextVar, prevIds);
@@ -777,25 +873,35 @@ export function QuizSection({
   const handleSelectDifficulty = (chosenDifficulty: DifficultyLevel) => {
     if (chosenDifficulty === difficulty && !submitted) return;
     guardSwitch(() => {
-      const targetVar = isStudent
+      const targetVar = enforceAssignment
         ? (subjectAssignments[chosenDifficulty]?.variant ?? 1)
-        : 1;
+        : variant;
       const prevIds = questions.map((q) => q.source.id);
       startSession(chosenDifficulty, targetVar, prevIds);
     });
   };
 
   const handleSelectVariant = (chosenVariant: VariantSelection) => {
-    if (isStudent || assignedVariant !== null) return; // Locked for students
-    if (chosenVariant === variant && !submitted) return;
+    if (enforceAssignment) return; // Locked for students in Imtihon
+    if (chosenVariant === variant && !isTopicDrillActive && !submitted) return;
     guardSwitch(() => {
       const prevIds = questions.map((q) => q.source.id);
       startSession(difficulty, chosenVariant, prevIds);
     });
   };
 
+  const handleSelectTopicDrill = (topicName: string, tv: number) => {
+    if (isExamSection) return;
+    if (isTopicDrillActive && selectedTopic === topicName && topicVariant === tv && !submitted) {
+      return;
+    }
+    guardSwitch(() => {
+      startTopicSession(topicName, tv);
+    });
+  };
+
   const handleVerifyRetakeCode = async () => {
-    if (!isStudent || !activeAssignment) return;
+    if (!enforceAssignment || !activeAssignment) return;
     const cleaned = retakeInput.replace(/\s+/g, '').trim();
     if (!/^[0-9]{6}$/.test(cleaned)) {
       setRetakeError(
@@ -827,8 +933,8 @@ export function QuizSection({
       setRetakeInput('');
       setRetakeSuccess(
         lang === 'uz'
-          ? '2-urinish muvaffaqiyatli ochildi! Endi testni boshlashingiz mumkin.'
-          : '2nd attempt unlocked! You can now start your test.'
+          ? '2-urinish muvaffaqiyatli ochildi! Endi imtihonni boshlashingiz mumkin.'
+          : '2nd attempt unlocked! You can now start your exam.'
       );
     } catch (err) {
       console.error('Retake code verification failed:', err);
@@ -843,7 +949,7 @@ export function QuizSection({
   };
 
   const handleBeginTest = async () => {
-    if (isStudent && (!assignmentsLoaded || !activeAssignment || effectiveUsed >= effectiveAllowed)) {
+    if (enforceAssignment && (!assignmentsLoaded || !activeAssignment || effectiveUsed >= effectiveAllowed)) {
       return;
     }
     if (!warningsPausedRef.current && cameraStatus !== 'active') {
@@ -851,7 +957,7 @@ export function QuizSection({
       if (!ok) return;
     }
 
-    if (isStudent && activeAssignment) {
+    if (enforceAssignment && activeAssignment) {
       try {
         await updateDoc(
           doc(db, 'studentAssignments', activeAssignment.docId),
@@ -908,6 +1014,14 @@ export function QuizSection({
     }
   };
 
+  const getAttemptVariantName = () => {
+    if (isTopicDrillActive) {
+      const topicIdx = Math.max(0, subject.topics.indexOf(selectedTopic));
+      return `M${topicIdx + 1} · Variant ${topicVariant}`;
+    }
+    return getVariantLabel(variant, lang);
+  };
+
   const handleSubmit = () => {
     if (submitted || submittedRef.current) return;
     submittedRef.current = true;
@@ -922,23 +1036,24 @@ export function QuizSection({
       document.title = originalTitleRef.current;
     }
 
+    const totalQ = Math.max(1, questions.length);
     let correct = 0;
     questions.forEach((q, idx) => {
       if (isChoiceCorrect(q, answers[idx])) {
         correct += 1;
       }
     });
-    const pct = Math.round((correct / QUESTIONS_PER_TEST) * 100);
+    const pct = Math.round((correct / totalQ) * 100);
     const { grade } = gradeOf(pct);
 
     onRecordAttempt({
       id: `${subject.id}-${Date.now()}`,
       subjectId: subject.id,
       difficulty,
-      variant: getVariantLabel(variant, lang),
+      variant: getAttemptVariantName(),
       mode,
       score: correct,
-      total: QUESTIONS_PER_TEST,
+      total: totalQ,
       percentage: pct,
       grade,
       elapsedSeconds,
@@ -969,15 +1084,16 @@ export function QuizSection({
     }
     playWarningBeep(true);
 
+    const totalQ = Math.max(1, questions.length);
     const { grade } = gradeOf(0);
     onRecordAttempt({
       id: `${subject.id}-${Date.now()}`,
       subjectId: subject.id,
       difficulty,
-      variant: getVariantLabel(variant, lang),
+      variant: getAttemptVariantName(),
       mode,
       score: 0,
-      total: QUESTIONS_PER_TEST,
+      total: totalQ,
       percentage: 0,
       grade,
       elapsedSeconds,
@@ -1018,11 +1134,15 @@ export function QuizSection({
   // Sync running state and submit callback with App navigation guard
   const finishHandlerRef = useRef<() => void>(() => {});
   finishHandlerRef.current = handleSubmit;
+  const onRunningStateChangeRef = useRef(onRunningStateChange);
+  onRunningStateChangeRef.current = onRunningStateChange;
+  const registerFinishQuizRef = useRef(registerFinishQuiz);
+  registerFinishQuizRef.current = registerFinishQuiz;
 
   useEffect(() => {
     const active = started && !submitted;
-    onRunningStateChange?.(active);
-    registerFinishQuiz?.(active ? () => finishHandlerRef.current() : null);
+    onRunningStateChangeRef.current?.(active);
+    registerFinishQuizRef.current?.(active ? () => finishHandlerRef.current() : null);
     if (typeof document !== 'undefined') {
       document.body.classList.toggle('quiz-locked', active);
     }
@@ -1030,14 +1150,14 @@ export function QuizSection({
       unlockSystemKeys();
     }
     return () => {
-      onRunningStateChange?.(false);
-      registerFinishQuiz?.(null);
+      onRunningStateChangeRef.current?.(false);
+      registerFinishQuizRef.current?.(null);
       if (typeof document !== 'undefined') {
         document.body.classList.remove('quiz-locked');
       }
       unlockSystemKeys();
     };
-  }, [started, submitted, onRunningStateChange, registerFinishQuiz]);
+  }, [started, submitted]);
 
   // Keyboard shortcuts during active quiz (A-D / 1-4 to select option, Left/Right arrows to navigate)
   useEffect(() => {
@@ -1082,7 +1202,7 @@ export function QuizSection({
 
       if (e.key === 'ArrowRight') {
         e.preventDefault();
-        setCurrentIndex((i) => Math.min(QUESTIONS_PER_TEST - 1, i + 1));
+        setCurrentIndex((i) => Math.min(Math.max(0, questions.length - 1), i + 1));
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
         setCurrentIndex((i) => Math.max(0, i - 1));
@@ -1438,8 +1558,9 @@ export function QuizSection({
       topicMap.set(q.source.topic, entry);
     });
 
+    const totalQ = Math.max(1, questions.length);
     const finalCorrect = forcedZero ? 0 : correct;
-    const percentage = Math.round((finalCorrect / QUESTIONS_PER_TEST) * 100);
+    const percentage = Math.round((finalCorrect / totalQ) * 100);
     const gradeInfo = gradeOf(percentage);
     const topicRows = Array.from(topicMap.entries()).map(([topic, stat]) => ({
       topic,
@@ -1544,7 +1665,22 @@ export function QuizSection({
         <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900">
+              <span
+                className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${
+                  isExamSection
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-teal-50 text-teal-800 ring-1 ring-teal-200'
+                }`}
+              >
+                {isExamSection
+                  ? lang === 'uz'
+                    ? 'Rasmiy Imtihon (ChSB) · 20 alohida variant'
+                    : 'Official Exam (ChSB) · 20 Dedicated Variants'
+                  : lang === 'uz'
+                    ? 'Test mashq bo‘limi · 20 variant + Mavzu testlari'
+                    : 'Practice Test Section · 20 Variants + Topic Drills'}
+              </span>
+              <h1 className="mt-2 font-display text-2xl font-extrabold tracking-tight text-slate-900">
                 {pickText(subject.title, lang)}
               </h1>
               <p className="mt-1 text-sm text-slate-600">
@@ -1575,7 +1711,7 @@ export function QuizSection({
                 <span>{copy.navGuide}</span>
               </button>
 
-              {!isStudent && (
+              {!enforceAssignment && (
                 <button
                   type="button"
                   onClick={handleStartOver}
@@ -1589,159 +1725,263 @@ export function QuizSection({
             </div>
           </div>
 
-          {/* Difficulty Tier + Quiz Mode Bar */}
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                {copy.difficultyLabel}:
-              </span>
-              <div
-                role="group"
-                aria-label={copy.difficultyLabel}
-                className="inline-flex flex-wrap rounded-lg bg-slate-100 p-0.5"
-              >
-                {DIFFICULTY_LEVELS.map((lvl) => {
-                  const active = difficulty === lvl;
-                  const assignedForLvl = isStudent ? subjectAssignments[lvl] : undefined;
-                  const isLockedLvl = isStudent && assignmentsLoaded && assignedForLvl === undefined;
-                  const activeColor =
-                    lvl === 'easy'
-                      ? 'bg-emerald-700 text-white shadow-xs'
-                      : lvl === 'medium'
-                        ? 'bg-amber-600 text-white shadow-xs'
-                        : 'bg-rose-700 text-white shadow-xs';
-                  return (
-                    <button
-                      key={lvl}
-                      type="button"
-                      onClick={() => handleSelectDifficulty(lvl)}
-                      className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-md px-3.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 sm:text-sm ${
-                        active ? activeColor : 'text-slate-600 hover:text-slate-900'
+          {isExamSection ? (
+            <>
+              {/* Exam Section: Difficulty tier (for teacher assignment matching) */}
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    {copy.difficultyLabel}:
+                  </span>
+                  <div
+                    role="group"
+                    aria-label={copy.difficultyLabel}
+                    className="inline-flex flex-wrap rounded-lg bg-slate-100 p-0.5"
+                  >
+                    {DIFFICULTY_LEVELS.map((lvl) => {
+                      const active = difficulty === lvl;
+                      const assignedForLvl = enforceAssignment ? subjectAssignments[lvl] : undefined;
+                      const isLockedLvl =
+                        enforceAssignment && assignmentsLoaded && assignedForLvl === undefined;
+                      const activeColor =
+                        lvl === 'easy'
+                          ? 'bg-emerald-700 text-white shadow-xs'
+                          : lvl === 'medium'
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'bg-rose-700 text-white shadow-xs';
+                      return (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => handleSelectDifficulty(lvl)}
+                          className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-md px-3.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 sm:text-sm ${
+                            active ? activeColor : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          <span>{getDifficultyLabel(lvl, lang)}</span>
+                          {enforceAssignment && assignedForLvl !== undefined && (
+                            <span className="rounded bg-black/15 px-1.5 py-0.5 text-[10px] font-bold">
+                              V{assignedForLvl.variant}
+                            </span>
+                          )}
+                          {isLockedLvl && (
+                            <Lock className="h-3 w-3 opacity-70" aria-hidden="true" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+                  <span>{copy.modeExam}</span>
+                </span>
+              </div>
+
+              {/* 20 Dedicated Exam Variants */}
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                {enforceAssignment && !assignmentsLoaded && (
+                  <div className="mb-2.5 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-600">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    <span>
+                      {lang === 'uz'
+                        ? 'Biriktirilgan imtihon varianti tekshirilmoqda...'
+                        : 'Checking assigned exam variant...'}
+                    </span>
+                  </div>
+                )}
+                {enforceAssignment && assignmentsLoaded && assignedVariant === null && (
+                  <div className="mb-2.5 rounded-lg border border-rose-300 bg-rose-50 p-2.5 text-xs font-semibold text-rose-900">
+                    {lang === 'uz'
+                      ? `🔒 Sizga ${pickText(subject.shortLabel, lang)} Imtihon bo‘limida "${getDifficultyLabel(difficulty, lang)}" darajasi uchun variant biriktirilmagan. Test bo‘limida erkin mashq qilishingiz mumkin.`
+                      : `🔒 No exam variant is assigned to you for ${pickText(subject.shortLabel, lang)} (${getDifficultyLabel(difficulty, lang)}). You can still practice freely in the Test section.`}
+                  </div>
+                )}
+                {enforceAssignment && assignedVariant !== null && (
+                  <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900">
+                    <span>
+                      {lang === 'uz'
+                        ? `🔒 Ustozingiz sizga Imtihon uchun faqat ${getVariantLabel(assignedVariant, lang)}ni biriktirgan.`
+                        : `🔒 Your teacher assigned ${getVariantLabel(assignedVariant, lang)} for this exam tier.`}
+                    </span>
+                    <span
+                      className={`font-mono-num rounded px-2 py-0.5 text-[11px] font-bold ${
+                        hasAttemptsLeft
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-rose-100 text-rose-800'
                       }`}
                     >
-                      <span>{getDifficultyLabel(lvl, lang)}</span>
-                      {isStudent && assignedForLvl !== undefined && (
-                        <span className="rounded bg-black/15 px-1.5 py-0.5 text-[10px] font-bold">
-                          V{assignedForLvl.variant}
-                        </span>
-                      )}
-                      {isLockedLvl && (
-                        <Lock className="h-3 w-3 opacity-70" aria-hidden="true" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div
-              role="group"
-              aria-label={lang === 'uz' ? 'Test rejimi' : 'Quiz Mode'}
-              className="inline-flex rounded-lg bg-slate-100 p-0.5"
-            >
-              <button
-                type="button"
-                onClick={() => setMode('practice')}
-                className={`min-h-[36px] rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
-                  mode === 'practice'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {copy.modePractice}
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('exam')}
-                className={`min-h-[36px] rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
-                  mode === 'exam'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {copy.modeExam}
-              </button>
-            </div>
-          </div>
-
-          {/* 5 (or 20 for Math) Variants per Difficulty + Random 25 */}
-          <div className="mt-3 border-t border-slate-100 pt-3">
-            {isStudent && !assignmentsLoaded && (
-              <div className="mb-2.5 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-600">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                <span>
-                  {lang === 'uz'
-                    ? 'Biriktirilgan variantlar tekshirilmoqda...'
-                    : 'Checking assigned variants...'}
-                </span>
-              </div>
-            )}
-            {isStudent && assignmentsLoaded && assignedVariant === null && (
-              <div className="mb-2.5 rounded-lg border border-rose-300 bg-rose-50 p-2.5 text-xs font-semibold text-rose-900">
-                {lang === 'uz'
-                  ? `🔒 Sizga ${pickText(subject.shortLabel, lang)} fanidan "${getDifficultyLabel(difficulty, lang)}" darajasi uchun variant biriktirilmagan. Ustoz variant biriktirmagunicha test ishlab bo'lmaydi.`
-                  : `🔒 No variant is assigned to you for ${pickText(subject.shortLabel, lang)} (${getDifficultyLabel(difficulty, lang)}). You cannot take tests until a teacher assigns a variant.`}
-              </div>
-            )}
-            {isStudent && assignedVariant !== null && (
-              <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900">
-                <span>
-                  {lang === 'uz'
-                    ? `🔒 Ustozingiz sizga bu daraja uchun faqat ${getVariantLabel(assignedVariant, lang)}ni biriktirgan. Variantni o'zgartirib bo'lmaydi.`
-                    : `🔒 Your teacher assigned you ${getVariantLabel(assignedVariant, lang)} for this difficulty tier. Variant switching is locked.`}
-                </span>
-                <span
-                  className={`font-mono-num rounded px-2 py-0.5 text-[11px] font-bold ${
-                    hasAttemptsLeft
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-rose-100 text-rose-800'
-                  }`}
+                      {lang === 'uz'
+                        ? `Urinish: ${effectiveUsed}/${effectiveAllowed}`
+                        : `Attempts: ${effectiveUsed}/${effectiveAllowed}`}
+                    </span>
+                  </div>
+                )}
+                <div
+                  role="group"
+                  aria-label={lang === 'uz' ? 'Imtihon variantlari' : 'Exam Variants'}
+                  className="flex flex-wrap items-center gap-1.5"
                 >
-                  {lang === 'uz'
-                    ? `Urinish: ${effectiveUsed}/${effectiveAllowed}`
-                    : `Attempts: ${effectiveUsed}/${effectiveAllowed}`}
+                  {variantChoices.map((v) => {
+                    const isAssigned =
+                      enforceAssignment && assignedVariant !== null && assignedVariant === v;
+                    const active = enforceAssignment ? isAssigned : variant === v;
+                    return (
+                      <button
+                        key={String(v)}
+                        type="button"
+                        disabled={enforceAssignment}
+                        onClick={() => handleSelectVariant(v)}
+                        className={`min-h-[34px] rounded-lg px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
+                          active
+                            ? isAssigned
+                              ? 'bg-amber-600 text-white shadow-xs'
+                              : 'bg-slate-900 text-white'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
+                        } ${enforceAssignment ? 'cursor-not-allowed opacity-75' : ''}`}
+                      >
+                        {getVariantLabel(v, lang)} {isAssigned ? '🔒' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Test Practice Section: 20 Full Variants vs Per-Topic Variants (3 each) */}
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                <div
+                  role="tablist"
+                  aria-label={lang === 'uz' ? 'Test turi' : 'Test Mode Type'}
+                  className="inline-flex flex-wrap rounded-lg bg-slate-100 p-0.5"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={testScope === 'variants'}
+                    onClick={() =>
+                      guardSwitch(() => startSession(difficulty, typeof variant === 'number' ? variant : 1, []))
+                    }
+                    className={`min-h-[36px] rounded-md px-3.5 text-xs font-semibold transition-colors sm:text-sm ${
+                      testScope === 'variants'
+                        ? 'bg-teal-700 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {lang === 'uz'
+                      ? `${VARIANTS_PER_SECTION} ta Variant (25 savol)`
+                      : `${VARIANTS_PER_SECTION} Variants (25 Qs)`}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={testScope === 'topics'}
+                    onClick={() =>
+                      guardSwitch(() => startTopicSession(selectedTopic || subject.topics[0], 1))
+                    }
+                    className={`min-h-[36px] rounded-md px-3.5 text-xs font-semibold transition-colors sm:text-sm ${
+                      testScope === 'topics'
+                        ? 'bg-teal-700 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {lang === 'uz'
+                      ? `Mavzu testlari (${subject.topics.length} × 3 variant)`
+                      : `Topic Drills (${subject.topics.length} × 3 Variants)`}
+                  </button>
+                </div>
+
+                <span className="inline-flex items-center rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800">
+                  {copy.modePractice}
                 </span>
               </div>
-            )}
-            <div
-              role="group"
-              aria-label={lang === 'uz' ? 'Variant tanlash' : 'Select Variant'}
-              className="flex flex-wrap items-center gap-1.5"
-            >
-              {variantChoices.map((v) => {
-                const isAssigned = isStudent && assignedVariant !== null && assignedVariant === v;
-                const active = isStudent ? isAssigned : variant === v;
-                return (
-                  <button
-                    key={String(v)}
-                    type="button"
-                    disabled={isStudent}
-                    onClick={() => handleSelectVariant(v)}
-                    className={`min-h-[34px] rounded-lg px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
-                      active
-                        ? isAssigned
-                          ? 'bg-amber-600 text-white shadow-xs'
-                          : 'bg-slate-900 text-white'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                    } ${isStudent ? 'cursor-not-allowed opacity-75' : ''}`}
-                  >
-                    {getVariantLabel(v, lang)} {isAssigned ? '🔒' : ''}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+
+              {testScope === 'variants' ? (
+                <div
+                  role="group"
+                  aria-label={lang === 'uz' ? 'Test variantlari' : 'Practice Variants'}
+                  className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3"
+                >
+                  {variantChoices.map((v) => {
+                    const active = variant === v;
+                    return (
+                      <button
+                        key={String(v)}
+                        type="button"
+                        onClick={() => handleSelectVariant(v)}
+                        className={`min-h-[34px] rounded-lg px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${
+                          active
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
+                        }`}
+                      >
+                        {getVariantLabel(v, lang)}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {subject.topics.map((topicName, tIdx) => {
+                    const tvCount = getTopicVariantCount(subject, topicName);
+                    const isTopicSelected = selectedTopic === topicName;
+                    return (
+                      <div
+                        key={topicName}
+                        className={`flex flex-col justify-between gap-2 rounded-lg border p-3 transition-colors ${
+                          isTopicSelected
+                            ? 'border-teal-300 bg-teal-50/50'
+                            : 'border-slate-200 bg-slate-50/60'
+                        }`}
+                      >
+                        <p className="text-xs font-bold leading-snug text-slate-800">
+                          <span className="font-mono-num mr-1.5 text-teal-700">
+                            {String(tIdx + 1).padStart(2, '0')}.
+                          </span>
+                          {topicName}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {Array.from({ length: tvCount }, (_, i) => i + 1).map((tv) => {
+                            const activeTv = isTopicSelected && topicVariant === tv;
+                            return (
+                              <button
+                                key={tv}
+                                type="button"
+                                onClick={() => handleSelectTopicDrill(topicName, tv)}
+                                className={`min-h-[28px] rounded-md px-2.5 text-[11px] font-semibold transition-colors ${
+                                  activeTv
+                                    ? 'bg-teal-700 text-white shadow-xs'
+                                    : 'border border-slate-200 bg-white text-slate-700 hover:border-teal-300 hover:bg-teal-50'
+                                }`}
+                              >
+                                V{tv} ({QUESTIONS_PER_TOPIC_VARIANT})
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
 
           <div className="font-mono-num mt-4 flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-slate-500">
             <span>
-              {getDifficultyLabel(difficulty, lang)} ·{' '}
-              {!isStudent || assignedVariant !== null
-                ? getVariantLabel(variant, lang)
-                : lang === 'uz'
-                  ? 'Variant biriktirilmagan'
-                  : 'No variant assigned'}{' '}
-              · {QUESTIONS_PER_TEST} {lang === 'uz' ? 'savol' : 'questions'} ·{' '}
-              {SUBJECT_DURATION_MINUTES[subject.id]} {lang === 'uz' ? 'daq' : 'min'}
+              {isTopicDrillActive
+                ? `${selectedTopic} · Variant ${topicVariant}`
+                : `${isExamSection ? getDifficultyLabel(difficulty, lang) + ' · ' : ''}${
+                    !enforceAssignment || assignedVariant !== null
+                      ? getVariantLabel(variant, lang)
+                      : lang === 'uz'
+                        ? 'Variant biriktirilmagan'
+                        : 'No variant assigned'
+                  }`}{' '}
+              · {questions.length} {lang === 'uz' ? 'savol' : 'questions'} ·{' '}
+              {Math.round(totalDurationSeconds / 60)} {lang === 'uz' ? 'daq' : 'min'}
             </span>
             <div className="flex flex-wrap items-center gap-4">
               {!warningsPaused && (
@@ -1956,7 +2196,7 @@ export function QuizSection({
               <ShieldAlert className="h-9 w-9" aria-hidden="true" />
             </div>
             <p className="font-mono-num mt-5 text-5xl font-extrabold text-white sm:text-6xl">
-              0 / {QUESTIONS_PER_TEST}
+              0 / {questions.length}
             </p>
             <h2 className="mt-4 font-display text-2xl font-extrabold text-white sm:text-3xl">
               {lang === 'uz'
@@ -1965,8 +2205,8 @@ export function QuizSection({
             </h2>
             <p className="mt-4 text-base leading-relaxed text-rose-100">
               {lang === 'uz'
-                ? '3 ta ogohlantirish ham sarflandi (boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
-                : 'All 3 warnings were used (you switched outside the test tab, window, or desktop). Your score was recorded as 0 / 25 (0%).'}
+                ? `3 ta ogohlantirish ham sarflandi (boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / ${questions.length} (0%) qilib saqlandi.`
+                : `All 3 warnings were used (you switched outside the test tab, window, or desktop). Your score was recorded as 0 / ${questions.length} (0%).`}
             </p>
             <button
               type="button"
@@ -2022,7 +2262,7 @@ export function QuizSection({
 
       {/* Ready-to-Start Screen OR Locked Assignment Gate OR Results View OR Active Workspace */}
       {!started ? (
-        isStudent && !assignmentsLoaded ? (
+        enforceAssignment && !assignmentsLoaded ? (
           <div className="rounded-xl border border-slate-200 bg-white p-8 text-center sm:p-10">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
               <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
@@ -2038,7 +2278,7 @@ export function QuizSection({
                 : 'Please wait while we verify your assigned test variant.'}
             </p>
           </div>
-        ) : isStudent && assignedVariant === null ? (
+        ) : enforceAssignment && assignedVariant === null ? (
           <div className="rounded-xl border-2 border-rose-200 bg-white p-8 text-center sm:p-10">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-700">
               <Lock className="h-7 w-7" aria-hidden="true" />
@@ -2046,20 +2286,20 @@ export function QuizSection({
             <h2 className="mt-4 font-display text-xl font-extrabold text-slate-900 sm:text-2xl">
               {assignedDifficulties.length === 0
                 ? lang === 'uz'
-                  ? `${pickText(subject.shortLabel, lang)}: Testlar yopiq (Variant biriktirilmagan)`
-                  : `${pickText(subject.shortLabel, lang)}: Tests Locked (No Variant Assigned)`
+                  ? `${pickText(subject.shortLabel, lang)}: Imtihon yopiq (Variant biriktirilmagan)`
+                  : `${pickText(subject.shortLabel, lang)}: Exam Locked (No Variant Assigned)`
                 : lang === 'uz'
-                  ? `${getDifficultyLabel(difficulty, lang)} darajasi uchun variant biriktirilmagan`
-                  : `No variant assigned for ${getDifficultyLabel(difficulty, lang)}`}
+                  ? `${getDifficultyLabel(difficulty, lang)} darajasi uchun imtihon varianti biriktirilmagan`
+                  : `No exam variant assigned for ${getDifficultyLabel(difficulty, lang)}`}
             </h2>
             <p className="mx-auto mt-2.5 max-w-xl text-sm leading-relaxed text-slate-600">
               {assignedDifficulties.length === 0
                 ? lang === 'uz'
-                  ? `Ustozingiz sizga ${pickText(subject.shortLabel, lang)} fanidan hali hech qaysi qiyinchilik darajasida (Oson, O‘rta yoki Qiyin) variant biriktirmagan. Variant biriktirilmagunicha testlarni ishlay olmaysiz.`
-                  : `Your teacher has not assigned you a variant in ${pickText(subject.shortLabel, lang)} for any difficulty level (Easy, Medium, or Hard) yet. You cannot take tests until a variant is assigned.`
+                  ? `Ustozingiz sizga ${pickText(subject.shortLabel, lang)} Imtihon bo‘limida hali variant biriktirmagan. "Test" bo‘limida barcha 20 ta variant va mavzu testlarini erkin ishlashingiz mumkin.`
+                  : `Your teacher has not assigned an exam variant in ${pickText(subject.shortLabel, lang)} yet. You can practice freely in the Test section.`
                 : lang === 'uz'
                   ? `Sizga ${pickText(subject.shortLabel, lang)} fanidan "${getDifficultyLabel(difficulty, lang)}" darajasida variant biriktirilmagan. Faqat ustoz biriktirgan daraja va variantni ishlashingiz mumkin.`
-                  : `You do not have an assigned variant for ${getDifficultyLabel(difficulty, lang)} in ${pickText(subject.shortLabel, lang)}. You can only take the difficulty and variant assigned by your teacher.`}
+                  : `You do not have an assigned variant for ${getDifficultyLabel(difficulty, lang)} in ${pickText(subject.shortLabel, lang)}.`}
             </p>
 
             {assignedDifficulties.length > 0 && (
@@ -2090,7 +2330,7 @@ export function QuizSection({
               </div>
             )}
           </div>
-        ) : isStudent && activeAssignment !== null && effectiveUsed >= effectiveAllowed ? (
+        ) : enforceAssignment && activeAssignment !== null && effectiveUsed >= effectiveAllowed ? (
           <div className="rounded-xl border-2 border-indigo-200 bg-white p-8 text-center sm:p-10">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700">
               <KeyRound className="h-7 w-7" aria-hidden="true" />
@@ -2170,17 +2410,18 @@ export function QuizSection({
               <ShieldCheck className="h-6 w-6" aria-hidden="true" />
             </div>
             <h2 className="mt-4 font-display text-xl font-extrabold text-slate-900 sm:text-2xl">
-              {pickText(subject.shortLabel, lang)} · {getDifficultyLabel(difficulty, lang)} ·{' '}
-              {getVariantLabel(variant, lang)}
+              {isTopicDrillActive
+                ? `${pickText(subject.shortLabel, lang)} · ${selectedTopic} · Variant ${topicVariant}`
+                : `${pickText(subject.shortLabel, lang)} · ${isExamSection ? `${getDifficultyLabel(difficulty, lang)} · ` : ''}${getVariantLabel(variant, lang)}`}
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
               {warningsPaused
                 ? lang === 'uz'
-                  ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${SUBJECT_DURATION_MINUTES[subject.id]} daqiqa · ${mode === 'practice' ? copy.modePractice : copy.modeExam}).`
-                  : `This variant contains ${QUESTIONS_PER_TEST} questions (${SUBJECT_DURATION_MINUTES[subject.id]} min · ${mode === 'practice' ? copy.modePractice : copy.modeExam}).`
+                  ? `Ushbu ${isTopicDrillActive ? 'mavzu testida' : 'variantda'} ${questions.length} ta savol mavjud (${Math.round(totalDurationSeconds / 60)} daqiqa · ${mode === 'practice' ? copy.modePractice : copy.modeExam}).`
+                  : `This ${isTopicDrillActive ? 'topic drill' : 'variant'} contains ${questions.length} questions (${Math.round(totalDurationSeconds / 60)} min · ${mode === 'practice' ? copy.modePractice : copy.modeExam}).`
                 : lang === 'uz'
-                  ? `Ushbu variantda ${QUESTIONS_PER_TEST} ta savol mavjud (${SUBJECT_DURATION_MINUTES[subject.id]} daqiqa · ${mode === 'practice' ? copy.modePractice : copy.modeExam}). Test paytida veb-kamera va to‘liq ekran nazorati faol bo‘ladi — boshqa desktop yoki oynaga o‘tish darhol, yuzni burish/berkitish esa 3.5 soniyada ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
-                  : `This variant contains ${QUESTIONS_PER_TEST} questions (${SUBJECT_DURATION_MINUTES[subject.id]} min · ${mode === 'practice' ? copy.modePractice : copy.modeExam}). Webcam and fullscreen proctoring are active — switching desktops or windows immediately deducts 1 warning, and looking away/obscuring face for over 3.5s deducts 1 warning (3 warnings max; exhausting all 3 gives 0).`}
+                  ? `Ushbu imtihon variantida ${questions.length} ta savol mavjud (${Math.round(totalDurationSeconds / 60)} daqiqa · ${copy.modeExam}). Imtihon paytida veb-kamera va to‘liq ekran nazorati faol bo‘ladi — boshqa desktop yoki oynaga o‘tish darhol, yuzni burish/berkitish esa 3.5 soniyada ogohlantirish kamayishiga sabab bo‘ladi (jami 3 ta ogohlantirish; 3 tasi tugasa natija 0 bo‘ladi).`
+                  : `This exam variant contains ${questions.length} questions (${Math.round(totalDurationSeconds / 60)} min · ${copy.modeExam}). Webcam and fullscreen proctoring are active — switching desktops or windows immediately deducts 1 warning (3 warnings max; exhausting all 3 gives 0).`}
             </p>
 
             {retakeSuccess && (
@@ -2241,14 +2482,14 @@ export function QuizSection({
                 </h2>
                 <p className="mt-1 text-sm text-rose-800">
                   {lang === 'uz'
-                    ? '3 ta ogohlantirish ham sarflandi (boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / 25 (0%) qilib saqlandi.'
-                    : 'All 3 warnings were used (you switched outside the test tab, window, or desktop). Your score for this test was recorded as 0 / 25 (0%).'}
+                    ? `3 ta ogohlantirish ham sarflandi (boshqa oyna, sayt yoki desktopga o‘tildi). Ushbu test uchun natijangiz 0 / ${questions.length} (0%) qilib saqlandi.`
+                    : `All 3 warnings were used (you switched outside the test tab, window, or desktop). Your score for this test was recorded as 0 / ${questions.length} (0%).`}
                 </p>
               </div>
             </div>
           )}
 
-          {isStudent && activeAssignment !== null && (
+          {enforceAssignment && activeAssignment !== null && (
             <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/50 p-5 sm:p-6">
               {effectiveUsed < effectiveAllowed ? (
                 <div className="flex flex-wrap items-center justify-between gap-4">
@@ -2357,7 +2598,7 @@ export function QuizSection({
                     <span>{lang === 'uz' ? 'Sertifikatni Olish 🏆' : 'Get Certificate 🏆'}</span>
                   </button>
                 )}
-                {!isStudent && (
+                {!enforceAssignment && (
                   <button
                     type="button"
                     onClick={handleStartOver}
@@ -2374,7 +2615,7 @@ export function QuizSection({
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-medium text-slate-500">{copy.scoreLabel}</p>
                 <p className="font-mono-num mt-1 text-3xl font-bold text-slate-900">
-                  {resultsSummary.correct} / {QUESTIONS_PER_TEST}
+                  {resultsSummary.correct} / {questions.length}
                   {forcedZero && (
                     <span className="ml-2 font-sans text-lg font-extrabold text-rose-600">
                       Cheated
@@ -2453,7 +2694,9 @@ export function QuizSection({
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  {copy.filterAll}
+                  {lang === 'uz'
+                    ? `Barcha ${questions.length} savol`
+                    : `All ${questions.length} questions`}
                 </button>
                 <button
                   type="button"
@@ -2566,7 +2809,7 @@ export function QuizSection({
               <span>
                 {lang === 'uz' ? 'Javob berilgan:' : 'Answered:'}{' '}
                 <strong className="font-mono-num text-slate-900">
-                  {Object.keys(answers).length} / {QUESTIONS_PER_TEST}
+                  {Object.keys(answers).length} / {questions.length}
                 </strong>
               </span>
               <span className="hidden font-mono-num text-[11px] text-slate-400 sm:inline">
@@ -2577,11 +2820,15 @@ export function QuizSection({
               <div
                 className="h-full bg-teal-600 transition-all duration-200"
                 style={{
-                  width: `${Math.round((Object.keys(answers).length / QUESTIONS_PER_TEST) * 100)}%`,
+                  width: `${Math.round((Object.keys(answers).length / Math.max(1, questions.length)) * 100)}%`,
                 }}
               />
             </div>
-            <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10 md:grid-cols-[repeat(25,minmax(0,1fr))]">
+            <div
+              className={`grid grid-cols-5 gap-1.5 sm:grid-cols-10 ${
+                questions.length <= 10 ? 'md:grid-cols-10' : 'md:grid-cols-[repeat(25,minmax(0,1fr))]'
+              }`}
+            >
               {questions.map((q, idx) => {
                 const isCurrent = idx === currentIndex;
                 const sel = answers[idx];
@@ -2651,7 +2898,7 @@ export function QuizSection({
                     <span>{lang === 'uz' ? 'Kalkulyator' : 'Calculator'}</span>
                   </button>
                   <span className="font-mono-num">
-                    {copy.questionOf} {currentIndex + 1} / {QUESTIONS_PER_TEST}
+                    {copy.questionOf} {currentIndex + 1} / {questions.length}
                   </span>
                 </div>
               </div>
@@ -2771,11 +3018,11 @@ export function QuizSection({
                 </button>
 
                 <div className="flex flex-wrap items-center gap-2.5">
-                  {currentIndex < QUESTIONS_PER_TEST - 1 && (
+                  {currentIndex < questions.length - 1 && (
                     <button
                       type="button"
                       onClick={() =>
-                        setCurrentIndex((i) => Math.min(QUESTIONS_PER_TEST - 1, i + 1))
+                        setCurrentIndex((i) => Math.min(Math.max(0, questions.length - 1), i + 1))
                       }
                       className="inline-flex min-h-[42px] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
                     >
@@ -2800,44 +3047,52 @@ export function QuizSection({
 
       {/* Live Floating Corner Camera Proctor (active during test, movable to any corner) */}
       {started && !submitted && !warningsPaused && (
-        <CameraProctor
-          lang={lang}
-          isActive={true}
-          warningsLeft={warningsLeft}
-          maxWarnings={MAX_WARNINGS}
-          onViolation={triggerInstantPenalty}
-          stream={cameraStream}
-          cameraStatus={cameraStatus}
-          cameraError={cameraError}
-          onRequestCamera={requestCamera}
-          variant="floating"
-        />
+        <Suspense fallback={null}>
+          <CameraProctor
+            lang={lang}
+            isActive={true}
+            warningsLeft={warningsLeft}
+            maxWarnings={MAX_WARNINGS}
+            onViolation={triggerInstantPenalty}
+            stream={cameraStream}
+            cameraStatus={cameraStatus}
+            cameraError={cameraError}
+            onRequestCamera={requestCamera}
+            variant="floating"
+          />
+        </Suspense>
       )}
 
       {/* In-App Scientific Calculator */}
-      <ScientificCalculator
-        lang={lang}
-        open={calculatorOpen}
-        onClose={() => setCalculatorOpen(false)}
-        secretMathActive={isMathActiveQuiz}
-        secretMathAnswer={secretMathAnswer}
-        secretRemaining={secretRemaining}
-        secretMaxUses={MAX_SECRET_USES}
-        questionKey={isMathActiveQuiz ? activeQuestionId : null}
-        onSecretCodeUsed={handleSecretCodeUsed}
-      />
+      {calculatorOpen && (
+        <Suspense fallback={null}>
+          <ScientificCalculator
+            lang={lang}
+            open={calculatorOpen}
+            onClose={() => setCalculatorOpen(false)}
+            secretMathActive={isMathActiveQuiz}
+            secretMathAnswer={secretMathAnswer}
+            secretRemaining={secretRemaining}
+            secretMaxUses={MAX_SECRET_USES}
+            questionKey={isMathActiveQuiz ? activeQuestionId : null}
+            onSecretCodeUsed={handleSecretCodeUsed}
+          />
+        </Suspense>
+      )}
 
       {showCertificate && resultsSummary && (
-        <CertificateModal
-          lang={lang}
-          studentName={userProfile?.displayName || 'Student'}
-          subject={subject}
-          score={resultsSummary.correct}
-          total={QUESTIONS_PER_TEST}
-          grade={resultsSummary.gradeInfo.grade}
-          dateStr={new Date().toLocaleDateString()}
-          onClose={() => setShowCertificate(false)}
-        />
+        <Suspense fallback={null}>
+          <CertificateModal
+            lang={lang}
+            studentName={userProfile?.displayName || 'Student'}
+            subject={subject}
+            score={resultsSummary.correct}
+            total={questions.length}
+            grade={resultsSummary.gradeInfo.grade}
+            dateStr={new Date().toLocaleDateString()}
+            onClose={() => setShowCertificate(false)}
+          />
+        </Suspense>
       )}
     </section>
   );

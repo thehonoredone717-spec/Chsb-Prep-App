@@ -752,9 +752,17 @@ export function CameraProctor({
     }
 
     let isMounted = true;
+    let analyzing = false;
 
     const intervalId = window.setInterval(async () => {
-      const rawStatus = await analyzeFrame();
+      if (analyzing) return;
+      analyzing = true;
+      let rawStatus: ProctorStatus;
+      try {
+        rawStatus = await analyzeFrame();
+      } finally {
+        analyzing = false;
+      }
       if (!isMounted) return;
 
       if (rawStatus === 'camera_off') {

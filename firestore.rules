@@ -160,11 +160,12 @@ service cloud.firestore {
         && data.variant.size() <= 24
         && data.mode is string
         && data.mode in ['practice', 'exam']
+        && data.total is int
+        && data.total >= 5
+        && data.total <= 25
         && data.score is int
         && data.score >= 0
-        && data.score <= 25
-        && data.total is int
-        && data.total == 25
+        && data.score <= data.total
         && data.percentage is int
         && data.percentage >= 0
         && data.percentage <= 100

@@ -14,21 +14,40 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AuthGate } from './components/AuthGate';
-import { AssignView } from './components/AssignView';
-import { DashboardSection } from './components/DashboardSection';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppNotification } from './components/NotificationBell';
 import { OfflineIndicator } from './components/OfflineIndicator';
-import { OverviewSection } from './components/OverviewSection';
-import { PermissionView } from './components/PermissionView';
-import { PreviewView } from './components/PreviewView';
-import { QuizSection } from './components/QuizSection';
-import { ResultsHistoryView } from './components/ResultsHistoryView';
 import { SideMenu } from './components/SideMenu';
-import { StudyGuidePanel } from './components/StudyGuidePanel';
 import { SubjectBar } from './components/SubjectBar';
 import { AppView, TeacherScope, TopBar } from './components/TopBar';
+
+const AuthGate = lazy(() =>
+  import('./components/AuthGate').then((m) => ({ default: m.AuthGate }))
+);
+const DashboardSection = lazy(() =>
+  import('./components/DashboardSection').then((m) => ({ default: m.DashboardSection }))
+);
+const OverviewSection = lazy(() =>
+  import('./components/OverviewSection').then((m) => ({ default: m.OverviewSection }))
+);
+const QuizSection = lazy(() =>
+  import('./components/QuizSection').then((m) => ({ default: m.QuizSection }))
+);
+const StudyGuidePanel = lazy(() =>
+  import('./components/StudyGuidePanel').then((m) => ({ default: m.StudyGuidePanel }))
+);
+const ResultsHistoryView = lazy(() =>
+  import('./components/ResultsHistoryView').then((m) => ({ default: m.ResultsHistoryView }))
+);
+const AssignView = lazy(() =>
+  import('./components/AssignView').then((m) => ({ default: m.AssignView }))
+);
+const PreviewView = lazy(() =>
+  import('./components/PreviewView').then((m) => ({ default: m.PreviewView }))
+);
+const PermissionView = lazy(() =>
+  import('./components/PermissionView').then((m) => ({ default: m.PermissionView }))
+);
 import { MobileBottomNav } from './components/MobileBottomNav';
 import {
   AttemptRecord,
@@ -61,7 +80,13 @@ import {
   isTeacherAdmin,
   sanitizeDisplayName,
 } from './firebase';
-import { DifficultyLevel, SubjectId, UILanguage } from './types/quiz';
+import {
+  DifficultyLevel,
+  QuizSectionKind,
+  SubjectId,
+  TopicDrillRequest,
+  UILanguage,
+} from './types/quiz';
 import { getDifficultyLabel, getVariantLabel } from './utils/quizEngine';
 import {
   exitAppFullscreen,
@@ -94,6 +119,7 @@ export default function App() {
   const [fatalError, setFatalError] = useState<Error | null>(null);
   const [isQuizRunning, setIsQuizRunning] = useState<boolean>(false);
   const [pendingNavAction, setPendingNavAction] = useState<(() => void) | null>(null);
+  const [pendingTopicDrill, setPendingTopicDrill] = useState<TopicDrillRequest | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(() => isFullscreenActive());
   const [subjectPermissions, setSubjectPermissions] = useState<
     Partial<Record<SubjectId, SubjectPermission>>
@@ -131,6 +157,10 @@ export default function App() {
   const pendingSignupRef = useRef<{ username: string; displayName: string } | null>(null);
   const finishQuizRef = useRef<(() => void) | null>(null);
   const hasManualSubjectSelectionRef = useRef<boolean>(false);
+
+  const handleRegisterFinishQuiz = useCallback((fn: (() => void) | null) => {
+    finishQuizRef.current = fn;
+  }, []);
 
   if (fatalError) {
     throw fatalError;
@@ -179,7 +209,16 @@ export default function App() {
 
   // Monitor Firebase Auth and synchronize /users/{uid}
   useEffect(() => {
+    let active = true;
+    const authTimeout = window.setTimeout(() => {
+      if (active) {
+        setAuthReady(true);
+      }
+    }, 5000);
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      window.clearTimeout(authTimeout);
+      if (!active) return;
       setAuthUser(user);
       if (!user) {
         setUserProfile(null);
@@ -194,26 +233,49 @@ export default function App() {
         return;
       }
 
+      const isOwner = isAppOwner(user);
+      const isSubjectTeacher =
+        isComputingTeacher(user) ||
+        isMathTeacher(user) ||
+        isScienceTeacher(user) ||
+        isEnglishTeacher(user) ||
+        isHistoryTeacher(user);
+
+      const expectedRole: 'student' | 'teacher' | 'owner' = isOwner
+        ? 'owner'
+        : isSubjectTeacher
+          ? 'teacher'
+          : 'student';
+
+      const fallbackUsername = deriveUsernameFromUser(user, pendingSignupRef.current?.username);
+      const fallbackDisplayName = sanitizeDisplayName(
+        pendingSignupRef.current?.displayName ?? user.displayName,
+        fallbackUsername
+      );
+      const email = user.email?.toLowerCase() || '';
+
       setAuthReady(false);
+      const profileTimeout = window.setTimeout(() => {
+        if (!active) return;
+        setUserProfile((prev) =>
+          prev ?? {
+            uid: user.uid,
+            username: fallbackUsername,
+            displayName: fallbackDisplayName,
+            email,
+            role: expectedRole,
+          }
+        );
+        setAuthReady(true);
+      }, 4500);
+
       const userDocPath = `users/${user.uid}`;
       const userDocRef = doc(db, 'users', user.uid);
 
       void (async () => {
         try {
           const snap = await getDoc(userDocRef);
-          const isOwner = isAppOwner(user);
-          const isSubjectTeacher =
-            isComputingTeacher(user) ||
-            isMathTeacher(user) ||
-            isScienceTeacher(user) ||
-            isEnglishTeacher(user) ||
-            isHistoryTeacher(user);
-
-          const expectedRole: 'student' | 'teacher' | 'owner' = isOwner
-            ? 'owner'
-            : isSubjectTeacher
-              ? 'teacher'
-              : 'student';
+          if (!active) return;
 
           if (!snap.exists()) {
             const pending = pendingSignupRef.current;
@@ -224,7 +286,6 @@ export default function App() {
               username
             );
             const role = expectedRole;
-            const email = user.email?.toLowerCase() || '';
 
             try {
               await setDoc(userDocRef, {
@@ -240,23 +301,25 @@ export default function App() {
               handleFirestoreError(writeErr, OperationType.CREATE, userDocPath);
             }
 
-            setUserProfile({ uid: user.uid, username, displayName, email, role });
+            if (active) {
+              setUserProfile({ uid: user.uid, username, displayName, email, role });
+            }
           } else {
             const data = snap.data() as Partial<UserProfile>;
-            const email = user.email?.toLowerCase() || data.email || '';
+            const resolvedEmail = email || data.email || '';
             const profile: UserProfile = {
               uid: user.uid,
               username: deriveUsernameFromUser(user, data.username),
               displayName: sanitizeDisplayName(data.displayName, data.username || 'Student'),
-              email,
+              email: resolvedEmail,
               role: expectedRole,
             };
 
-            if (data.role !== expectedRole || (email && !data.email)) {
+            if (data.role !== expectedRole || (resolvedEmail && !data.email)) {
               try {
                 await updateDoc(userDocRef, {
                   role: expectedRole,
-                  ...(email ? { email } : {}),
+                  ...(resolvedEmail ? { email: resolvedEmail } : {}),
                   updatedAt: serverTimestamp(),
                 });
               } catch (updErr) {
@@ -264,25 +327,37 @@ export default function App() {
               }
             }
 
-            setUserProfile(profile);
+            if (active) {
+              setUserProfile(profile);
+            }
           }
-          setAuthReady(true);
+          if (active) setAuthReady(true);
         } catch (err) {
+          if (!active) return;
           if (err instanceof Error && err.message.startsWith('{')) {
             setFatalError(err);
           } else {
-            try {
-              handleFirestoreError(err, OperationType.GET, userDocPath);
-            } catch (wrapped) {
-              setFatalError(wrapped as Error);
-            }
+            // Fall back gracefully if offline/unreachable instead of crashing or hanging
+            setUserProfile({
+              uid: user.uid,
+              username: fallbackUsername,
+              displayName: fallbackDisplayName,
+              email,
+              role: expectedRole,
+            });
           }
           setAuthReady(true);
+        } finally {
+          window.clearTimeout(profileTimeout);
         }
       })();
     });
 
-    return () => unsubscribe();
+    return () => {
+      active = false;
+      window.clearTimeout(authTimeout);
+      unsubscribe();
+    };
   }, []);
 
   const isFullAdmin = isTeacherAdmin(authUser);
@@ -354,11 +429,7 @@ export default function App() {
         setHistory(rows);
       },
       (err) => {
-        try {
-          handleFirestoreError(err, OperationType.LIST, 'attempts');
-        } catch (wrapped) {
-          setFatalError(wrapped as Error);
-        }
+        console.warn('Attempts listener error:', err);
       }
     );
 
@@ -430,11 +501,7 @@ export default function App() {
         setUsersList(profiles);
       },
       (err) => {
-        try {
-          handleFirestoreError(err, OperationType.LIST, 'users');
-        } catch (wrapped) {
-          setFatalError(wrapped as Error);
-        }
+        console.warn('Users listener error:', err);
       }
     );
 
@@ -471,11 +538,7 @@ export default function App() {
           });
         },
         (err) => {
-          try {
-            handleFirestoreError(err, OperationType.GET, `subjectPermissions/${subject.id}`);
-          } catch (wrapped) {
-            setFatalError(wrapped as Error);
-          }
+          console.warn(`subjectPermissions/${subject.id} listener error:`, err);
         }
       )
     );
@@ -525,11 +588,7 @@ export default function App() {
         setLiveAssignments(list);
       },
       (err) => {
-        try {
-          handleFirestoreError(err, OperationType.LIST, 'studentAssignments');
-        } catch (wrapped) {
-          setFatalError(wrapped as Error);
-        }
+        console.warn('studentAssignments listener error:', err);
       }
     );
 
@@ -574,11 +633,7 @@ export default function App() {
           setLiveRetakeCodes(list);
         },
         (err) => {
-          try {
-            handleFirestoreError(err, OperationType.LIST, 'retakeCodes');
-          } catch (wrapped) {
-            setFatalError(wrapped as Error);
-          }
+          console.warn('retakeCodes listener error:', err);
         }
       );
     } else {
@@ -699,7 +754,7 @@ export default function App() {
             requestSectionLeave(() => {
               hasManualSubjectSelectionRef.current = true;
               setActiveSubjectId(asg.subjectId);
-              setActiveView('quiz');
+              setActiveView('exam');
             });
           },
         });
@@ -853,10 +908,14 @@ export default function App() {
   const activeSubject = SUBJECT_MAP[activeSubjectId];
   const isCurrentSubjectProhibited =
     prohibitedSubjects.has(activeSubjectId) &&
-    activeView === 'quiz';
+    (activeView === 'test' || activeView === 'exam');
 
   const requestSectionLeave = (action: () => void) => {
-    if (activeView === 'quiz' && isQuizRunning && !prohibitedSubjects.has(activeSubjectId)) {
+    if (
+      (activeView === 'test' || activeView === 'exam') &&
+      isQuizRunning &&
+      !prohibitedSubjects.has(activeSubjectId)
+    ) {
       setPendingNavAction(() => action);
       return;
     }
@@ -870,7 +929,7 @@ export default function App() {
   };
 
   const handleSelectSubjectFromBar = (id: SubjectId) => {
-    if (id === activeSubjectId && activeView === 'quiz') return;
+    if (id === activeSubjectId && (activeView === 'test' || activeView === 'exam')) return;
     requestSectionLeave(() => {
       hasManualSubjectSelectionRef.current = true;
       setActiveSubjectId(id);
@@ -880,15 +939,28 @@ export default function App() {
         activeView === 'results' ||
         activeView === 'permission'
       ) {
-        setActiveView('quiz');
+        setActiveView('test');
       }
     });
   };
 
-  const handleStartSubjectQuiz = (id: SubjectId) => {
+  const handleStartSubjectQuiz = (id: SubjectId, kind: QuizSectionKind = 'test') => {
     hasManualSubjectSelectionRef.current = true;
     setActiveSubjectId(id);
-    setActiveView('quiz');
+    setPendingTopicDrill(null);
+    setActiveView(kind);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleStartTopicVariant = (topic: string, variant: number) => {
+    hasManualSubjectSelectionRef.current = true;
+    setPendingTopicDrill({
+      subjectId: activeSubjectId,
+      topic,
+      variant,
+      nonce: Date.now(),
+    });
+    setActiveView('test');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -930,6 +1002,7 @@ export default function App() {
     if (!authUser || !userProfile) return;
 
     const safeId = record.id.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 128);
+    const safeTotal = Math.max(5, Math.min(25, Math.round(record.total || 25)));
     const attemptPath = `attempts/${safeId}`;
     const payload = {
       id: safeId,
@@ -940,8 +1013,8 @@ export default function App() {
       difficulty: record.difficulty ?? 'easy',
       variant: record.variant.slice(0, VARIANT_MAX_LEN),
       mode: record.mode,
-      score: Math.max(0, Math.min(25, Math.round(record.score))),
-      total: 25,
+      score: Math.max(0, Math.min(safeTotal, Math.round(record.score))),
+      total: safeTotal,
       percentage: Math.max(0, Math.min(100, Math.round(record.percentage))),
       grade: record.grade,
       elapsedSeconds: Math.max(0, Math.min(86400, Math.round(record.elapsedSeconds))),
@@ -1015,13 +1088,21 @@ export default function App() {
 
   if (!authUser || !userProfile) {
     return (
-      <AuthGate
-        lang={lang}
-        onChangeLang={setLang}
-        onPrepareSignup={(username, displayName) => {
-          pendingSignupRef.current = { username, displayName };
-        }}
-      />
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center bg-[#060913] text-sm font-semibold text-slate-300">
+            {lang === 'uz' ? 'Yuklanmoqda...' : 'Loading...'}
+          </div>
+        }
+      >
+        <AuthGate
+          lang={lang}
+          onChangeLang={setLang}
+          onPrepareSignup={(username, displayName) => {
+            pendingSignupRef.current = { username, displayName };
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -1223,83 +1304,92 @@ export default function App() {
           isQuizRunning ? 'max-w-5xl py-4 sm:py-6' : 'max-w-6xl py-8'
         }`}
       >
-        {activeView === 'dashboard' && (
-          <DashboardSection
-            lang={lang}
-            userProfile={userProfile}
-            teacherScope={teacherScope}
-            history={history}
-            prohibitedSubjects={prohibitedSubjects}
-            onNavigate={handleSelectView}
-            onStartSubjectQuiz={handleStartSubjectQuiz}
-            onOpenSubjectGuide={handleOpenSubjectGuide}
-          />
-        )}
+        <Suspense
+          fallback={
+            <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-slate-200 bg-white/80 text-sm font-semibold text-slate-500">
+              {lang === 'uz' ? 'Bo‘lim yuklanmoqda...' : 'Loading section...'}
+            </div>
+          }
+        >
+          {activeView === 'dashboard' && (
+            <DashboardSection
+              lang={lang}
+              userProfile={userProfile}
+              teacherScope={teacherScope}
+              history={history}
+              prohibitedSubjects={prohibitedSubjects}
+              onNavigate={handleSelectView}
+              onStartSubjectQuiz={handleStartSubjectQuiz}
+              onOpenSubjectGuide={handleOpenSubjectGuide}
+            />
+          )}
 
-        {activeView === 'subjects' && (
-          <OverviewSection
-            lang={lang}
-            activeSubjectId={activeSubjectId}
-            history={history}
-            prohibitedSubjects={prohibitedSubjects}
-            onStartSubjectQuiz={handleStartSubjectQuiz}
-            onOpenSubjectGuide={handleOpenSubjectGuide}
-          />
-        )}
+          {activeView === 'subjects' && (
+            <OverviewSection
+              lang={lang}
+              activeSubjectId={activeSubjectId}
+              history={history}
+              prohibitedSubjects={prohibitedSubjects}
+              onStartSubjectQuiz={handleStartSubjectQuiz}
+              onOpenSubjectGuide={handleOpenSubjectGuide}
+            />
+          )}
 
-        {activeView === 'quiz' && !prohibitedSubjects.has(activeSubjectId) && (
-          <QuizSection
-            subject={activeSubject}
-            lang={lang}
-            userProfile={userProfile}
-            history={history}
-            onOpenGuide={() => requestSectionLeave(() => setActiveView('guide'))}
-            onRecordAttempt={handleRecordAttempt}
-            onRunningStateChange={setIsQuizRunning}
-            registerFinishQuiz={(fn) => {
-              finishQuizRef.current = fn;
-            }}
-          />
-        )}
+          {(activeView === 'test' || activeView === 'exam') && !prohibitedSubjects.has(activeSubjectId) && (
+            <QuizSection
+              subject={activeSubject}
+              sectionKind={activeView === 'exam' ? 'exam' : 'test'}
+              initialTopicDrill={pendingTopicDrill}
+              lang={lang}
+              userProfile={userProfile}
+              history={history}
+              onOpenGuide={() => requestSectionLeave(() => setActiveView('guide'))}
+              onRecordAttempt={handleRecordAttempt}
+              onRunningStateChange={setIsQuizRunning}
+              registerFinishQuiz={handleRegisterFinishQuiz}
+            />
+          )}
 
-        {activeView === 'preview' && teacherScope !== 'none' && (
-          <PreviewView lang={lang} teacherScope={teacherScope} />
-        )}
+          {activeView === 'preview' && teacherScope !== 'none' && (
+            <PreviewView lang={lang} teacherScope={teacherScope} />
+          )}
 
-        {activeView === 'assign' && teacherScope !== 'none' && (
-          <AssignView lang={lang} userProfile={userProfile} teacherScope={teacherScope} />
-        )}
+          {activeView === 'assign' && teacherScope !== 'none' && (
+            <AssignView lang={lang} userProfile={userProfile} teacherScope={teacherScope} />
+          )}
 
-        {activeView === 'guide' && (
-          <StudyGuidePanel
-            subject={activeSubject}
-            lang={lang}
-            isProhibited={prohibitedSubjects.has(activeSubjectId)}
-            onStartQuiz={() => setActiveView('quiz')}
-          />
-        )}
+          {activeView === 'guide' && (
+            <StudyGuidePanel
+              subject={activeSubject}
+              lang={lang}
+              isProhibited={prohibitedSubjects.has(activeSubjectId)}
+              onStartQuiz={(kind = 'test') => handleStartSubjectQuiz(activeSubjectId, kind)}
+              onStartTopicVariant={handleStartTopicVariant}
+            />
+          )}
 
-        {activeView === 'results' && (
-          <ResultsHistoryView
-            lang={lang}
-            history={history}
-            teacherScope={teacherScope}
-            usersList={usersList}
-            onDeleteAttempt={handleDeleteAttempt}
-            onClearAllAttempts={handleClearAllAttempts}
-            onOpenSubjectQuiz={handleStartSubjectQuiz}
-          />
-        )}
+          {activeView === 'results' && (
+            <ResultsHistoryView
+              lang={lang}
+              history={history}
+              teacherScope={teacherScope}
+              usersList={usersList}
+              onDeleteAttempt={handleDeleteAttempt}
+              onClearAllAttempts={handleClearAllAttempts}
+              onOpenSubjectQuiz={handleStartSubjectQuiz}
+            />
+          )}
 
-        {activeView === 'permission' && teacherScope !== 'none' && (
-          <PermissionView
-            lang={lang}
-            teacherScope={teacherScope}
-            permissions={subjectPermissions}
-            savingSubjectId={savingPermissionId}
-            onSetSubjectProhibited={handleSetSubjectProhibited}
-          />
-        )}
+          {activeView === 'permission' && teacherScope !== 'none' && (
+            <PermissionView
+              lang={lang}
+              teacherScope={teacherScope}
+              permissions={subjectPermissions}
+              savingSubjectId={savingPermissionId}
+              onSetSubjectProhibited={handleSetSubjectProhibited}
+            />
+          )}
+        </Suspense>
       </main>
 
       {!isQuizRunning && (

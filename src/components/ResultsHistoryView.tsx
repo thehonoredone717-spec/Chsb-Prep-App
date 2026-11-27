@@ -10,7 +10,7 @@ import {
 import { useMemo, useState } from 'react';
 import { AttemptRecord, SUBJECTS, SUBJECT_MAP, UI_COPY, pickText } from '../data/subjects';
 import { UserProfile } from '../firebase';
-import { SubjectId, UILanguage } from '../types/quiz';
+import { QuizSectionKind, SubjectId, UILanguage } from '../types/quiz';
 import { formatTime, getDifficultyLabel } from '../utils/quizEngine';
 import { CertificateModal } from './CertificateModal';
 import { TeacherScope } from './TopBar';
@@ -22,7 +22,7 @@ interface ResultsHistoryViewProps {
   usersList: UserProfile[];
   onDeleteAttempt: (attemptId: string) => void;
   onClearAllAttempts: () => void;
-  onOpenSubjectQuiz: (id: SubjectId) => void;
+  onOpenSubjectQuiz: (id: SubjectId, kind?: QuizSectionKind) => void;
 }
 
 export function ResultsHistoryView({
@@ -490,7 +490,9 @@ export function ResultsHistoryView({
                       <td className="px-4 py-3 font-semibold text-slate-900">
                         <button
                           type="button"
-                          onClick={() => onOpenSubjectQuiz(item.subjectId)}
+                          onClick={() =>
+                            onOpenSubjectQuiz(item.subjectId, item.mode === 'exam' ? 'exam' : 'test')
+                          }
                           className="text-left hover:text-teal-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
                         >
                           {subject ? pickText(subject.shortLabel, lang) : item.subjectId}

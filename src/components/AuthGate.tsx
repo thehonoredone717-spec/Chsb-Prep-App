@@ -330,7 +330,19 @@ export function AuthGate({ lang, onChangeLang, onPrepareSignup }: AuthGateProps)
 
         <div className="lamp-container">
           <div className="lamp-glow" />
-          <div className="lamp-head" />
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={uz ? 'Chiroqni yoqish' : 'Toggle lamp light'}
+            onClick={toggleLamp}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleLamp();
+              }
+            }}
+            className="lamp-head cursor-pointer"
+          />
           <div className="lamp-beam" />
           <div className="lamp-stem" />
           <div className="lamp-base" />
@@ -360,6 +372,16 @@ export function AuthGate({ lang, onChangeLang, onPrepareSignup }: AuthGateProps)
             className={`lamp-string-handle ${dragging ? 'dragging' : ''}`}
           />
         </div>
+
+        {!lampOn && (
+          <button
+            type="button"
+            onClick={toggleLamp}
+            className="mt-6 rounded-full border border-teal-500/40 bg-teal-950/60 px-5 py-2 text-xs font-semibold text-teal-200 transition-colors hover:bg-teal-900/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+          >
+            {uz ? 'Kirish oynasini ochish (Chiroqni yoqish)' : 'Open Sign In (Turn On Light)'}
+          </button>
+        )}
       </section>
 
       {/* Right Side: Website-Styled Login Card */}

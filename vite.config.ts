@@ -23,11 +23,14 @@ export default defineConfig(() => {
           'pwa-maskable-512x512.png',
         ],
         workbox: {
+          cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true,
           globPatterns: ['**/*.{js,css,html,ico,woff,woff2}'],
           globIgnores: ['assets/aistudio/**'],
           maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
           navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/api\//],
+          navigateFallbackDenylist: [/^\/api\//, /\/assets\//, /\.[a-zA-Z0-9]+$/],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -74,8 +77,8 @@ export default defineConfig(() => {
           if (error) {
             return;
           }
-          const distDir = path.resolve(__dirname, 'dist');
-          const srcAssets = path.resolve(__dirname, 'src/assets');
+          const distDir = path.resolve(import.meta.dirname, 'dist');
+          const srcAssets = path.resolve(import.meta.dirname, 'src/assets');
           const distAssets = path.resolve(distDir, 'src/assets');
           if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
             fs.cpSync(srcAssets, distAssets, {recursive: true, force: true});
@@ -83,9 +86,30 @@ export default defineConfig(() => {
         },
       },
     ],
+    build: {
+      chunkSizeWarningLimit: 1200,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('/node_modules/firebase/')) return 'vendor-firebase';
+            if (id.includes('/node_modules/lucide-react/')) return 'vendor-icons';
+            if (id.includes('/node_modules/motion/') || id.includes('/node_modules/framer-motion/')) {
+              return 'vendor-motion';
+            }
+            if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/')) {
+              return 'vendor-react';
+            }
+            if (id.includes('/src/data/')) {
+              return 'question-banks';
+            }
+            return undefined;
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
       },
     },
     server: {
