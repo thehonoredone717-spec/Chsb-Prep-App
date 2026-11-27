@@ -301,18 +301,33 @@ service cloud.firestore {
         && data.uid.size() <= 128
         && data.uid == userId
         && data.ownedTitles is list
-        && data.ownedTitles.size() <= 20
+        && data.ownedTitles.size() <= 50
         && (data.ownedTitles.size() == 0 || (data.ownedTitles[0] is string && data.ownedTitles[0].size() <= 40))
         && data.ownedTitles.hasOnly([
           'title_scholar', 'title_blitz_runner', 'title_polymath', 'title_strategist',
-          'title_olympian', 'title_prodigy', 'title_grand_sage', 'title_mythic_legend'
+          'title_olympian', 'title_prodigy', 'title_grand_sage', 'title_mythic_legend',
+          'title_math_wizard', 'title_history_historian', 'title_science_chemist',
+          'title_computing_coder', 'title_english_polyglot', 'title_uzbek_poet',
+          'title_supreme_archmage', 'title_galaxy_sage', 'title_physics_master',
+          'title_biology_expert', 'title_geography_explorer', 'title_literature_critic',
+          'title_algebra_king', 'title_geometry_lord', 'title_quantum_physicist',
+          'title_galactic_historian', 'title_ai_architect', 'title_linguistics_guru',
+          'title_stellar_mathematician', 'title_eco_champion', 'title_supreme_scholar',
+          'title_cosmic_oracle', 'title_eternal_sage', 'title_apex_legend'
         ])
         && data.ownedFrames is list
-        && data.ownedFrames.size() <= 20
+        && data.ownedFrames.size() <= 50
         && (data.ownedFrames.size() == 0 || (data.ownedFrames[0] is string && data.ownedFrames[0].size() <= 40))
         && data.ownedFrames.hasOnly([
           'frame_mint', 'frame_cobalt', 'frame_amethyst', 'frame_cyber_hex',
-          'frame_ruby_flame', 'frame_solar_gold', 'frame_astral_aurora', 'frame_mythic_phoenix'
+          'frame_ruby_flame', 'frame_solar_gold', 'frame_astral_aurora', 'frame_mythic_phoenix',
+          'frame_math_nexus', 'frame_history_crown', 'frame_science_atom', 'frame_uzbek_silk',
+          'frame_transcendent_singularity', 'frame_eternal_omnipotence', 'frame_emerald_matrix',
+          'frame_obsidian_gold', 'frame_royal_sapphire', 'frame_cyber_neon',
+          'frame_solar_flame', 'frame_galaxy_nebula', 'frame_plasma_vortex',
+          'frame_hyper_nova', 'frame_crystal_prism', 'frame_neon_matrix',
+          'frame_royal_diamond', 'frame_starlight_halo', 'frame_nebula_core',
+          'frame_solar_crown', 'frame_chronos_ring', 'frame_infinity_singularity'
         ])
         && data.equippedTitle is string
         && data.equippedTitle.size() <= 40

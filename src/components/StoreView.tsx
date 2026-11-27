@@ -386,8 +386,8 @@ export function StoreView({
               </h2>
               <p className="text-xs text-slate-500">
                 {uz
-                  ? 'Oddiy darajadan Mifik darajagacha — titul nufuzi oshgani sari narxi ham ko‘tariladi (400 → 8,000 XP)'
-                  : 'Tiered progression from Common to Mythic — prices scale with prestige (400 → 8,000 XP)'}
+                  ? 'Oddiy darajadan Mifik darajagacha — titul nufuzi oshgani sari narxi ham ko‘tariladi (1,200 → 30,000 XP)'
+                  : 'Tiered progression from Common to Mythic — prices scale with prestige (1,200 → 30,000 XP)'}
               </p>
             </div>
           </div>
@@ -539,8 +539,8 @@ export function StoreView({
               </h2>
               <p className="text-xs text-slate-500">
                 {uz
-                  ? 'Oddiy halqadan tojli Mifik Imperator ramkasigacha — har bir darajada dizayn va narx oshadi (600 → 10,000 XP)'
-                  : 'From crisp Emerald Ring to animated Mythic Emperor — price rises with frame tier & effects (600 → 10,000 XP)'}
+                  ? 'Oddiy halqadan tojli Mifik Imperator ramkasigacha — har bir darajada dizayn va narx oshadi (1,800 → 35,000 XP)'
+                  : 'From crisp Emerald Ring to animated Mythic Emperor — price rises with frame tier & effects (1,800 → 35,000 XP)'}
               </p>
             </div>
           </div>
