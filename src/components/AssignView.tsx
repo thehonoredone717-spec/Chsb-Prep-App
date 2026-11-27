@@ -226,11 +226,11 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
     };
   }, [teacherScope]);
 
-  const maxVariants = selectedSubjectId === 'math' ? 20 : 5;
+  const maxVariants = 20;
 
   const handleSubjectChange = (nextSubjectId: SubjectId) => {
     setSelectedSubjectId(nextSubjectId);
-    const nextMax = nextSubjectId === 'math' ? 20 : 5;
+    const nextMax = 20;
     if (variantNum > nextMax) {
       setVariantNum(nextMax);
     }
@@ -378,8 +378,8 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           {uz
-            ? 'Har bir o‘quvchiga har bir fan va daraja uchun aniq bir variant biriktiring. O‘quvchi faqat o‘ziga biriktirilgan variantga kira oladi.'
-            : 'Assign a specific test variant to each student per subject and difficulty tier. Students can only take their assigned variant.'}
+            ? 'Har bir o‘quvchiga Imtihon bo‘limi uchun har bir fan va darajada 1–20 gacha bo‘lgan aniq bir variant biriktiring. Test mashqlari va mavzu testlari hamma uchun ochiq.'
+            : 'Assign a specific exam variant (1–20) to each student per subject and tier for the Imtihon section. Practice tests and topic drills stay open to all students.'}
         </p>
       </div>
 

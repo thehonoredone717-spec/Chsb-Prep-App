@@ -109,8 +109,8 @@ export function DailyWarmupCard({
 
     const targetPool =
       scope === 'mix' || prohibitedSubjects.has(scope)
-        ? openSubjects.flatMap((s) => s.questions.map((q) => ({ subjectId: s.id, source: q })))
-        : (SUBJECT_MAP[scope]?.questions ?? []).map((q) => ({ subjectId: scope, source: q }));
+        ? openSubjects.flatMap((s) => s.testQuestions.map((q) => ({ subjectId: s.id, source: q })))
+        : (SUBJECT_MAP[scope]?.testQuestions ?? []).map((q) => ({ subjectId: scope, source: q }));
 
     if (targetPool.length === 0) return;
 

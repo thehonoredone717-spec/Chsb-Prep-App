@@ -1,4 +1,5 @@
 import { QuestionItem, StudyGuideItem } from '../types/quiz';
+import { buildScienceExamBank, buildScienceTestBank } from './scienceBanks';
 
 export const scienceTopics: string[] = [
   '1. Variables',
@@ -64,7 +65,7 @@ export const scienceStudyGuide: StudyGuideItem[] = [
   },
 ];
 
-export const scienceQuestions: QuestionItem[] = [
+const scienceBaseQuestions: QuestionItem[] = [
   // ==================== VARIANT 1 (Questions 1-25) ====================
   {
     id: 's1',
@@ -1970,4 +1971,18 @@ export const scienceQuestions: QuestionItem[] = [
     answer: 0,
     explain: 'Weathering or thermal decomposition of carbonate rocks returns long-term geological carbon stores into atmospheric CO₂.',
   },
+];
+
+export const scienceTestQuestions: QuestionItem[] = [
+  ...scienceBaseQuestions,
+  ...buildScienceTestBank(scienceBaseQuestions),
+];
+
+export const scienceExamQuestions: QuestionItem[] = buildScienceExamBank(
+  scienceTestQuestions
+);
+
+export const scienceQuestions: QuestionItem[] = [
+  ...scienceTestQuestions,
+  ...scienceExamQuestions,
 ];

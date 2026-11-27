@@ -1,4 +1,5 @@
 import { QuestionItem, StudyGuideItem } from '../types/quiz';
+import { buildUzbekExamBank, buildUzbekTestBank } from './uzbekBanks';
 
 export const uzbekTopics: string[] = [
   '1. Olmosh turkumi va turlari',
@@ -39,7 +40,7 @@ export const uzbekStudyGuide: StudyGuideItem[] = [
   },
 ];
 
-export const uzbekQuestions: QuestionItem[] = [
+const uzbekBaseQuestions: QuestionItem[] = [
   // ==================== VARIANT 1 (Questions 1-25) ====================
   {
     id: 'u1',
@@ -1885,5 +1886,19 @@ export const uzbekQuestions: QuestionItem[] = [
     answer: 0,
     explain: 'Jonsiz narsa yoki tabiat hodisasiga (shamolga) insoniy xususiyat va harakat («kuylar chaldi») yuklash jonlantirish (tashxis) san’atidir.',
   },
+];
+
+export const uzbekTestQuestions: QuestionItem[] = [
+  ...uzbekBaseQuestions,
+  ...buildUzbekTestBank(uzbekBaseQuestions),
+];
+
+export const uzbekExamQuestions: QuestionItem[] = buildUzbekExamBank(
+  uzbekTestQuestions
+);
+
+export const uzbekQuestions: QuestionItem[] = [
+  ...uzbekTestQuestions,
+  ...uzbekExamQuestions,
 ];
 

@@ -1,5 +1,8 @@
 import { QuestionItem, StudyGuideItem } from '../types/quiz';
-import { generateAdditionalMathQuestions } from './mathVariantGenerator';
+import {
+  generateMathExamBank,
+  generateMathTestExtras,
+} from './mathVariantGenerator';
 
 export const mathTopics: string[] = [
   'Unit 9.1 · Topic 1: Indices and standard form',
@@ -74,7 +77,7 @@ export const mathStudyGuide: StudyGuideItem[] = [
   },
 ];
 
-export const mathQuestions: QuestionItem[] = [
+const mathBaseQuestions: QuestionItem[] = [
   // ==================== EASY (50 Questions: m1–m50) ====================
   // Topic 1: Indices and standard form (8)
   {
@@ -1604,5 +1607,17 @@ export const mathQuestions: QuestionItem[] = [
     answer: 0,
     explain: 'TWM.02: x² + (x + 1)² = (x + 2)² ⇒ x² − 2x − 3 = 0 ⇒ (x − 3)(x + 1) = 0, so x = 3 (sides 3, 4, 5).',
   },
-  ...generateAdditionalMathQuestions(),
 ];
+
+export const mathTestQuestions: QuestionItem[] = [
+  ...mathBaseQuestions,
+  ...generateMathTestExtras(mathBaseQuestions),
+];
+
+export const mathExamQuestions: QuestionItem[] = generateMathExamBank(mathTestQuestions);
+
+export const mathQuestions: QuestionItem[] = [
+  ...mathTestQuestions,
+  ...mathExamQuestions,
+];
+

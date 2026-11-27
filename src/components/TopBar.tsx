@@ -14,7 +14,7 @@ import { UserProfile } from '../firebase';
 import { UILanguage } from '../types/quiz';
 import { AppNotification, NotificationBell } from './NotificationBell';
 
-export type AppView = 'dashboard' | 'subjects' | 'quiz' | 'guide' | 'results' | 'permission' | 'assign' | 'preview';
+export type AppView = 'dashboard' | 'subjects' | 'test' | 'exam' | 'guide' | 'results' | 'permission' | 'assign' | 'preview';
 export type TeacherScope = 'none' | 'computing' | 'math' | 'science' | 'english' | 'history' | 'all';
 
 interface TopBarProps {
