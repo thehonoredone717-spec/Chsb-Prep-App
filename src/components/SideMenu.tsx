@@ -9,7 +9,7 @@ import {
   LayoutDashboard,
   PanelLeftClose,
   ShieldCheck,
-  User as UserIcon,
+  ShoppingBag,
   UserCheck,
   X,
 } from 'lucide-react';
@@ -17,6 +17,7 @@ import { UI_COPY } from '../data/subjects';
 import { UserProfile } from '../firebase';
 import { UILanguage } from '../types/quiz';
 import { AppView, TeacherScope } from './TopBar';
+import { UserAvatarFrame, UserTitleLabel } from './UserAvatarFrame';
 
 interface SideMenuProps {
   lang: UILanguage;
@@ -28,6 +29,8 @@ interface SideMenuProps {
   onCloseDesktop: () => void;
   onCloseMobile: () => void;
   onSelectView: (view: AppView) => void;
+  equippedTitle?: string;
+  equippedFrame?: string;
 }
 
 export function SideMenu({
@@ -40,6 +43,8 @@ export function SideMenu({
   onCloseDesktop,
   onCloseMobile,
   onSelectView,
+  equippedTitle = '',
+  equippedFrame = '',
 }: SideMenuProps) {
   const copy = UI_COPY[lang];
   const isAnyTeacher = teacherScope !== 'none';
@@ -55,6 +60,7 @@ export function SideMenu({
     { id: 'exam', label: copy.navExam, icon: FileCheck2 },
     { id: 'guide', label: copy.navGuide, icon: BookOpen },
     { id: 'results', label: copy.navResults, icon: BarChart3 },
+    { id: 'store', label: copy.navStore, icon: ShoppingBag },
     ...(isAnyTeacher
       ? [
           { id: 'preview' as AppView, label: copy.navPreview, icon: Eye },
@@ -77,7 +83,9 @@ export function SideMenu({
               ? copy.englishTeacherBadge
               : teacherScope === 'history'
                 ? copy.historyTeacherBadge
-                : `@${userProfile.username}`;
+                : teacherScope === 'uzbek'
+                  ? copy.uzbekTeacherBadge
+                  : `@${userProfile.username}`;
 
   const renderLinks = (closeOnSelect: boolean, showDesktopCollapse: boolean) => (
     <nav aria-label={lang === 'uz' ? 'Asosiy menyu' : 'Main menu'} className="space-y-1">
@@ -129,16 +137,21 @@ export function SideMenu({
   const userSummary = (
     <div className="mt-auto border-t border-slate-200/80 pt-4">
       <div className="flex items-center gap-2.5 rounded-lg bg-slate-50 px-3 py-2.5">
-        {isAnyTeacher ? (
-          <ShieldCheck className="h-4 w-4 shrink-0 text-teal-700" aria-hidden="true" />
-        ) : (
-          <UserIcon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
-        )}
+        <UserAvatarFrame
+          name={userProfile.displayName}
+          isTeacher={isAnyTeacher}
+          frameId={equippedFrame}
+          size="sm"
+        />
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-slate-900">
             {userProfile.displayName}
           </p>
-          <p className="truncate text-[11px] font-medium text-teal-700">{badgeText}</p>
+          {equippedTitle ? (
+            <UserTitleLabel titleId={equippedTitle} lang={lang} className="text-[11px]" />
+          ) : (
+            <p className="truncate text-[11px] font-medium text-teal-700">{badgeText}</p>
+          )}
         </div>
       </div>
     </div>

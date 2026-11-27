@@ -137,4 +137,33 @@ export const DIRTY_DOZEN_CASES = [
     auth: { uid: 'spoof2', email: 'ibrohimbekxujanazarov@gmail.com', email_verified: false },
     expected: 'PERMISSION_DENIED',
   },
+  {
+    name: '15. UserCosmetics Spend Refund Attack',
+    target: 'userCosmetics/student1',
+    operation: 'update',
+    auth: { uid: 'student1', email: 'ali@chsb7.local', email_verified: false },
+    payload: {
+      ownedTitles: ['title_scholar'],
+      ownedFrames: [],
+      equippedTitle: 'title_scholar',
+      equippedFrame: '',
+      spentXp: 0,
+    },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    name: '16. UserCosmetics Unowned Equip Spoof',
+    target: 'userCosmetics/student1',
+    operation: 'create',
+    auth: { uid: 'student1', email: 'ali@chsb7.local', email_verified: false },
+    payload: {
+      uid: 'student1',
+      ownedTitles: [],
+      ownedFrames: [],
+      equippedTitle: 'title_mythic_legend',
+      equippedFrame: 'frame_mythic_phoenix',
+      spentXp: 0,
+    },
+    expected: 'PERMISSION_DENIED',
+  },
 ] as const;

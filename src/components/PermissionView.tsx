@@ -33,7 +33,9 @@ export function PermissionView({
               ? SUBJECTS.filter((s) => s.id === 'english')
               : teacherScope === 'history'
                 ? SUBJECTS.filter((s) => s.id === 'history')
-                : [];
+                : teacherScope === 'uzbek'
+                  ? SUBJECTS.filter((s) => s.id === 'uzbek')
+                  : [];
 
   return (
     <section className="space-y-6">

@@ -48,6 +48,9 @@ const PreviewView = lazy(() =>
 const PermissionView = lazy(() =>
   import('./components/PermissionView').then((m) => ({ default: m.PermissionView }))
 );
+const StoreView = lazy(() =>
+  import('./components/StoreView').then((m) => ({ default: m.StoreView }))
+);
 import { MobileBottomNav } from './components/MobileBottomNav';
 import {
   AttemptRecord,
@@ -65,6 +68,7 @@ import {
   OperationType,
   SCIENCE_TEACHER_EMAIL,
   STUDENT_EMAIL,
+  UZBEK_TEACHER_EMAIL,
   UserProfile,
   VARIANT_MAX_LEN,
   auth,
@@ -78,6 +82,7 @@ import {
   isMathTeacher,
   isScienceTeacher,
   isTeacherAdmin,
+  isUzbekTeacher,
   sanitizeDisplayName,
 } from './firebase';
 import {
@@ -94,6 +99,16 @@ import {
   requestAppFullscreen,
 } from './utils/fullscreen';
 import { useWarningsPaused } from './utils/warningPause';
+import {
+  EMPTY_USER_COSMETICS,
+  STORE_FRAME_MAP,
+  STORE_TITLE_MAP,
+  StoreFrameItem,
+  StoreTitleItem,
+  UserCosmetics,
+  computeEarnedXp,
+  readLocalBlitzBest,
+} from './utils/xpAndStore';
 
 const LANG_STORAGE_KEY = 'g7_chsb_lang_v1';
 
@@ -153,6 +168,10 @@ export default function App() {
     }>
   >([]);
   const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(() => new Set());
+  const [blitzBest, setBlitzBest] = useState<number>(0);
+  const [cosmeticsMap, setCosmeticsMap] = useState<Record<string, UserCosmetics>>({});
+  const [savingStoreItemId, setSavingStoreItemId] = useState<string | null>(null);
+  const [storeError, setStoreError] = useState<string | null>(null);
 
   const pendingSignupRef = useRef<{ username: string; displayName: string } | null>(null);
   const finishQuizRef = useRef<(() => void) | null>(null);
@@ -227,6 +246,9 @@ export default function App() {
         setSubjectPermissions({});
         setLiveAssignments([]);
         setLiveRetakeCodes([]);
+        setCosmeticsMap({});
+        setBlitzBest(0);
+        setStoreError(null);
         setReadNotificationIds(new Set());
         setActiveView('dashboard');
         setAuthReady(true);
@@ -239,7 +261,8 @@ export default function App() {
         isMathTeacher(user) ||
         isScienceTeacher(user) ||
         isEnglishTeacher(user) ||
-        isHistoryTeacher(user);
+        isHistoryTeacher(user) ||
+        isUzbekTeacher(user);
 
       const expectedRole: 'student' | 'teacher' | 'owner' = isOwner
         ? 'owner'
@@ -366,6 +389,7 @@ export default function App() {
   const isScienceTch = isScienceTeacher(authUser);
   const isEnglishTch = isEnglishTeacher(authUser);
   const isHistoryTch = isHistoryTeacher(authUser);
+  const isUzbekTch = isUzbekTeacher(authUser);
   const teacherScope: TeacherScope = isFullAdmin
     ? 'all'
     : isCompTeacher
@@ -378,7 +402,9 @@ export default function App() {
             ? 'english'
             : isHistoryTch
               ? 'history'
-              : 'none';
+              : isUzbekTch
+                ? 'uzbek'
+                : 'none';
 
   // Subscribe to attempts only when auth and userProfile are ready
   useEffect(() => {
@@ -397,7 +423,9 @@ export default function App() {
               ? query(attemptsCollection, where('subjectId', '==', 'english'))
               : isHistoryTch
                 ? query(attemptsCollection, where('subjectId', '==', 'history'))
-                : query(attemptsCollection, where('userId', '==', authUser.uid));
+                : isUzbekTch
+                  ? query(attemptsCollection, where('subjectId', '==', 'uzbek'))
+                  : query(attemptsCollection, where('userId', '==', authUser.uid));
 
     const unsubscribeAttempts = onSnapshot(
       attemptsQuery,
@@ -446,7 +474,8 @@ export default function App() {
             email === MATH_TEACHER_EMAIL ||
             email === SCIENCE_TEACHER_EMAIL ||
             email === ENGLISH_TEACHER_EMAIL ||
-            email === HISTORY_TEACHER_EMAIL;
+            email === HISTORY_TEACHER_EMAIL ||
+            email === UZBEK_TEACHER_EMAIL;
 
           const isIbrohim =
             email === 'ibrohimbekxujanazarov@gmail.com' ||
@@ -640,12 +669,40 @@ export default function App() {
       setLiveRetakeCodes([]);
     }
 
+    const unsubscribeCosmetics = onSnapshot(
+      collection(db, 'userCosmetics'),
+      (snapshot) => {
+        const nextMap: Record<string, UserCosmetics> = {};
+        snapshot.docs.forEach((d) => {
+          const raw = d.data() as Partial<UserCosmetics>;
+          const uid = typeof raw.uid === 'string' && raw.uid ? raw.uid : d.id;
+          nextMap[uid] = {
+            uid,
+            ownedTitles: Array.isArray(raw.ownedTitles)
+              ? raw.ownedTitles.filter((v): v is string => typeof v === 'string')
+              : [],
+            ownedFrames: Array.isArray(raw.ownedFrames)
+              ? raw.ownedFrames.filter((v): v is string => typeof v === 'string')
+              : [],
+            equippedTitle: typeof raw.equippedTitle === 'string' ? raw.equippedTitle : '',
+            equippedFrame: typeof raw.equippedFrame === 'string' ? raw.equippedFrame : '',
+            spentXp: typeof raw.spentXp === 'number' && raw.spentXp >= 0 ? Math.round(raw.spentXp) : 0,
+          };
+        });
+        setCosmeticsMap(nextMap);
+      },
+      (err) => {
+        console.warn('userCosmetics listener error:', err);
+      }
+    );
+
     return () => {
       unsubscribeAttempts();
       unsubscribeUsers();
       permissionUnsubs.forEach((unsub) => unsub());
       unsubscribeAssignments();
       unsubscribeRetakeCodes?.();
+      unsubscribeCosmetics();
     };
   }, [
     authReady,
@@ -657,11 +714,13 @@ export default function App() {
     isScienceTch,
     isEnglishTch,
     isHistoryTch,
+    isUzbekTch,
     teacherScope,
   ]);
 
   useEffect(() => {
     if (!userProfile?.uid) return;
+    setBlitzBest(readLocalBlitzBest(userProfile.uid));
     try {
       const raw = window.localStorage.getItem(`g7_chsb_read_notifs_${userProfile.uid}`);
       if (raw) {
@@ -1074,6 +1133,117 @@ export default function App() {
     })();
   };
 
+  const currentCosmetics: UserCosmetics = useMemo(() => {
+    if (!authUser) return EMPTY_USER_COSMETICS;
+    return cosmeticsMap[authUser.uid] ?? { ...EMPTY_USER_COSMETICS, uid: authUser.uid };
+  }, [authUser, cosmeticsMap]);
+
+  const earnedXp = useMemo(() => computeEarnedXp(history, blitzBest), [history, blitzBest]);
+  const availableXp = Math.max(0, earnedXp - currentCosmetics.spentXp);
+
+  const persistCosmeticsMutation = async (
+    itemId: string,
+    patch: {
+      ownedTitles?: string[];
+      ownedFrames?: string[];
+      equippedTitle?: string;
+      equippedFrame?: string;
+      spentXp?: number;
+    }
+  ): Promise<boolean> => {
+    if (!authUser) return false;
+    const uid = authUser.uid;
+    const cosmeticsRef = doc(db, 'userCosmetics', uid);
+    const cosmeticsPath = `userCosmetics/${uid}`;
+    const hasDoc = uid in cosmeticsMap;
+
+    setSavingStoreItemId(itemId);
+    setStoreError(null);
+    try {
+      if (!hasDoc) {
+        await setDoc(cosmeticsRef, {
+          uid,
+          ownedTitles: patch.ownedTitles ?? currentCosmetics.ownedTitles,
+          ownedFrames: patch.ownedFrames ?? currentCosmetics.ownedFrames,
+          equippedTitle: patch.equippedTitle ?? currentCosmetics.equippedTitle,
+          equippedFrame: patch.equippedFrame ?? currentCosmetics.equippedFrame,
+          spentXp: Math.max(0, Math.min(1000000, Math.round(patch.spentXp ?? currentCosmetics.spentXp))),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await updateDoc(cosmeticsRef, {
+          ...patch,
+          ...(patch.spentXp !== undefined
+            ? { spentXp: Math.max(0, Math.min(1000000, Math.round(patch.spentXp))) }
+            : {}),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      return true;
+    } catch (err) {
+      try {
+        handleFirestoreError(err, hasDoc ? OperationType.UPDATE : OperationType.CREATE, cosmeticsPath);
+      } catch (wrapped) {
+        setStoreError(
+          lang === 'uz'
+            ? "Xaridni saqlashda xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
+            : 'Could not save store item to Firestore. Please try again.'
+        );
+        console.error(wrapped);
+      }
+      return false;
+    } finally {
+      setSavingStoreItemId(null);
+    }
+  };
+
+  const handleBuyTitle = async (item: StoreTitleItem): Promise<boolean> => {
+    if (!authUser || !(item.id in STORE_TITLE_MAP)) return false;
+    if (currentCosmetics.ownedTitles.includes(item.id) || currentCosmetics.ownedTitles.length >= 20) {
+      return false;
+    }
+    if (availableXp < item.price) return false;
+    const nextOwnedTitles = [...currentCosmetics.ownedTitles, item.id];
+    const nextSpentXp = currentCosmetics.spentXp + item.price;
+    return persistCosmeticsMutation(item.id, {
+      ownedTitles: nextOwnedTitles,
+      equippedTitle: item.id,
+      spentXp: nextSpentXp,
+    });
+  };
+
+  const handleBuyFrame = async (item: StoreFrameItem): Promise<boolean> => {
+    if (!authUser || !(item.id in STORE_FRAME_MAP)) return false;
+    if (currentCosmetics.ownedFrames.includes(item.id) || currentCosmetics.ownedFrames.length >= 20) {
+      return false;
+    }
+    if (availableXp < item.price) return false;
+    const nextOwnedFrames = [...currentCosmetics.ownedFrames, item.id];
+    const nextSpentXp = currentCosmetics.spentXp + item.price;
+    return persistCosmeticsMutation(item.id, {
+      ownedFrames: nextOwnedFrames,
+      equippedFrame: item.id,
+      spentXp: nextSpentXp,
+    });
+  };
+
+  const handleEquipTitle = async (titleId: string): Promise<boolean> => {
+    if (!authUser) return false;
+    if (titleId !== '' && !currentCosmetics.ownedTitles.includes(titleId)) return false;
+    return persistCosmeticsMutation(titleId || 'unequip-title', {
+      equippedTitle: titleId,
+    });
+  };
+
+  const handleEquipFrame = async (frameId: string): Promise<boolean> => {
+    if (!authUser) return false;
+    if (frameId !== '' && !currentCosmetics.ownedFrames.includes(frameId)) return false;
+    return persistCosmeticsMutation(frameId || 'unequip-frame', {
+      equippedFrame: frameId,
+    });
+  };
+
   const handleSignOut = () => {
     void signOut(auth);
   };
@@ -1141,6 +1311,9 @@ export default function App() {
           readNotificationIds={readNotificationIds}
           onMarkNotificationRead={handleMarkNotificationRead}
           onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+          availableXp={availableXp}
+          equippedTitle={currentCosmetics.equippedTitle}
+          equippedFrame={currentCosmetics.equippedFrame}
         />
       )}
 
@@ -1156,6 +1329,8 @@ export default function App() {
             onCloseDesktop={() => setDesktopMenuOpen(false)}
             onCloseMobile={() => setMobileMenuOpen(false)}
             onSelectView={handleSelectView}
+            equippedTitle={currentCosmetics.equippedTitle}
+            equippedFrame={currentCosmetics.equippedFrame}
           />
         )}
 
@@ -1318,6 +1493,11 @@ export default function App() {
               teacherScope={teacherScope}
               history={history}
               prohibitedSubjects={prohibitedSubjects}
+              blitzBest={blitzBest}
+              onBlitzBestChange={setBlitzBest}
+              availableXp={availableXp}
+              equippedTitle={currentCosmetics.equippedTitle}
+              equippedFrame={currentCosmetics.equippedFrame}
               onNavigate={handleSelectView}
               onStartSubjectQuiz={handleStartSubjectQuiz}
               onOpenSubjectGuide={handleOpenSubjectGuide}
@@ -1374,9 +1554,27 @@ export default function App() {
               history={history}
               teacherScope={teacherScope}
               usersList={usersList}
+              cosmeticsMap={cosmeticsMap}
               onDeleteAttempt={handleDeleteAttempt}
               onClearAllAttempts={handleClearAllAttempts}
               onOpenSubjectQuiz={handleStartSubjectQuiz}
+            />
+          )}
+
+          {activeView === 'store' && (
+            <StoreView
+              lang={lang}
+              userProfile={userProfile}
+              isTeacher={teacherScope !== 'none'}
+              earnedXp={earnedXp}
+              cosmetics={currentCosmetics}
+              savingItemId={savingStoreItemId}
+              storeError={storeError}
+              onBuyTitle={handleBuyTitle}
+              onBuyFrame={handleBuyFrame}
+              onEquipTitle={handleEquipTitle}
+              onEquipFrame={handleEquipFrame}
+              onNavigate={handleSelectView}
             />
           )}
 

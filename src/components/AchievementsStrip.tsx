@@ -13,14 +13,17 @@ import {
 import { useState } from 'react';
 import { AttemptRecord, SUBJECTS, pickText } from '../data/subjects';
 import { QuizSectionKind, SubjectId, UILanguage } from '../types/quiz';
+import { computeEarnedXp } from '../utils/xpAndStore';
 
 interface AchievementsStripProps {
   lang: UILanguage;
   history: AttemptRecord[];
   blitzBest: number;
+  availableXp?: number;
   prohibitedSubjects: ReadonlySet<SubjectId>;
   onOpenSubjectGuide: (id: SubjectId) => void;
   onStartSubjectQuiz: (id: SubjectId, kind?: QuizSectionKind) => void;
+  onOpenStore?: () => void;
 }
 
 interface RankTier {
@@ -42,19 +45,17 @@ export function AchievementsStrip({
   lang,
   history,
   blitzBest,
+  availableXp,
   prohibitedSubjects,
   onOpenSubjectGuide,
   onStartSubjectQuiz,
+  onOpenStore,
 }: AchievementsStripProps) {
   const uz = lang === 'uz';
   const [selectedTipId, setSelectedTipId] = useState<string | null>(null);
 
   // Real XP computed from actual completed attempts + blitz personal best
-  const totalXp =
-    history.reduce((sum, item) => {
-      if (item.cheated) return sum;
-      return sum + item.score * 6 + (item.grade === 5 ? 40 : item.grade === 4 ? 15 : 0);
-    }, 0) + blitzBest;
+  const totalXp = computeEarnedXp(history, blitzBest);
 
   let currentTier = RANK_TIERS[0];
   let nextTier: RankTier | null = RANK_TIERS[1];
@@ -188,6 +189,17 @@ export function AchievementsStrip({
                   ? 'Maksimal daraja zabt etildi!'
                   : 'Top rank reached!'}
             </p>
+            {onOpenStore && (
+              <button
+                type="button"
+                onClick={onOpenStore}
+                className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:text-amber-800"
+              >
+                {uz
+                  ? `XP Do‘koniga o‘tish (${availableXp ?? totalXp} XP) →`
+                  : `Spend in Store (${availableXp ?? totalXp} XP) →`}
+              </button>
+            )}
           </div>
         </div>
 

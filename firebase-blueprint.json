@@ -269,6 +269,56 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "UserCosmetics": {
+      "title": "UserCosmetics",
+      "description": "XP Store inventory and equipped profile title & avatar frame for a user",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "ownedTitles": {
+          "type": "array",
+          "description": "List of unlocked Store title IDs"
+        },
+        "ownedFrames": {
+          "type": "array",
+          "description": "List of unlocked Store frame IDs"
+        },
+        "equippedTitle": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "equippedFrame": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "spentXp": {
+          "type": "integer",
+          "description": "Cumulative XP spent in the Store"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "ownedTitles",
+        "ownedFrames",
+        "equippedTitle",
+        "equippedFrame",
+        "spentXp",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -291,6 +341,10 @@
     "/retakeCodes/{codeId}": {
       "schema": { "$ref": "#/entities/RetakeCode" },
       "description": "Teacher-only 6-digit unlock codes for student 2nd attempts"
+    },
+    "/userCosmetics/{userId}": {
+      "schema": { "$ref": "#/entities/UserCosmetics" },
+      "description": "Per-user XP Store unlocked titles, avatar frames, equipped choices, and cumulative spent XP"
     }
   }
 }

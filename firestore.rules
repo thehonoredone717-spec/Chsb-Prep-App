@@ -63,6 +63,14 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
+    function isUzbekTeacher() {
+      return isSignedIn()
+        && 'email' in request.auth.token
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'qsurayyo1973@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
     function isIbrohimUser() {
       return isSignedIn()
         && 'email' in request.auth.token
@@ -92,7 +100,8 @@ service cloud.firestore {
         || (isMathTeacher() && subjectId == 'math')
         || (isScienceTeacher() && subjectId == 'science')
         || (isEnglishTeacher() && subjectId == 'english')
-        || (isHistoryTeacher() && subjectId == 'history');
+        || (isHistoryTeacher() && subjectId == 'history')
+        || (isUzbekTeacher() && subjectId == 'uzbek');
     }
 
     function incoming() {
@@ -278,6 +287,46 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    function isValidUserCosmetics(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'ownedTitles', 'ownedFrames', 'equippedTitle', 'equippedFrame',
+          'spentXp', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'ownedTitles', 'ownedFrames', 'equippedTitle', 'equippedFrame',
+          'spentXp', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string
+        && data.uid.size() >= 1
+        && data.uid.size() <= 128
+        && data.uid == userId
+        && data.ownedTitles is list
+        && data.ownedTitles.size() <= 20
+        && (data.ownedTitles.size() == 0 || (data.ownedTitles[0] is string && data.ownedTitles[0].size() <= 40))
+        && data.ownedTitles.hasOnly([
+          'title_scholar', 'title_blitz_runner', 'title_polymath', 'title_strategist',
+          'title_olympian', 'title_prodigy', 'title_grand_sage', 'title_mythic_legend'
+        ])
+        && data.ownedFrames is list
+        && data.ownedFrames.size() <= 20
+        && (data.ownedFrames.size() == 0 || (data.ownedFrames[0] is string && data.ownedFrames[0].size() <= 40))
+        && data.ownedFrames.hasOnly([
+          'frame_mint', 'frame_cobalt', 'frame_amethyst', 'frame_cyber_hex',
+          'frame_ruby_flame', 'frame_solar_gold', 'frame_astral_aurora', 'frame_mythic_phoenix'
+        ])
+        && data.equippedTitle is string
+        && data.equippedTitle.size() <= 40
+        && (data.equippedTitle == '' || data.equippedTitle in data.ownedTitles)
+        && data.equippedFrame is string
+        && data.equippedFrame.size() <= 40
+        && (data.equippedFrame == '' || data.equippedFrame in data.ownedFrames)
+        && data.spentXp is int
+        && data.spentXp >= 0
+        && data.spentXp <= 1000000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     // 4. Collection Match Blocks
     match /users/{userId} {
       allow get: if isValidId(userId) && (isOwner(userId) || isAdmin() || isSignedIn());
@@ -292,7 +341,7 @@ service cloud.firestore {
         && (
           incoming().role == 'student'
           || (isAdmin() && incoming().role == 'owner')
-          || ((isComputingTeacher() || isMathTeacher() || isScienceTeacher() || isEnglishTeacher() || isHistoryTeacher()) && incoming().role == 'teacher')
+          || ((isComputingTeacher() || isMathTeacher() || isScienceTeacher() || isEnglishTeacher() || isHistoryTeacher() || isUzbekTeacher()) && incoming().role == 'teacher')
         );
 
       allow update: if isSignedIn()
@@ -309,11 +358,43 @@ service cloud.firestore {
             && incoming().role == existing().role
             && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'updatedAt']))
           || (isOwner(userId)
-            && (isComputingTeacher() || isMathTeacher() || isScienceTeacher() || isEnglishTeacher() || isHistoryTeacher())
+            && (isComputingTeacher() || isMathTeacher() || isScienceTeacher() || isEnglishTeacher() || isHistoryTeacher() || isUzbekTeacher())
             && incoming().role == 'teacher'
             && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'email', 'updatedAt']))
           || (isAdmin()
             && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'username', 'role', 'email', 'updatedAt']))
+        );
+
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    match /userCosmetics/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidUserCosmetics(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidUserCosmetics(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isOwner(userId)
+            && incoming().spentXp >= existing().spentXp
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'ownedTitles', 'ownedFrames', 'equippedTitle', 'equippedFrame', 'spentXp', 'updatedAt'
+            ]))
+          || (isAdmin()
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'ownedTitles', 'ownedFrames', 'equippedTitle', 'equippedFrame', 'spentXp', 'updatedAt'
+            ]))
         );
 
       allow delete: if isAdmin() && isValidId(userId);
@@ -327,6 +408,7 @@ service cloud.firestore {
         || (isScienceTeacher() && existing().subjectId == 'science')
         || (isEnglishTeacher() && existing().subjectId == 'english')
         || (isHistoryTeacher() && existing().subjectId == 'history')
+        || (isUzbekTeacher() && existing().subjectId == 'uzbek')
         || (isSignedIn() && existing().userId == request.auth.uid)
       );
       allow list: if isAdmin()
@@ -335,6 +417,7 @@ service cloud.firestore {
         || (isScienceTeacher() && resource.data.subjectId == 'science')
         || (isEnglishTeacher() && resource.data.subjectId == 'english')
         || (isHistoryTeacher() && resource.data.subjectId == 'history')
+        || (isUzbekTeacher() && resource.data.subjectId == 'uzbek')
         || (isSignedIn() && resource.data.userId == request.auth.uid);
 
       allow create: if isSignedIn()
@@ -459,6 +542,7 @@ service cloud.firestore {
         || (isScienceTeacher() && resource.data.subjectId == 'science')
         || (isEnglishTeacher() && resource.data.subjectId == 'english')
         || (isHistoryTeacher() && resource.data.subjectId == 'history')
+        || (isUzbekTeacher() && resource.data.subjectId == 'uzbek')
       );
     }
 
@@ -471,13 +555,15 @@ service cloud.firestore {
         || (isScienceTeacher() && existing().subjectId == 'science')
         || (isEnglishTeacher() && existing().subjectId == 'english')
         || (isHistoryTeacher() && existing().subjectId == 'history')
+        || (isUzbekTeacher() && existing().subjectId == 'uzbek')
       );
       allow list: if isAdmin()
         || (isComputingTeacher() && resource.data.subjectId == 'computing')
         || (isMathTeacher() && resource.data.subjectId == 'math')
         || (isScienceTeacher() && resource.data.subjectId == 'science')
         || (isEnglishTeacher() && resource.data.subjectId == 'english')
-        || (isHistoryTeacher() && resource.data.subjectId == 'history');
+        || (isHistoryTeacher() && resource.data.subjectId == 'history')
+        || (isUzbekTeacher() && resource.data.subjectId == 'uzbek');
 
       allow create: if isSignedIn()
         && isValidId(codeId)

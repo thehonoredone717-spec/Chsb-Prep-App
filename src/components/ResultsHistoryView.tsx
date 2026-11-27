@@ -12,14 +12,17 @@ import { AttemptRecord, SUBJECTS, SUBJECT_MAP, UI_COPY, pickText } from '../data
 import { UserProfile } from '../firebase';
 import { QuizSectionKind, SubjectId, UILanguage } from '../types/quiz';
 import { formatTime, getDifficultyLabel } from '../utils/quizEngine';
+import { UserCosmetics } from '../utils/xpAndStore';
 import { CertificateModal } from './CertificateModal';
 import { TeacherScope } from './TopBar';
+import { UserAvatarFrame, UserTitleLabel } from './UserAvatarFrame';
 
 interface ResultsHistoryViewProps {
   lang: UILanguage;
   history: AttemptRecord[];
   teacherScope: TeacherScope;
   usersList: UserProfile[];
+  cosmeticsMap?: Record<string, UserCosmetics>;
   onDeleteAttempt: (attemptId: string) => void;
   onClearAllAttempts: () => void;
   onOpenSubjectQuiz: (id: SubjectId, kind?: QuizSectionKind) => void;
@@ -30,6 +33,7 @@ export function ResultsHistoryView({
   history,
   teacherScope,
   usersList,
+  cosmeticsMap = {},
   onDeleteAttempt,
   onClearAllAttempts,
   onOpenSubjectQuiz,
@@ -76,6 +80,9 @@ export function ResultsHistoryView({
       if (teacherScope === 'history' && item.subjectId !== 'history') {
         return false;
       }
+      if (teacherScope === 'uzbek' && item.subjectId !== 'uzbek') {
+        return false;
+      }
       if (isAnyTeacher && studentFilter !== 'all' && item.userId !== studentFilter) {
         return false;
       }
@@ -85,6 +92,7 @@ export function ResultsHistoryView({
         teacherScope !== 'science' &&
         teacherScope !== 'english' &&
         teacherScope !== 'history' &&
+        teacherScope !== 'uzbek' &&
         subjectFilter !== 'all' &&
         item.subjectId !== subjectFilter
       ) {
@@ -193,7 +201,9 @@ export function ResultsHistoryView({
               ? copy.englishResultsTitle
               : teacherScope === 'history'
                 ? copy.historyResultsTitle
-                : copy.historyTitle;
+                : teacherScope === 'uzbek'
+                  ? copy.uzbekResultsTitle
+                  : copy.historyTitle;
 
   return (
     <section className="space-y-6">
@@ -351,24 +361,36 @@ export function ResultsHistoryView({
                   topScholars.map((top, rankIdx) => {
                     const medals = ['🥇', '🥈', '🥉'];
                     const subject = SUBJECT_MAP[top.subjectId];
+                    const scholarCosmetics = top.userId ? cosmeticsMap[top.userId] : undefined;
+                    const scholarName = top.studentName || top.username || 'Student';
                     return (
                       <div
                         key={top.id}
-                        className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs"
+                        className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs"
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">{medals[rankIdx]}</span>
-                          <div>
-                            <p className="font-bold text-slate-900">
-                              {top.studentName || top.username || 'Student'}
-                            </p>
-                            <p className="text-[11px] text-slate-500">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <span className="shrink-0 text-base">{medals[rankIdx]}</span>
+                          <UserAvatarFrame
+                            name={scholarName}
+                            frameId={scholarCosmetics?.equippedFrame}
+                            size="sm"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate font-bold text-slate-900">{scholarName}</p>
+                            {scholarCosmetics?.equippedTitle && (
+                              <UserTitleLabel
+                                titleId={scholarCosmetics.equippedTitle}
+                                lang={lang}
+                                className="text-[11px]"
+                              />
+                            )}
+                            <p className="truncate text-[11px] text-slate-500">
                               {subject ? pickText(subject.shortLabel, lang) : top.subjectId} · {top.variant}
                             </p>
                           </div>
                         </div>
 
-                        <div className="text-right">
+                        <div className="shrink-0 text-right">
                           <span className="font-mono font-bold text-teal-700">
                             {top.score}/{top.total} ({top.percentage}%)
                           </span>
@@ -407,7 +429,8 @@ export function ResultsHistoryView({
             teacherScope !== 'math' &&
             teacherScope !== 'science' &&
             teacherScope !== 'english' &&
-            teacherScope !== 'history' && (
+            teacherScope !== 'history' &&
+            teacherScope !== 'uzbek' && (
             <select
               aria-label={copy.subjectCol}
               value={subjectFilter}
@@ -482,6 +505,13 @@ export function ResultsHistoryView({
                           <div className="font-semibold text-slate-900">
                             {item.studentName || item.username || 'Student'}
                           </div>
+                          {item.userId && cosmeticsMap[item.userId]?.equippedTitle && (
+                            <UserTitleLabel
+                              titleId={cosmeticsMap[item.userId].equippedTitle}
+                              lang={lang}
+                              className="text-[11px]"
+                            />
+                          )}
                           {item.username && (
                             <div className="text-xs text-slate-500">@{item.username}</div>
                           )}

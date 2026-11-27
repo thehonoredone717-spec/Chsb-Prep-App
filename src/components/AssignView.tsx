@@ -20,6 +20,7 @@ import {
   OWNER_EMAIL,
   SCIENCE_TEACHER_EMAIL,
   STUDENT_EMAIL,
+  UZBEK_TEACHER_EMAIL,
   UserProfile,
   db,
   sanitizeDisplayName,
@@ -106,7 +107,8 @@ export function AssignView({ lang, userProfile, teacherScope = 'all' }: AssignVi
             email === MATH_TEACHER_EMAIL ||
             email === SCIENCE_TEACHER_EMAIL ||
             email === ENGLISH_TEACHER_EMAIL ||
-            email === HISTORY_TEACHER_EMAIL;
+            email === HISTORY_TEACHER_EMAIL ||
+            email === UZBEK_TEACHER_EMAIL;
 
           const isIbrohim =
             email === STUDENT_EMAIL ||

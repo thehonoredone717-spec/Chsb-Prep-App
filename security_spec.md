@@ -35,3 +35,8 @@
 10. **Client-Forged Server Timestamp**: Creating `/attempts/{id}` with a stale timestamp `createdAt != request.time` -> Rejected by `incoming().createdAt == request.time`.
 11. **Student Tampering / Deleting Poor Result**: Student `u1` calling `updateDoc` or `deleteDoc` on `/attempts/{ownId}` -> Rejected by `allow update: if false` and `allow delete: if isAdmin()`.
 12. **Unverified Admin Email Spoof & Unscoped List**: Unverified token or `list` query on `/attempts` without `where('userId', '==', uid)` by a non-admin -> Rejected by `email_verified == true` and `resource.data.userId == request.auth.uid`.
+13. **UserCosmetics (`/userCosmetics/{userId}`)**:
+    - `uid` must equal `userId` and `request.auth.uid`; non-owners cannot create or mutate another user's cosmetics.
+    - `ownedTitles` and `ownedFrames` are strictly bounded arrays (`size() <= 20`) containing valid string IDs.
+    - `equippedTitle` must be `""` or present inside `ownedTitles`; `equippedFrame` must be `""` or present inside `ownedFrames` (impossible to equip an unowned cosmetic).
+    - `spentXp` must be an integer `>= 0 && <= 1000000`, and on updates by the owner must satisfy `incoming().spentXp >= existing().spentXp` (no client-side XP refund tampering).

@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   ShieldAlert,
   ShieldCheck,
+  ShoppingBag,
   TrendingUp,
 } from 'lucide-react';
 import {
@@ -24,13 +25,13 @@ import {
   UI_COPY,
   pickText,
 } from '../data/subjects';
-import { useEffect, useState } from 'react';
 import { UserProfile } from '../firebase';
 import { QuizSectionKind, SubjectId, UILanguage } from '../types/quiz';
 import { SUBJECT_THEMES } from '../utils/subjectTheme';
 import { AchievementsStrip } from './AchievementsStrip';
 import { DailyWarmupCard } from './DailyWarmupCard';
 import { AppView, TeacherScope } from './TopBar';
+import { UserAvatarFrame, UserTitleLabel } from './UserAvatarFrame';
 
 interface DashboardSectionProps {
   lang: UILanguage;
@@ -38,6 +39,11 @@ interface DashboardSectionProps {
   teacherScope: TeacherScope;
   history: AttemptRecord[];
   prohibitedSubjects: ReadonlySet<SubjectId>;
+  blitzBest: number;
+  onBlitzBestChange: (newBest: number) => void;
+  availableXp?: number;
+  equippedTitle?: string;
+  equippedFrame?: string;
   onNavigate: (view: AppView) => void;
   onStartSubjectQuiz: (id: SubjectId, kind?: QuizSectionKind) => void;
   onOpenSubjectGuide: (id: SubjectId) => void;
@@ -58,22 +64,17 @@ export function DashboardSection({
   teacherScope,
   history,
   prohibitedSubjects,
+  blitzBest,
+  onBlitzBestChange,
+  availableXp = 0,
+  equippedTitle = '',
+  equippedFrame = '',
   onNavigate,
   onStartSubjectQuiz,
   onOpenSubjectGuide,
 }: DashboardSectionProps) {
   const uz = lang === 'uz';
   const copy = UI_COPY[lang];
-  const [blitzBest, setBlitzBest] = useState<number>(0);
-
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(`g7_chsb_blitz_best_${userProfile.uid}`);
-      setBlitzBest(saved ? Math.max(0, Number(saved) || 0) : 0);
-    } catch {
-      setBlitzBest(0);
-    }
-  }, [userProfile.uid]);
 
   const openSubjectsCount = SUBJECTS.filter((s) => !prohibitedSubjects.has(s.id)).length;
   const avgPct =
@@ -104,33 +105,48 @@ export function DashboardSection({
               ? copy.englishTeacherBadge
               : teacherScope === 'history'
                 ? copy.historyTeacherBadge
-                : copy.studentBadge;
+                : teacherScope === 'uzbek'
+                  ? copy.uzbekTeacherBadge
+                  : copy.studentBadge;
 
   return (
     <section className="space-y-6">
       {/* Welcome / Home Banner */}
       <div className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8">
         <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-teal-700">
-              <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
-              <span>
-                {uz ? '7-Sinf ChSB · Asosiy Dashboard' : 'Grade 7 ChSB · Home Dashboard'} ·{' '}
-                {roleLabel}
-              </span>
+          <div className="flex max-w-2xl flex-col gap-4 sm:flex-row sm:items-center">
+            <UserAvatarFrame
+              name={userProfile.displayName}
+              isTeacher={teacherScope !== 'none'}
+              frameId={equippedFrame}
+              size="lg"
+            />
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-teal-700">
+                <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+                <span>
+                  {uz ? '7-Sinf ChSB · Asosiy Dashboard' : 'Grade 7 ChSB · Home Dashboard'} ·{' '}
+                  {roleLabel}
+                </span>
+              </div>
+
+              <div className="mt-1.5 flex flex-wrap items-baseline gap-2.5">
+                <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+                  {uz
+                    ? `Xush kelibsiz, ${userProfile.displayName}!`
+                    : `Welcome back, ${userProfile.displayName}!`}
+                </h1>
+                {equippedTitle && (
+                  <UserTitleLabel titleId={equippedTitle} lang={lang} className="text-sm" />
+                )}
+              </div>
+
+              <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-base">
+                {uz
+                  ? `Platformada ${SUBJECTS.length} ta asosiy fan, ${TOTAL_QUESTION_COUNT} ta test savoli, interaktiv kartochkalar va fan laboratoriyalari mavjud.`
+                  : `Access ${SUBJECTS.length} core subjects, ${TOTAL_QUESTION_COUNT} ChSB practice questions, interactive flashcards, and STEM formula labs.`}
+              </p>
             </div>
-
-            <h1 className="mt-2 font-display text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-              {uz
-                ? `Xush kelibsiz, ${userProfile.displayName}!`
-                : `Welcome back, ${userProfile.displayName}!`}
-            </h1>
-
-            <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-base">
-              {uz
-                ? `Platformada ${SUBJECTS.length} ta asosiy fan, ${TOTAL_QUESTION_COUNT} ta test savoli, interaktiv kartochkalar va fan laboratoriyalari mavjud.`
-                : `Access ${SUBJECTS.length} core subjects, ${TOTAL_QUESTION_COUNT} ChSB practice questions, interactive flashcards, and STEM formula labs.`}
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
@@ -141,6 +157,17 @@ export function DashboardSection({
             >
               <span>{uz ? 'Fanlar bo‘limi' : 'Browse Subjects'}</span>
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('store')}
+              className="inline-flex min-h-[42px] items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/90 px-4 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"
+            >
+              <ShoppingBag className="h-4 w-4 text-amber-600" aria-hidden="true" />
+              <span>
+                {uz ? `XP Do‘koni (${availableXp} XP)` : `XP Store (${availableXp} XP)`}
+              </span>
             </button>
 
             <button
@@ -248,7 +275,7 @@ export function DashboardSection({
         userUid={userProfile.uid}
         prohibitedSubjects={prohibitedSubjects}
         blitzBest={blitzBest}
-        onBlitzBestChange={setBlitzBest}
+        onBlitzBestChange={onBlitzBestChange}
         onOpenSubjectGuide={onOpenSubjectGuide}
       />
 
@@ -257,9 +284,11 @@ export function DashboardSection({
         lang={lang}
         history={history}
         blitzBest={blitzBest}
+        availableXp={availableXp}
         prohibitedSubjects={prohibitedSubjects}
         onOpenSubjectGuide={onOpenSubjectGuide}
         onStartSubjectQuiz={onStartSubjectQuiz}
+        onOpenStore={() => onNavigate('store')}
       />
 
       {/* Main Two-Column Content */}

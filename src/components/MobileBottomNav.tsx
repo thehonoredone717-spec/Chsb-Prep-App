@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardCheck, FileCheck2, Layers, LayoutDashboard } from 'lucide-react';
+import { BarChart3, ClipboardCheck, FileCheck2, Layers, LayoutDashboard, ShoppingBag } from 'lucide-react';
 import { UI_COPY } from '../data/subjects';
 import { UILanguage } from '../types/quiz';
 import { AppView } from './TopBar';
@@ -25,6 +25,7 @@ export function MobileBottomNav({
     { id: 'subjects' as AppView, label: copy.navSubjects, icon: Layers },
     { id: 'test' as AppView, label: copy.navTest, icon: ClipboardCheck },
     { id: 'exam' as AppView, label: copy.navExam, icon: FileCheck2 },
+    { id: 'store' as AppView, label: copy.navStore, icon: ShoppingBag },
     { id: 'results' as AppView, label: copy.navResults, icon: BarChart3 },
   ];
 

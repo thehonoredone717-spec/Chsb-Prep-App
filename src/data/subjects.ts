@@ -184,6 +184,7 @@ export const UI_COPY: Record<
     navExam: string;
     navGuide: string;
     navResults: string;
+    navStore: string;
     navPermission: string;
     navAssign: string;
     navPreview: string;
@@ -248,6 +249,7 @@ export const UI_COPY: Record<
     scienceTeacherBadge: string;
     englishTeacherBadge: string;
     historyTeacherBadge: string;
+    uzbekTeacherBadge: string;
     studentBadge: string;
     ownerResultsTitle: string;
     teacherResultsTitle: string;
@@ -256,6 +258,7 @@ export const UI_COPY: Record<
     scienceResultsTitle: string;
     englishResultsTitle: string;
     historyResultsTitle: string;
+    uzbekResultsTitle: string;
     studentCol: string;
     allStudents: string;
     allSubjects: string;
@@ -275,6 +278,7 @@ export const UI_COPY: Record<
     navExam: 'Imtihon',
     navGuide: "Qo'llanma",
     navResults: 'Natijalar',
+    navStore: "Do'kon",
     navPermission: 'Permission',
     navAssign: 'Assign Variant',
     navPreview: 'Preview Questions',
@@ -340,6 +344,7 @@ export const UI_COPY: Record<
     scienceTeacherBadge: "Science O'qituvchisi",
     englishTeacherBadge: "Ingliz tili O'qituvchisi",
     historyTeacherBadge: "Tarix O'qituvchisi",
+    uzbekTeacherBadge: "Ona tili va adabiyot O'qituvchisi",
     studentBadge: "O'quvchi",
     ownerResultsTitle: "Barcha o'quvchilarning ChSB natijalari (Platforma Egasi)",
     teacherResultsTitle: "Barcha o'quvchilarning ChSB natijalari",
@@ -348,6 +353,7 @@ export const UI_COPY: Record<
     scienceResultsTitle: "O'quvchilarning Science (Tabiiy fanlar) natijalari",
     englishResultsTitle: "O'quvchilarning Ingliz tili natijalari",
     historyResultsTitle: "O'quvchilarning Tarix natijalari",
+    uzbekResultsTitle: "O'quvchilarning Ona tili va adabiyot natijalari",
     studentCol: "O'quvchi",
     allStudents: "Barcha o'quvchilar",
     allSubjects: 'Barcha fanlar',
@@ -366,6 +372,7 @@ export const UI_COPY: Record<
     navExam: 'Exam',
     navGuide: 'Study Guide',
     navResults: 'Results',
+    navStore: 'Store',
     navPermission: 'Permission',
     navAssign: 'Assign Variant',
     navPreview: 'Preview Questions',
@@ -431,6 +438,7 @@ export const UI_COPY: Record<
     scienceTeacherBadge: 'Science Teacher',
     englishTeacherBadge: 'English Teacher',
     historyTeacherBadge: 'History Teacher',
+    uzbekTeacherBadge: 'Uzbek Teacher',
     studentBadge: 'Student',
     ownerResultsTitle: "All Students' ChSB Results (Platform Owner)",
     teacherResultsTitle: 'All Students ChSB Results',
@@ -439,6 +447,7 @@ export const UI_COPY: Record<
     scienceResultsTitle: "Students' Science Results",
     englishResultsTitle: "Students' English Results",
     historyResultsTitle: "Students' History Results",
+    uzbekResultsTitle: "Students' Uzbek Language Results",
     studentCol: 'Student',
     allStudents: 'All students',
     allSubjects: 'All subjects',
