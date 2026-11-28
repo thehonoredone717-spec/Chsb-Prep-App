@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import fs from 'fs';
 import http from 'http';
 import path from 'path';
 
@@ -51,27 +52,26 @@ async function startServer() {
       });
     }
     app.get('/sw.js', (_req, res) => {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-      res.type('application/javascript').send(`
-self.addEventListener('install', function () {
-  self.skipWaiting();
-});
-self.addEventListener('activate', function (event) {
-  event.waitUntil(
-    caches.keys().then(function (keys) {
-      return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-    }).then(function () {
-      return self.registration.unregister();
-    }).then(function () {
-      return self.clients.matchAll({ type: 'window' });
-    }).then(function (clients) {
-      clients.forEach(function (client) {
-        if (client.navigate) client.navigate(client.url);
-      });
-    })
-  );
-});
-`);
+      const publicSwPath = path.resolve(process.cwd(), 'public', 'sw.js');
+      const distSwPath = path.resolve(process.cwd(), 'dist', 'sw.js');
+      const targetPath = fs.existsSync(publicSwPath) ? publicSwPath : distSwPath;
+      if (fs.existsSync(targetPath)) {
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        res.setHeader('Service-Worker-Allowed', '/');
+        return res.sendFile(targetPath);
+      }
+      res.status(404).send('Service worker not found');
+    });
+    app.get(['/privacy', '/privacy/'], (_req, res) => {
+      const publicPrivacy = path.resolve(process.cwd(), 'public', 'privacy', 'index.html');
+      const distPrivacy = path.resolve(process.cwd(), 'dist', 'privacy', 'index.html');
+      const target = fs.existsSync(publicPrivacy) ? publicPrivacy : distPrivacy;
+      if (fs.existsSync(target)) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.sendFile(target);
+      }
+      res.redirect('/');
     });
     app.use(vite.middlewares);
   } else {

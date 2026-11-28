@@ -8,6 +8,7 @@ import {
   Layers,
   LayoutDashboard,
   PanelLeftClose,
+  Shield,
   ShieldCheck,
   ShoppingBag,
   UserCheck,
@@ -131,6 +132,17 @@ export function SideMenu({
           </button>
         );
       })}
+      <div className="pt-2">
+        <a
+          href="/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-100/70 hover:text-slate-800 transition"
+        >
+          <Shield className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+          <span className="truncate">{lang === 'uz' ? 'Maxfiylik siyosati' : 'Privacy Policy'}</span>
+        </a>
+      </div>
     </nav>
   );
 

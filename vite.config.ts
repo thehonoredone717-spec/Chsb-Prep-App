@@ -3,70 +3,24 @@ import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
 import {defineConfig} from 'vite';
-import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
     plugins: [
       react(),
       tailwindcss(),
-      VitePWA({
-        registerType: 'autoUpdate',
-        manifest: false,
-        includeAssets: [
-          'manifest.json',
-          'favicon.ico',
-          'apple-touch-icon.png',
-          'icon.svg',
-          'pwa-192x192.png',
-          'pwa-512x512.png',
-          'pwa-maskable-512x512.png',
-        ],
-        workbox: {
-          cleanupOutdatedCaches: true,
-          skipWaiting: true,
-          clientsClaim: true,
-          globPatterns: ['**/*.{js,css,html,ico,woff,woff2}'],
-          globIgnores: ['assets/aistudio/**'],
-          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-          navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/api\//, /\/assets\//, /\.[a-zA-Z0-9]+$/],
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365,
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
-            },
-            {
-              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'gstatic-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365,
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
-            },
-          ],
+      {
+        name: 'copy-sw-script',
+        apply: 'build',
+        closeBundle() {
+          const distDir = path.resolve(import.meta.dirname, 'dist');
+          const srcSw = path.resolve(import.meta.dirname, 'public/sw.js');
+          const destSw = path.resolve(distDir, 'sw.js');
+          if (fs.existsSync(srcSw)) {
+            fs.copyFileSync(srcSw, destSw);
+          }
         },
-        devOptions: {
-          enabled: process.env.ENABLE_HMR === 'true',
-          type: 'module',
-        },
-      }),
+      },
       // Copies src/assets into dist/ so root-relative URLs like
       // "/src/assets/images/..." (e.g. generate_image output) still resolve
       // in production builds. Do not remove.

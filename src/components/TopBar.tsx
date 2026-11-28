@@ -14,7 +14,7 @@ import { UILanguage } from '../types/quiz';
 import { AppNotification, NotificationBell } from './NotificationBell';
 import { UserAvatarFrame, UserTitleLabel } from './UserAvatarFrame';
 
-export type AppView = 'dashboard' | 'subjects' | 'test' | 'exam' | 'guide' | 'results' | 'store' | 'permission' | 'assign' | 'preview';
+export type AppView = 'dashboard' | 'subjects' | 'test' | 'exam' | 'guide' | 'results' | 'store' | 'permission' | 'assign' | 'preview' | 'privacy';
 export type TeacherScope = 'none' | 'computing' | 'math' | 'science' | 'english' | 'history' | 'uzbek' | 'all';
 
 interface TopBarProps {

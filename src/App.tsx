@@ -51,6 +51,9 @@ const PermissionView = lazy(() =>
 const StoreView = lazy(() =>
   import('./components/StoreView').then((m) => ({ default: m.StoreView }))
 );
+const PrivacyPolicyView = lazy(() =>
+  import('./components/PrivacyPolicyView').then((m) => ({ default: m.PrivacyPolicyView }))
+);
 import { MobileBottomNav } from './components/MobileBottomNav';
 import {
   AttemptRecord,
@@ -124,7 +127,16 @@ function loadLang(): UILanguage {
 export default function App() {
   const warningsPaused = useWarningsPaused();
   const [lang, setLang] = useState<UILanguage>(() => loadLang());
-  const [activeView, setActiveView] = useState<AppView>('dashboard');
+  const [activeView, setActiveView] = useState<AppView>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      if (path === '/privacy' || path.startsWith('/privacy/') || params.get('view') === 'privacy') {
+        return 'privacy';
+      }
+    }
+    return 'dashboard';
+  });
   const [activeSubjectId, setActiveSubjectId] = useState<SubjectId>('math');
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState<boolean>(false);
@@ -984,6 +996,13 @@ export default function App() {
   const handleSelectView = (view: AppView) => {
     if ((view === 'permission' || view === 'assign' || view === 'preview') && teacherScope === 'none') return;
     if (view === activeView) return;
+    if (typeof window !== 'undefined') {
+      if (view === 'privacy') {
+        window.history.pushState({}, '', '/privacy');
+      } else if (window.location.pathname === '/privacy') {
+        window.history.pushState({}, '', '/');
+      }
+    }
     requestSectionLeave(() => setActiveView(view));
   };
 
@@ -1247,6 +1266,20 @@ export default function App() {
   const handleSignOut = () => {
     void signOut(auth);
   };
+
+  if (activeView === 'privacy') {
+    return (
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-semibold text-slate-500">
+            {lang === 'uz' ? 'Yuklanmoqda...' : 'Loading Privacy Policy...'}
+          </div>
+        }
+      >
+        <PrivacyPolicyView lang={lang} onBack={() => handleSelectView('dashboard')} />
+      </Suspense>
+    );
+  }
 
   if (!authReady) {
     return (

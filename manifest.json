@@ -3,15 +3,47 @@
   "name": "Prep App For 7 Graders",
   "short_name": "CHSB Prep",
   "description": "7-sinf Matematika, Tarix, Science, Informatika, Ingliz tili va Ona tili va Adabiyot fanlaridan 25 talik ChSB testlari va 5 ta variant.",
+  "developer": {
+    "name": "Ibrohimbek Xujanazarov",
+    "url": "https://chsb-prep-app.thehonoredone-717.workers.dev"
+  },
+  "publisher": "Ibrohimbek Xujanazarov",
+  "publisher_display_name": "Ibrohimbek Xujanazarov",
+  "windows_package_options": {
+    "package_id": "IbrohimbekXujanazarov.ChSBforPS",
+    "publisher_id": "CN=5EA51500-D3C5-4E63-B30C-CF704237942D",
+    "publisher_display_name": "Ibrohimbek Xujanazarov"
+  },
+  "windows": {
+    "package_id": "IbrohimbekXujanazarov.ChSBforPS",
+    "publisher_id": "CN=5EA51500-D3C5-4E63-B30C-CF704237942D",
+    "publisher_display_name": "Ibrohimbek Xujanazarov"
+  },
+  "ms_package": {
+    "identity_name": "IbrohimbekXujanazarov.ChSBforPS",
+    "publisher": "CN=5EA51500-D3C5-4E63-B30C-CF704237942D",
+    "publisher_display_name": "Ibrohimbek Xujanazarov"
+  },
   "lang": "uz",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": [
-    "window-controls-overlay",
     "tabbed",
-    "fullscreen"
+    "window-controls-overlay",
+    "fullscreen",
+    "standalone"
   ],
+  "tab_strip": {
+    "home_tab": {
+      "scope_patterns": [
+        { "pathname": "/" }
+      ]
+    },
+    "new_tab_button": {
+      "url": "/?view=quiz"
+    }
+  },
   "orientation": "any",
   "dir": "ltr",
   "theme_color": "#056608",
@@ -24,7 +56,15 @@
   "launch_handler": {
     "client_mode": "navigate-existing"
   },
-  "iarc_rating_id": "urn:iarc:rated:3+",
+  "serviceworker": {
+    "src": "/sw.js",
+    "scope": "/",
+    "type": "classic",
+    "update_via_cache": "none"
+  },
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "iarc_rating": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "iarc_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
   "icons": [
     {
       "src": "/pwa-192x192.png",
@@ -93,6 +133,12 @@
     },
     {
       "origin": "https://*.thehonoredone-717.workers.dev"
+    },
+    {
+      "origin": "https://ais-dev-7ojifexbyldiyj7pxyhmal-927426019817.asia-northeast1.run.app"
+    },
+    {
+      "origin": "https://ais-pre-7ojifexbyldiyj7pxyhmal-927426019817.asia-northeast1.run.app"
     }
   ],
   "share_target": {
@@ -112,6 +158,11 @@
   },
   "prefer_related_applications": false,
   "related_applications": [
+    {
+      "platform": "windows",
+      "id": "IbrohimbekXujanazarov.ChSBforPS",
+      "url": "https://apps.microsoft.com/detail/IbrohimbekXujanazarov.ChSBforPS"
+    },
     {
       "platform": "webapp",
       "url": "https://chsb-prep-app.thehonoredone-717.workers.dev/manifest.json",
@@ -142,10 +193,12 @@
   "widgets": [
     {
       "name": "ChSB Quick Prep Widget",
+      "short_name": "ChSB Widget",
       "description": "Quick access widget for Grade 7 ChSB practice exams",
       "tag": "chsb-widget",
       "template": "chsb-widget-template",
-      "data": "/manifest.json",
+      "ms_ac_template": "/widget-template.json",
+      "data": "/widget-data.json",
       "type": "application/json",
       "screenshots": [
         {

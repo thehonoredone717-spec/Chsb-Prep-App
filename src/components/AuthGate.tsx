@@ -563,8 +563,12 @@ export function AuthGate({ lang, onChangeLang, onPrepareSignup }: AuthGateProps)
         </div>
       </section>
 
-      <footer className="pointer-events-none absolute bottom-3 left-0 right-0 z-20 text-center text-[11px] text-slate-400">
-        Developer: <span className="font-medium text-slate-200">Ibrohimbek Xujanazarov</span>
+      <footer className="absolute bottom-3 left-0 right-0 z-20 flex items-center justify-center gap-3 text-center text-[11px] text-slate-400">
+        <span>Developer: <span className="font-medium text-slate-200">Ibrohimbek Xujanazarov</span></span>
+        <span>&bull;</span>
+        <a href="/privacy" className="font-medium text-emerald-400 hover:text-emerald-300 underline">
+          {uz ? 'Maxfiylik siyosati' : 'Privacy Policy'}
+        </a>
       </footer>
     </main>
   );
